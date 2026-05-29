@@ -57,4 +57,11 @@ tasks.named('test') {
         events 'passed', 'skipped', 'failed'
         showStandardStreams = false
     }
+    // Forward selected -D properties from the Gradle JVM to the test JVM so engineers
+    // can flip them at the command line (e.g. `-Dgoaml.golden.regenerate=true`).
+    ['goaml.golden.regenerate'].each { key ->
+        if (System.getProperty(key) != null) {
+            systemProperty key, System.getProperty(key)
+        }
+    }
 }
