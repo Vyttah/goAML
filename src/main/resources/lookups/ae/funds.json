@@ -1,0 +1,8 @@
+[
+  { "code": "CASH", "label": "Cash" },
+  { "code": "BANKD", "label": "Bank deposit / draft" },
+  { "code": "WIRE", "label": "Wire / electronic transfer" },
+  { "code": "CHEQUE", "label": "Cheque" },
+  { "code": "CARD", "label": "Card" },
+  { "code": "CRYPTO", "label": "Virtual asset" }
+]
