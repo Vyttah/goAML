@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<report>
+    <rentity_id>101</rentity_id>
+    <rentity_branch>DXB-MAIN</rentity_branch>
+    <submission_code>E</submission_code>
+    <report_code>SAR</report_code>
+    <entity_reference>SAR-2026-014</entity_reference>
+    <submission_date>2026-05-26T10:00:00</submission_date>
+    <currency_code_local>AED</currency_code_local>
+    <reporting_person>
+        <gender>F</gender>
+        <first_name>Sara</first_name>
+        <last_name>Khan</last_name>
+        <id_number>784199012345678</id_number>
+        <phones>
+            <phone>
+                <tph_contact_type>BU</tph_contact_type>
+                <tph_country_prefix>971</tph_country_prefix>
+                <tph_number>44441234</tph_number>
+            </phone>
+        </phones>
+        <addresses>
+            <address>
+                <address_type>BU</address_type>
+                <address>Office 501, Compliance Tower</address>
+                <city>Dubai</city>
+                <country_code>AE</country_code>
+                <state>Dubai</state>
+            </address>
+        </addresses>
+        <nationality1>AE</nationality1>
+        <residence>AE</residence>
+        <email>mlro@alpha-jewellers.ae</email>
+    </reporting_person>
+    <location>
+        <address_type>BU</address_type>
+        <address>Showroom, Dubai Gold Souk</address>
+        <city>Dubai</city>
+        <country_code>AE</country_code>
+        <state>Dubai</state>
+    </location>
+    <reason>Pattern of behavioural red flags identified</reason>
+    <action>Account placed under enhanced monitoring; STR follow-up considered</action>
+    <activity>
+        <report_parties>
+            <report_party>
+                <person_my_client>
+                    <gender>F</gender>
+                    <first_name>Aisha</first_name>
+                    <last_name>Mahmoud</last_name>
+                    <id_number>784199012345672</id_number>
+                    <phones>
+                        <phone>
+                            <tph_contact_type>PRIVT</tph_contact_type>
+                            <tph_country_prefix>971</tph_country_prefix>
+                            <tph_number>501112233</tph_number>
+                        </phone>
+                    </phones>
+                    <addresses>
+                        <address>
+                            <address_type>PRIVT</address_type>
+                            <address>Villa 12, Al Wasl Road</address>
+                            <city>Dubai</city>
+                            <country_code>AE</country_code>
+                        </address>
+                    </addresses>
+                    <nationality1>AE</nationality1>
+                    <residence>AE</residence>
+                    <identification>
+                        <type>EID</type>
+                        <number>784199012345672</number>
+                        <issue_date>2020-01-15T00:00:00</issue_date>
+                        <expiry_date>2030-01-14T00:00:00</expiry_date>
+                        <issue_country>AE</issue_country>
+                    </identification>
+                </person_my_client>
+                <significance>8</significance>
+                <reason>Unusual frequency of high-value transfers without commercial rationale</reason>
+            </report_party>
+        </report_parties>
+    </activity>
+    <report_indicators>
+        <indicator>UNUSUAL_FREQUENCY</indicator>
+    </report_indicators>
+</report>
