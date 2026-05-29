@@ -1,0 +1,18 @@
+# UAE jurisdiction configuration — drives Phase 5 validation.
+# rentity_id and per-tenant goAML credentials/base URLs live in tenant_goaml_config + Secrets
+# Manager (per-tenant), NOT here. This file holds only FIU-wide, tenant-independent rules.
+code: ae
+name: United Arab Emirates
+defaultCurrency: AED
+# DPMS (Dealers in Precious Metals & Stones) cash reporting threshold, AED.
+dpmsThreshold: 55000
+# Directory under classpath:lookups/ to validate enum-coded fields against.
+lookupSet: ae
+allowedReportCodes:
+  - STR
+  - SAR
+  - AIF
+  - AIFT
+  - ECDD
+  - ECDDT
+  - DPMSR

@@ -1,0 +1,12 @@
+[
+  { "code": "AE", "label": "United Arab Emirates" },
+  { "code": "SA", "label": "Saudi Arabia" },
+  { "code": "GB", "label": "United Kingdom" },
+  { "code": "US", "label": "United States" },
+  { "code": "IN", "label": "India" },
+  { "code": "PK", "label": "Pakistan" },
+  { "code": "CN", "label": "China" },
+  { "code": "DE", "label": "Germany" },
+  { "code": "FR", "label": "France" },
+  { "code": "CH", "label": "Switzerland" }
+]
