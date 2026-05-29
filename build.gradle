@@ -34,6 +34,10 @@ dependencies {
     runtimeOnly    'io.jsonwebtoken:jjwt-impl:0.12.6'
     runtimeOnly    'io.jsonwebtoken:jjwt-jackson:0.12.6'
 
+    // JAXB for the goAML schema POJOs (Phase 3+). Spring Boot 3 uses the Jakarta namespace.
+    implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.2'
+    implementation 'org.glassfish.jaxb:jaxb-runtime:4.0.5'
+
     runtimeOnly    'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -41,6 +45,10 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testImplementation 'org.testcontainers:junit-jupiter'
     testImplementation 'org.testcontainers:postgresql'
+
+    // XMLUnit for structural / ordering assertions on marshalled XML (Phase 3+).
+    testImplementation 'org.xmlunit:xmlunit-core:2.10.0'
+    testImplementation 'org.xmlunit:xmlunit-assertj3:2.10.0'
 }
 
 tasks.named('test') {
