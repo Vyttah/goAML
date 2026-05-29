@@ -9,10 +9,17 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:goaml}
   jpa:
     hibernate:
-      ddl-auto: validate
+      # Flyway is the source of truth for both shared and per-tenant schemas;
+      # 'validate' is incompatible with tenant-scoped entities at startup (their
+      # tables only exist in tenant_<id> schemas, never in public).
+      ddl-auto: none
     open-in-view: false
     properties:
       hibernate.jdbc.time_zone: UTC
+      # Schema-per-tenant multi-tenancy (Phase 2 sub-step 2.2). The connection provider
+      # (SchemaMultiTenantConnectionProvider) sets Postgres search_path per session;
+      # TenantIdentifierResolver pulls the current tenant from TenantContext.
+      hibernate.multiTenancy: SCHEMA
   flyway:
     enabled: true
     locations: classpath:db/migration/shared
@@ -35,6 +42,14 @@ management:
       group:
         readiness:
           include: db,readinessState
+
+goaml:
+  jwt:
+    # Dev fallback only — in Phase 6 the signing key is sourced from AWS Secrets Manager.
+    # HS256 requires ≥ 256 bits of entropy (32 random bytes). Replace per environment.
+    secret: ${GOAML_JWT_SECRET:dev-secret-please-replace-with-a-long-random-value-min-256-bits}
+    issuer: goaml
+    access-token-ttl-minutes: 15
 
 logging:
   pattern:
