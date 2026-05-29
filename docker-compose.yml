@@ -1,0 +1,35 @@
+# Local dev dependencies for the goAML platform.
+# Phase 1: Postgres only. LocalStack (S3/SecretsManager/KMS/SES) is added in Phase 6/8/10.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: goaml-postgres
+    environment:
+      POSTGRES_DB: goaml
+      POSTGRES_USER: goaml
+      POSTGRES_PASSWORD: goaml
+    ports:
+      - "5432:5432"
+    volumes:
+      - goaml-pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goaml -d goaml"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: goaml-localstack
+    environment:
+      SERVICES: s3,secretsmanager,kms,ses
+      AWS_DEFAULT_REGION: me-central-1
+      DEBUG: 0
+    ports:
+      - "4566:4566"
+    volumes:
+      - goaml-localstack:/var/lib/localstack
+
+volumes:
+  goaml-pg:
+  goaml-localstack:
