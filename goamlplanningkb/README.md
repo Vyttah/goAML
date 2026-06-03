@@ -9,24 +9,28 @@ JWT auth + RBAC + audit · React + TypeScript + Vite + Ant Design (frontend) · 
 
 **Surfaces:** REST API, React UI, MCP server (for the Vyttah AML Co-Pilot / agents), CLI.
 
-**Positioning:** sold **standalone** (full manual report entry → XML → submit) **and** run inside Vyttah's
-suite alongside the accounting/ERP and AML-screening apps (integration + unified auth = Phase 1.5).
+**Suite positioning:** Built as a standalone, sellable product **and** as a dedicated microservice inside
+the Vyttah suite (Accounting/ERP + AML Screening). Suite integration + unified (federated) authentication
+is **Phase 1.5** — designed in
+[`.planning/plans/integration-and-auth-architecture.md`](.planning/plans/integration-and-auth-architecture.md),
+scheduled after the standalone core.
 
-**Status:** Phases 1–5 of 14 complete. Next: the **XSD-first foundation** (build over the real goAML 5.0.2
-schema) then Phase 6 (AWS + B2B client). Test suite green.
+**Status:** Phases 1–5 of 14 complete. Next: Phase 6 (AWS integration + B2B client). Test suite green.
 
 ## Resuming / onboarding (start here)
 
 Everything needed to understand and continue this project lives **in this repo** — no machine-local
-state, so anyone on any machine can resume. (See also the auto-loaded **[`CLAUDE.md`](CLAUDE.md)**.)
+state, so anyone on any machine can resume:
 
 - **[`.planning/STATE.md`](.planning/STATE.md)** — current status & the exact next step. **Read this first.**
 - **[`.planning/ROADMAP.md`](.planning/ROADMAP.md)** — the 14-phase build order with status.
 - **[`.planning/PROJECT.md`](.planning/PROJECT.md)** — what this is, requirements, locked decisions, constraints.
-- **[`docs/README.md`](docs/README.md)** — full developer documentation (business context → architecture →
-  domain model → engine → multi-tenancy/security → persistence → testing → roadmap → glossary).
-- **[`docs/00-implementation-plan.md`](docs/00-implementation-plan.md)** — the original implementation plan
-  (in-repo canonical copy).
+- **[`.planning/plans/integration-and-auth-architecture.md`](.planning/plans/integration-and-auth-architecture.md)**
+  — Phase 1.5 suite integration + unified authentication design.
+- **[`.planning/discussion-log.md`](.planning/discussion-log.md)** — running log of architectural discussions.
+
+> Full developer documentation (`docs/`) lives on the maintainer's machine and is **not yet committed** to
+> this repo; the `.planning/` directory above is the canonical in-repo knowledge base for now.
 
 ## Local development
 

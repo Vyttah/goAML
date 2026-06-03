@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<report>
+    <rentity_id>3177</rentity_id>
+    <submission_code>E</submission_code>
+    <report_code>DPMSR</report_code>
+    <entity_reference>REC 0001 INV 0001</entity_reference>
+    <submission_date>2026-06-02T12:00:00</submission_date>
+    <currency_code_local>AED</currency_code_local>
+    <reporting_person>
+        <gender>M</gender>
+        <first_name>Sara</first_name>
+        <last_name>Khan</last_name>
+        <ssn>784199000000000</ssn>
+        <id_number>N0000000</id_number>
+        <nationality1>IN</nationality1>
+        <email>mlro@example.com</email>
+        <occupation>MLRO</occupation>
+    </reporting_person>
+    <location>
+        <address_type>BU</address_type>
+        <address>Office 100 Example Tower Dubai</address>
+        <city>Dubai</city>
+        <country_code>AE</country_code>
+        <state>Dubai</state>
+    </location>
+    <reason>REPORTING DMPSR TO THE FIU AS PER MOE'S MANDATE TO REGISTER THE RECEIPT OF EXCESS PAID AGAINST  PURCHASE TRANSACTION OF GOLD WORTH  AED  1,234,567.89</reason>
+    <action>FILING A DPMSR AS PER MANDATE</action>
+    <activity>
+        <report_parties>
+            <report_party>
+                <entity>
+                    <name>Example Jewellery LLC</name>
+                    <commercial_name>Example Jewellery LLC</commercial_name>
+                    <incorporation_number>100000</incorporation_number>
+                    <phones>
+                        <phone>
+                            <tph_contact_type>BU</tph_contact_type>
+                            <tph_communication_type>L</tph_communication_type>
+                            <tph_number>+971500000000</tph_number>
+                        </phone>
+                    </phones>
+                    <incorporation_state>DUBAI</incorporation_state>
+                    <incorporation_country_code>AE</incorporation_country_code>
+                    <director_id>
+                        <first_name>Ali</first_name>
+                        <last_name>Hassan</last_name>
+                        <birthdate>1990-01-01T12:00:00</birthdate>
+                        <passport_number>Z0000000</passport_number>
+                        <passport_country>IN</passport_country>
+                        <id_number>Z0000000</id_number>
+                        <nationality1>IN</nationality1>
+                        <residence>AE</residence>
+                        <phones>
+                            <phone>
+                                <tph_contact_type>BU</tph_contact_type>
+                                <tph_communication_type>L</tph_communication_type>
+                                <tph_number>+971500000000</tph_number>
+                            </phone>
+                        </phones>
+                        <role>ATR</role>
+                    </director_id>
+                </entity>
+                <reason>SELLER OF GOLD ABOVE AED 55000</reason>
+                <comments>PURCHASE OF GOLD AND BALANCE CASH RECEIVED</comments>
+            </report_party>
+        </report_parties>
+        <goods_services>
+            <item>
+                <item_type>GOLD</item_type>
+                <estimated_value>140000</estimated_value>
+                <status_comments>PURCHASE OF GOLD AND BALANCE CASH RECEIVED</status_comments>
+                <disposed_value>1234567.89</disposed_value>
+                <currency_code>AED</currency_code>
+                <size>15</size>
+                <size_uom>KG</size_uom>
+                <registration_date>2026-06-02T12:00:00</registration_date>
+            </item>
+        </goods_services>
+    </activity>
+    <report_indicators>
+        <indicator>DPMSJ</indicator>
+    </report_indicators>
+</report>
+
