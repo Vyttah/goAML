@@ -142,7 +142,9 @@ Protocol spec: [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-pr
   start the buildable-now slice of Phase 12 — steps 12.1–12.3 — if the plugin is the priority).
 - **2026-06-04 session:** decided suite positioning + unified auth + Phase 1.5 (above); refined the plan
   via Ultraplan; recorded the design in [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md);
-  added a durable root `CLAUDE.md`. **Action item: commit the uncommitted `.planning/` + `docs/` + vendored
-  XSDs** so they survive in clones (Ultraplan flagged they were invisible remotely).
+  added a durable root `CLAUDE.md`. The full KB + docs + vendored XSDs were committed in `d8637c1` ("p1",
+  preserved snapshot); a follow-up commit merged Ultraplan's refinements into the auth plan and removed the
+  redundant `goamlplanningkb/` duplicate. ⚠️ Real-PII sample XMLs remain committed (local-only, unpushed) —
+  **anonymize before any push/share.**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → continue (XSD-first foundation, then Phase 6).
