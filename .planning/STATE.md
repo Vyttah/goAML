@@ -28,7 +28,12 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 - **Build/tests:** ✅ green at last full run — `./gradlew test` → `BUILD SUCCESSFUL`.
 - **Last completed:** Phase 5 — engine validation + UAE jurisdiction + lookups (commit `102484d`).
 
-## Next Action — XSD-first codegen (steps X.2–X.5)
+## Next Action — XSD-first codegen
+
+> **Progress:** Step 1 ✅ (XSD validation gate + real samples validate) and Step 2 ✅ (xjc codegen → 46
+> generated classes, dates→OffsetDateTime, ReportType enum) are done & committed/green. **Next = Step 3**
+> (round-trip the 2 real samples through the generated model), then Step 4 (re-point engine + retire
+> hand-modeled `domain/*`). Step docs in [steps/](steps/).
 
 1. Wire **xjc** codegen into `build.gradle` (JAXB Gradle plugin) → generate JAXB types from
    `goAMLSchema.xsd` into `com.vyttah.goaml.domain.generated`; `.xjb` binding maps `sql_date` →

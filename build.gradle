@@ -5,6 +5,8 @@ plugins {
     id 'java'
     id 'org.springframework.boot'           version '3.3.5'
     id 'io.spring.dependency-management'    version '1.1.6'
+    // XSD-first (Step 2): generate JAXB types from the authoritative goAML 5.0.2 schema via xjc.
+    id 'com.github.bjornvester.xjc'         version '1.9.0'
 }
 
 group   = 'com.vyttah'
@@ -18,6 +20,21 @@ java {
 
 repositories {
     mavenCentral()
+}
+
+// Generate JAXB domain types from the authoritative goAML 5.0.2 schema (xjc).
+// Output → build/generated/sources/xjc (NOT committed; regenerated each build). Only goAMLSchema.xsd
+// lives in xsdDir, so xjc compiles just it. sql_date → OffsetDateTime via the binding file.
+xjc {
+    xsdDir.set(layout.projectDirectory.dir("src/main/resources/xsd/goaml/5.0.2"))
+    bindingFiles.setFrom(layout.projectDirectory.file("src/main/jaxb/goaml-bindings.xjb"))
+    defaultPackage.set("com.vyttah.goaml.domain.generated")
+    useJakarta.set(true)
+    // Pin to 4.0.5 to match the project's jaxb-runtime (and the Spring-BOM-managed codemodel). The plugin
+    // defaults to xjc 4.0.6, which mismatches codemodel 4.0.5 → NoSuchMethodError JDocComment.appendXML
+    // (jaxb-ri issue #1854). Keeping tool + codemodel on 4.0.5 avoids it.
+    xjcVersion.set("4.0.5")
+    options.set(["-extension"])
 }
 
 dependencies {

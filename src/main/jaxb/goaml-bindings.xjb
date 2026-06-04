@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  JAXB binding customizations for the goAML 5.0.2 schema (xjc, Step 2).
+  Maps the schema's `sql_date` type (an xs:dateTime restriction) to java.time.OffsetDateTime via the
+  existing GoamlDateTimeAdapter, so generated date fields use OffsetDateTime instead of XMLGregorianCalendar.
+  Requires xjc extension mode (-extension); see build.gradle xjc.options.
+-->
+<jaxb:bindings version="3.0"
+               xmlns:jaxb="https://jakarta.ee/xml/ns/jaxb"
+               xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
+               jaxb:extensionBindingPrefixes="xjc">
+    <jaxb:globalBindings>
+        <xjc:javaType name="java.time.OffsetDateTime"
+                      xmlType="sql_date"
+                      adapter="com.vyttah.goaml.domain.adapter.GoamlDateTimeAdapter"/>
+    </jaxb:globalBindings>
+</jaxb:bindings>
