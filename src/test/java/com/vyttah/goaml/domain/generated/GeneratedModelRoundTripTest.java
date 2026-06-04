@@ -1,0 +1,129 @@
+package com.vyttah.goaml.domain.generated;
+
+import com.vyttah.goaml.engine.validation.ValidationResult;
+import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
+import jakarta.xml.bind.JAXBContext;
+import jakarta.xml.bind.JAXBElement;
+import jakarta.xml.bind.Marshaller;
+import jakarta.xml.bind.Unmarshaller;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.math.BigDecimal;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+/**
+ * Step 3 proof: the xjc-generated JAXB model (Step 2) can faithfully <em>read and write</em> the FIU's
+ * real DPMSR reports. For each real sample exported from the live UAE goAML portal we:
+ * <ol>
+ *   <li>unmarshal the real XML into the generated {@link Report},</li>
+ *   <li>assert the headline business values survived (who reported, report type, currency, the gold item,
+ *       the reporting-entity name) — value fidelity,</li>
+ *   <li>re-marshal the model back to XML, and</li>
+ *   <li>re-validate that re-marshalled XML against {@code goAMLSchema.xsd} via the Step-1
+ *       {@link XsdSchemaValidator} — structural validity, closing the loop with Step 1.</li>
+ * </ol>
+ *
+ * <p>We deliberately assert structural validity + key values, <em>not</em> byte-identical XML: JAXB
+ * legitimately reformats whitespace / attribute order, so a byte diff would false-fail. Surviving the
+ * XSD gate plus the business-value checks is the honest, robust bar — and the green light for Step 4
+ * (re-pointing the engine onto this model).
+ *
+ * <p>Nuance confirmed here for Step 4: the generated {@link Report} root holds its body as a single
+ * catch-all {@code List<JAXBElement<?>>} ({@link Report#getContent()}) — because the schema reuses the
+ * name "Activity" — so header fields (rentity_id, report_code, currency_code_local, activity) are read by
+ * matching the {@code JAXBElement} local name, and the Step-4 builders will populate the same list.
+ */
+class GeneratedModelRoundTripTest {
+
+    private final XsdSchemaValidator xsdValidator = new XsdSchemaValidator();
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "samples/TR.2079.200000309.xml",
+            "samples/TR.2079.200000310.xml"
+    })
+    void realSampleRoundTripsThroughGeneratedModel(String resource) throws Exception {
+        byte[] originalXml = readResource(resource);
+
+        // (1) unmarshal real XML -> generated Report
+        Report report = unmarshal(originalXml);
+        assertThat(report).as("unmarshal %s into generated Report", resource).isNotNull();
+
+        // (2) value fidelity — the headline business data read back correctly
+        assertThat(intValue(content(report, "rentity_id")))
+                .as("rentity_id in %s", resource).isEqualTo(3177);
+        assertThat(content(report, "report_code"))
+                .as("report_code in %s", resource).isEqualTo(ReportType.DPMSR);
+        assertThat(content(report, "currency_code_local"))
+                .as("currency_code_local in %s", resource).isEqualTo(CurrencyType.AED);
+
+        ActivityType activity = (ActivityType) content(report, "activity");
+        assertThat(activity).as("activity block in %s", resource).isNotNull();
+
+        TTransItem item = activity.getGoodsServices().getItem().get(0);
+        assertThat(item.getItemType()).as("gold item type in %s", resource).isEqualTo("GOLD");
+        assertThat(item.getCurrencyCode()).as("item currency in %s", resource).isEqualTo(CurrencyType.AED);
+        assertThat(item.getSize()).as("item size in %s", resource).isEqualByComparingTo(new BigDecimal("15"));
+        assertThat(item.getSizeUom()).as("item size uom in %s", resource).isEqualTo("KG");
+
+        TEntity entity = activity.getReportParties().getReportParty().get(0).getEntity();
+        assertThat(entity).as("reporting entity in %s", resource).isNotNull();
+        assertThat(entity.getName())
+                .as("reporting-entity name in %s", resource).isEqualTo("Example Jewellery LLC");
+
+        // (3) re-marshal generated model -> XML
+        byte[] remarshalled = marshal(report);
+        assertThat(remarshalled).as("re-marshalled XML for %s", resource).isNotEmpty();
+
+        // (4) re-marshalled XML still conforms to goAMLSchema.xsd (Step-1 gate)
+        ValidationResult result = xsdValidator.validate(remarshalled);
+        assertThat(result.isValid())
+                .as("re-marshalled %s should still conform to goAMLSchema.xsd; errors=%s",
+                        resource, result.errors())
+                .isTrue();
+    }
+
+    // --- helpers -----------------------------------------------------------------------------------
+
+    private static Report unmarshal(byte[] xml) throws Exception {
+        JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
+        Unmarshaller unmarshaller = ctx.createUnmarshaller();
+        return (Report) unmarshaller.unmarshal(new ByteArrayInputStream(xml));
+    }
+
+    private static byte[] marshal(Report report) throws Exception {
+        JAXBContext ctx = JAXBContext.newInstance(ObjectFactory.class);
+        Marshaller marshaller = ctx.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        marshaller.marshal(report, out); // Report is @XmlRootElement(name="report") — no ObjectFactory wrap needed
+        return out.toByteArray();
+    }
+
+    /** First report-body element with the given local name, unwrapped from its {@link JAXBElement}. */
+    private static Object content(Report report, String localName) {
+        return report.getContent().stream()
+                .filter(e -> localName.equals(e.getName().getLocalPart()))
+                .map(JAXBElement::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static int intValue(Object value) {
+        return ((Number) value).intValue();
+    }
+
+    private static byte[] readResource(String path) throws IOException {
+        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
+            assertThat(in).as("test resource %s present on classpath", path).isNotNull();
+            return in.readAllBytes();
+        }
+    }
+}

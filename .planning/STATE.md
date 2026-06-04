@@ -30,10 +30,13 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Next Action — XSD-first codegen
 
-> **Progress:** Step 1 ✅ (XSD validation gate + real samples validate) and Step 2 ✅ (xjc codegen → 46
-> generated classes, dates→OffsetDateTime, ReportType enum) are done & committed/green. **Next = Step 3**
-> (round-trip the 2 real samples through the generated model), then Step 4 (re-point engine + retire
-> hand-modeled `domain/*`). Step docs in [steps/](steps/).
+> **Progress:** Step 1 ✅ (XSD validation gate + real samples validate), Step 2 ✅ (xjc codegen → 46
+> generated classes, dates→OffsetDateTime, ReportType enum), and Step 3 ✅ (both real DPMSR samples
+> round-trip through the generated model — unmarshal → values verified → re-marshal → re-validate clean
+> against the XSD) are done & green. **Next = Step 4** (re-point engine onto the generated model + retire
+> hand-modeled `domain/*`). ⚠️ Step-4 note from Step 3: the generated `Report` body is a catch-all
+> `List<JAXBElement<?>>` (`getContent()`) — builders set header fields via `ObjectFactory.createReportXxx(…)`,
+> not typed setters (schema reuses the name "Activity"). Step docs in [steps/](steps/).
 
 1. Wire **xjc** codegen into `build.gradle` (JAXB Gradle plugin) → generate JAXB types from
    `goAMLSchema.xsd` into `com.vyttah.goaml.domain.generated`; `.xjb` binding maps `sql_date` →
