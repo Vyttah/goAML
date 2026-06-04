@@ -1,35 +1,76 @@
 package com.vyttah.goaml.exception;
 
+import com.vyttah.goaml.service.report.ReportExceptions;
+import com.vyttah.goaml.service.submission.SubmissionExceptions;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * Maps {@link AccessDeniedException} thrown from controller invocations
- * (method security via {@code @PreAuthorize}) to {@code 403 Forbidden}.
+ * Maps controller exceptions to HTTP responses with a small JSON body.
  *
- * <p>Why: when {@code @PreAuthorize} denies a method, the resulting exception travels
- * back through {@code DispatcherServlet}. Without this advice, the default behavior
- * inside {@code ExceptionTranslationFilter} can mis-classify the auth state and emit
- * a {@code 401} instead of a {@code 403}.
+ * <p>{@link AccessDeniedException} (method security via {@code @PreAuthorize}) → {@code 403}: without this
+ * advice the default behavior inside {@code ExceptionTranslationFilter} can mis-classify the auth state and
+ * emit a {@code 401}. {@code AuthenticationException} is intentionally left to Spring Security's
+ * {@code AuthenticationEntryPoint} ({@code 401}, no JSON body — a JSON 401 trips retry-on-401 clients).
  *
- * <p>{@code AuthenticationException} is intentionally left to Spring Security's
- * configured {@code AuthenticationEntryPoint} ({@code HttpStatusEntryPoint(401)} via
- * {@code response.sendError}) — handling it here as a JSON body trips clients that
- * retry-on-401 with credentials (e.g. JDK {@code HttpURLConnection}).
+ * <p>Report/submission service exceptions map to: not-found → 404, duplicate/conflict/not-submittable →
+ * 409, FIU rejection → 422 (with the FIU error body), auth/transport → 502, bad input → 400.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of(
-                "status", HttpStatus.FORBIDDEN.value(),
-                "error", "Forbidden",
-                "message", ex.getMessage() == null ? "" : ex.getMessage()));
+        return body(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    @ExceptionHandler(ReportExceptions.ReportNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
+        return body(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
+    @ExceptionHandler({
+            ReportExceptions.DuplicateEntityReferenceException.class,
+            SubmissionExceptions.ReportNotSubmittableException.class,
+            SubmissionExceptions.TenantConfigMissingException.class
+    })
+    public ResponseEntity<Map<String, Object>> handleConflict(RuntimeException ex) {
+        return body(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    @ExceptionHandler(SubmissionExceptions.SubmissionRejectedException.class)
+    public ResponseEntity<Map<String, Object>> handleRejected(SubmissionExceptions.SubmissionRejectedException ex) {
+        Map<String, Object> b = baseBody(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        b.put("fiuError", ex.responseBody());
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(b);
+    }
+
+    @ExceptionHandler(SubmissionExceptions.SubmissionTransportException.class)
+    public ResponseEntity<Map<String, Object>> handleTransport(RuntimeException ex) {
+        return body(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
+    @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})
+    public ResponseEntity<Map<String, Object>> handleBadRequest(Exception ex) {
+        return body(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    private static ResponseEntity<Map<String, Object>> body(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(baseBody(status, message));
+    }
+
+    private static Map<String, Object> baseBody(HttpStatus status, String message) {
+        Map<String, Object> b = new LinkedHashMap<>();
+        b.put("status", status.value());
+        b.put("error", status.getReasonPhrase());
+        b.put("message", message == null ? "" : message);
+        return b;
     }
 }

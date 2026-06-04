@@ -126,7 +126,8 @@ def coveredPackages = [
         'com/vyttah/goaml/config/aws/**',
         'com/vyttah/goaml/service/report/**',
         'com/vyttah/goaml/service/submission/**',
-        'com/vyttah/goaml/model/mapper/report/**'
+        'com/vyttah/goaml/model/mapper/report/**',
+        'com/vyttah/goaml/controller/report/**'
 ]
 
 jacocoTestReport {
