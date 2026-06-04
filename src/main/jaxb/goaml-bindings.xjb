@@ -8,10 +8,40 @@
 <jaxb:bindings version="3.0"
                xmlns:jaxb="https://jakarta.ee/xml/ns/jaxb"
                xmlns:xjc="http://java.sun.com/xml/ns/jaxb/xjc"
+               xmlns:xs="http://www.w3.org/2001/XMLSchema"
                jaxb:extensionBindingPrefixes="xjc">
     <jaxb:globalBindings>
         <xjc:javaType name="java.time.OffsetDateTime"
                       xmlType="sql_date"
                       adapter="com.vyttah.goaml.domain.adapter.GoamlDateTimeAdapter"/>
     </jaxb:globalBindings>
+
+    <!--
+      Step 4a: kill the Report catch-all `List<JAXBElement<?>>`.
+      The <report> complexType ends with an <xs:choice> whose TWO branches both declare an element named
+      `activity` (goAMLSchema.xsd lines 308 & 310):
+        branch 1 = <sequence>(transaction+ , activity?)   -> the transaction-shaped report
+        branch 2 = activity                               -> the activity-shaped report (DPMSR/SAR/AIF/ECDD)
+      That name clash makes xjc give up on typed properties and dump the WHOLE report body (incl. all header
+      fields) into a catch-all `content` list. We rename ONE of them to remove the clash so xjc regenerates
+      Report with typed getters (getReportCode(), getRentityId(), getActivity(), …).
+
+      We rename branch 1's optional `activity` (line 308, nested in choice/sequence) -> `reportActivity`, and
+      LEAVE branch 2's `activity` (line 310) as `activity`. Two reasons this is the working combination:
+        1. xjc only accepts the rename on the branch-1 (nested) element; renaming branch-2's direct-child
+           `activity` instead is rejected ("Element activity shows up in more than one properties").
+        2. JAXB's generated unmarshaller greedily routes an `<activity>` element to branch 1 even when no
+           <transaction> precedes it (verified: a DPMSR sample's <activity> lands in branch 1's property,
+           branch 2 stays null). So branch 1's property (`reportActivity`) is the slot actually populated for
+           BOTH report shapes — it is THE activity accessor the engine uses (getReportActivity()).
+      Branch 2's `activity` (getActivity()) is therefore vestigial — never populated by the JAXB RI — but
+      must keep a distinct property name to break the catch-all clash. Marshalling getReportActivity() with no
+      transactions emits a bare <activity>, which is XSD-valid via branch 2 (confirmed by the round-trip XSD
+      re-validation).
+    -->
+    <jaxb:bindings schemaLocation="../resources/xsd/goaml/5.0.2/goAMLSchema.xsd" version="3.0">
+        <jaxb:bindings node="xs:element[@name='report']/xs:complexType/xs:sequence/xs:choice/xs:sequence/xs:element[@name='activity']">
+            <jaxb:property name="reportActivity"/>
+        </jaxb:bindings>
+    </jaxb:bindings>
 </jaxb:bindings>

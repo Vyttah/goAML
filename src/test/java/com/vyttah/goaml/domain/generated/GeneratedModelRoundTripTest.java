@@ -3,10 +3,8 @@ package com.vyttah.goaml.domain.generated;
 import com.vyttah.goaml.engine.validation.ValidationResult;
 import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
 import jakarta.xml.bind.JAXBContext;
-import jakarta.xml.bind.JAXBElement;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -35,10 +33,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * XSD gate plus the business-value checks is the honest, robust bar — and the green light for Step 4
  * (re-pointing the engine onto this model).
  *
- * <p>Nuance confirmed here for Step 4: the generated {@link Report} root holds its body as a single
- * catch-all {@code List<JAXBElement<?>>} ({@link Report#getContent()}) — because the schema reuses the
- * name "Activity" — so header fields (rentity_id, report_code, currency_code_local, activity) are read by
- * matching the {@code JAXBElement} local name, and the Step-4 builders will populate the same list.
+ * <p>Step 4a note: the generated {@link Report} root exposes <em>typed</em> getters (getRentityId(),
+ * getReportCode(), getCurrencyCodeLocal(), getActivity(), …). Earlier (Steps 2–3) it was a single catch-all
+ * {@code List<JAXBElement<?>>} because the schema reused the name "activity" across the {@code <xs:choice>}
+ * branches; the {@code goaml-bindings.xjb} rename of the transaction-branch's activity to
+ * {@code transactionActivity} removed that clash, so xjc regenerated typed properties. This test reads via
+ * those typed getters and confirms the rename did not break the round-trip of the real reports.
  */
 class GeneratedModelRoundTripTest {
 
@@ -56,15 +56,17 @@ class GeneratedModelRoundTripTest {
         Report report = unmarshal(originalXml);
         assertThat(report).as("unmarshal %s into generated Report", resource).isNotNull();
 
-        // (2) value fidelity — the headline business data read back correctly
-        assertThat(intValue(content(report, "rentity_id")))
+        // (2) value fidelity — the headline business data read back correctly (via typed getters)
+        assertThat(report.getRentityId())
                 .as("rentity_id in %s", resource).isEqualTo(3177);
-        assertThat(content(report, "report_code"))
+        assertThat(report.getReportCode())
                 .as("report_code in %s", resource).isEqualTo(ReportType.DPMSR);
-        assertThat(content(report, "currency_code_local"))
+        assertThat(report.getCurrencyCodeLocal())
                 .as("currency_code_local in %s", resource).isEqualTo(CurrencyType.AED);
 
-        ActivityType activity = (ActivityType) content(report, "activity");
+        // The activity-shaped report's <activity> is unmarshalled into the branch-1 property
+        // (getReportActivity()); branch-2's getActivity() is the vestigial choice member — see goaml-bindings.xjb.
+        ActivityType activity = report.getReportActivity();
         assertThat(activity).as("activity block in %s", resource).isNotNull();
 
         TTransItem item = activity.getGoodsServices().getItem().get(0);
@@ -105,19 +107,6 @@ class GeneratedModelRoundTripTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         marshaller.marshal(report, out); // Report is @XmlRootElement(name="report") — no ObjectFactory wrap needed
         return out.toByteArray();
-    }
-
-    /** First report-body element with the given local name, unwrapped from its {@link JAXBElement}. */
-    private static Object content(Report report, String localName) {
-        return report.getContent().stream()
-                .filter(e -> localName.equals(e.getName().getLocalPart()))
-                .map(JAXBElement::getValue)
-                .findFirst()
-                .orElse(null);
-    }
-
-    private static int intValue(Object value) {
-        return ((Number) value).intValue();
     }
 
     private static byte[] readResource(String path) throws IOException {

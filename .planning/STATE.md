@@ -32,11 +32,16 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 > **Progress:** Step 1 ✅ (XSD validation gate + real samples validate), Step 2 ✅ (xjc codegen → 46
 > generated classes, dates→OffsetDateTime, ReportType enum), and Step 3 ✅ (both real DPMSR samples
-> round-trip through the generated model — unmarshal → values verified → re-marshal → re-validate clean
-> against the XSD) are done & green. **Next = Step 4** (re-point engine onto the generated model + retire
-> hand-modeled `domain/*`). ⚠️ Step-4 note from Step 3: the generated `Report` body is a catch-all
-> `List<JAXBElement<?>>` (`getContent()`) — builders set header fields via `ObjectFactory.createReportXxx(…)`,
-> not typed setters (schema reuses the name "Activity"). Step docs in [steps/](steps/).
+> round-trip through the generated model) are done & green. **Step 4 in progress** (re-point engine onto the
+> generated model + retire hand-modeled `domain/*`), as 4 sub-commits 4a–4d:
+> - **4a ✅** — `.xjb` rename killed the `Report` catch-all; `Report` now has typed getters (no shim needed).
+>   The catch-all was caused by the `<xs:choice>` declaring `activity` in both branches; renaming branch-1's
+>   nested `activity` → property **`reportActivity`** fixed it. ⚠️ The engine's activity accessor is
+>   **`getReportActivity()`** (the slot JAXB actually fills for DPMSR), NOT `getActivity()` (vestigial).
+> - **4b** (next) — re-point `marshal/` + `build/`; **4c** — `validation/` + `jurisdiction/`; **4d** — delete
+>   `domain/*` (keep adapter), retire hand-model tests, regenerate + XSD-validate the 7 goldens.
+>
+> Step docs in [steps/](steps/STEP-4-repoint-engine.md).
 
 1. Wire **xjc** codegen into `build.gradle` (JAXB Gradle plugin) → generate JAXB types from
    `goAMLSchema.xsd` into `com.vyttah.goaml.domain.generated`; `.xjb` binding maps `sql_date` →
