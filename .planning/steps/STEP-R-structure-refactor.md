@@ -124,10 +124,10 @@ the layer-first layout:
 
 **Verify:** `docker info` (Docker Desktop up) → `./gradlew test` → BUILD SUCCESSFUL.
 
-**Small remaining item (not blocking):** the **test tree** still uses some old package paths
-(`...persistence.SharedSchemaTest`, `...tenant.TenantIsolationTest`, `...security.AuthFlowTest/RbacTest`).
-They compile & pass; mirroring them to the new feature packages is a low-risk follow-up (can fold into R2 or a
-later tidy). Noted so it's not silently skipped.
+**Test-tree mirroring ✅ (2026-06-04):** the two orphaned test packages were relocated to mirror main —
+`persistence/SharedSchemaTest` → `repository/SharedSchemaTest` (it exercises the shared-schema repositories),
+`tenant/TenantIsolationTest` → `config/tenant/TenantIsolationTest` (multi-tenancy infra). `security/*` and
+`service/tenant/*` tests already mirror existing main packages, so they stayed. Full suite green.
 
 ### R2 — Adopt Lombok (JPA/web side) ✅ (2026-06-04)
 

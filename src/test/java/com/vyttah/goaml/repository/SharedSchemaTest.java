@@ -1,4 +1,4 @@
-package com.vyttah.goaml.persistence;
+package com.vyttah.goaml.repository;
 
 import com.vyttah.goaml.GoamlApplication;
 import org.junit.jupiter.api.Test;

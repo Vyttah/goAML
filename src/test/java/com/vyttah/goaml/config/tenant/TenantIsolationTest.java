@@ -1,7 +1,6 @@
-package com.vyttah.goaml.tenant;
+package com.vyttah.goaml.config.tenant;
 
 import com.vyttah.goaml.GoamlApplication;
-import com.vyttah.goaml.config.tenant.TenantContext;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.model.entity.audit.AuditLog;
 import com.vyttah.goaml.repository.audit.AuditLogRepository;
