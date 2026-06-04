@@ -75,6 +75,9 @@ dependencies {
     implementation platform('software.amazon.awssdk:bom:2.28.16')
     implementation 'software.amazon.awssdk:secretsmanager'
 
+    // Redis (Phase 6.2) — caches each tenant's goAML B2B session token (SqlAuthCookie) across app instances.
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     runtimeOnly    'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -86,6 +89,10 @@ dependencies {
     // XMLUnit for structural / ordering assertions on marshalled XML (Phase 3+).
     testImplementation 'org.xmlunit:xmlunit-core:2.10.0'
     testImplementation 'org.xmlunit:xmlunit-assertj3:2.10.0'
+
+    // WireMock (Phase 6) — stubs the goAML B2B REST API (auth/submit/status). Standalone (shaded) to
+    // avoid Jetty/Jackson clashes with Spring on the test classpath.
+    testImplementation 'org.wiremock:wiremock-standalone:3.9.2'
 }
 
 tasks.named('test') {

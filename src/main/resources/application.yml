@@ -24,6 +24,11 @@ spring:
     enabled: true
     locations: classpath:db/migration/shared
     schemas: public
+  data:
+    redis:
+      # Caches per-tenant goAML B2B session tokens (Phase 6.2). docker-compose `redis` on :6379.
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 server:
   port: 8080
@@ -56,6 +61,9 @@ goaml:
     # Endpoint override for LocalStack (docker-compose, :4566). Leave EMPTY for real AWS — the SDK
     # then resolves the regional endpoint and uses IRSA / the default credentials chain on EKS.
     endpoint: ${GOAML_AWS_ENDPOINT:}
+  b2b:
+    # Lifetime of a cached goAML B2B session token in Redis. Re-auth happens on expiry or a 401.
+    token-ttl: ${GOAML_B2B_TOKEN_TTL:20m}
 
 logging:
   pattern:
