@@ -32,6 +32,8 @@ machine-local state — so anyone on any machine can resume.
 | 3 | **`domain/`** — JAXB POJOs for the `<report>` tree + round-trip/ordering tests | ✅ | `8ea6fdf` |
 | 4 | **`engine/` builders + marshaller** + golden-file XML per report type | ✅ | `220b763` |
 | 5 | **`engine/` validation + UAE jurisdiction + lookups** | ✅ | `102484d` |
+| — | **XSD-first foundation** (migration, not a numbered phase) — generate the domain from the real goAML **5.0.2** XSD via xjc, add the **XSD validation gate**, reconcile lookups (lookup⊆XSD), add the **DPMSR convenience builder** | ✅ | `6911cf6`…`70f9cdb` |
+| — | **Vyttah layer-first refactor** — restructure to `controller`/`service`/`repository`/`model` conventions; Lombok + MapStruct on the JPA/web side | ✅ | `8fed6a1`…`e54f64c` |
 | **6** | **`integration/aws/` + Secrets Manager (LocalStack) → `b2b/` client (per-tenant creds) vs WireMock** | **⏭️ NEXT** | — |
 | 7 | **`persistence/` + `service/` + `web/`** reports/submissions REST (Testcontainers Postgres) | ⬜ | — |
 | 8 | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | ⬜ | — |
@@ -86,11 +88,13 @@ relies on.
 These are external inputs that gate *correctness*, tracked from the plan. None block building the
 plumbing; they block going live.
 
-1. **UAE goAML XSD — ✅ OBTAINED.** The authoritative goAML **5.0.2** XSD + 2 real DPMSR samples are
-   vendored (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). Per the **XSD-first
-   decision** ([`.planning/plans/xsd-first-foundation.md`](../.planning/plans/xsd-first-foundation.md)) the
-   domain + structural validation are being rebuilt over it via xjc-generated JAXB (standard JDK JAXP gate —
-   the schema has no 1.1 asserts). This reworks Phases 3–5. *(Confirm UAE production version, 4.x vs 5.x, before go-live.)*
+1. **UAE goAML XSD — ✅ OBTAINED & INTEGRATED.** The authoritative goAML **5.0.2** XSD + 2 real DPMSR
+   samples are vendored (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). The
+   **XSD-first migration is complete** ([`.planning/plans/xsd-first-foundation.md`](../.planning/plans/xsd-first-foundation.md)):
+   the domain is now xjc-generated from the schema, the **XSD validation gate** (`XsdSchemaValidator`,
+   standard JDK JAXP — the schema has no 1.1 asserts) is built and runs in the golden test, lookups are
+   reconciled (lookup⊆XSD), and a DPMSR convenience builder exists. *(Still confirm the UAE production
+   schema version, 4.x vs 5.x, before go-live.)*
 2. **Per-tenant B2B base URLs (test + prod) + each RE's goAML credentials** — for live submission.
 3. **UAE Business Rejection Rules (BRRs)** doc — to complete validation beyond `*`-mandatory fields
    (this is where Emirates-ID/passport rules and many others come from — see the
@@ -108,7 +112,6 @@ plumbing; they block going live.
 A consolidated list of "the plan mentions it but the code doesn't do it yet," so you're not surprised:
 
 - **No Emirates-ID/passport validation** (awaits BRRs — open item #3).
-- **No XSD validation gate yet** (XSD now obtained; the gate is built in XSD-first step X.3, standard JAXP).
 - **`ANALYST`/`MLRO` authorization not enforced** on any endpoint yet (the submit endpoint doesn't exist
   until Phase 7).
 - **Platform/SUPER_ADMIN actions aren't audited** (no shared audit table yet).

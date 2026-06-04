@@ -41,9 +41,16 @@
 
 | Term | Meaning |
 |------|---------|
-| **Schema v4.0** | The goAML XML schema version this platform targets. |
-| **XSD** | XML Schema Definition — the formal schema file. Ships from the FIU (open item); the domain model is hand-modeled until then. |
-| **JAXB** | Jakarta XML Binding — maps Java objects ↔ XML. Used in `domain/` + `engine/marshal`. |
+| **Schema 5.0.2** | The authoritative goAML XML schema version this platform targets (`goAMLSchema.xsd`, vendored). |
+| **XSD** | XML Schema Definition — the formal schema file. The authoritative goAML 5.0.2 XSD is vendored at `src/main/resources/xsd/goaml/5.0.2/` and is the **source of truth** for the domain model. |
+| **xjc** | The JAXB schema compiler. Generates the domain model from `goAMLSchema.xsd` at build time (via the `com.github.bjornvester.xjc` Gradle plugin) into `com.vyttah.goaml.domain.generated` — **not committed**. |
+| **Generated model** | The xjc output (`domain.generated.*`): `Report`, `ActivityType`, `ReportPartyType`, `TTransItem`, enums (`ReportType`, `CurrencyType`, …), etc. Replaces the retired hand-modeled `domain/*`. |
+| **`reportActivity` (choice slot)** | The `Report` property the `.xjb` binding renames branch-1's `activity` to, breaking the `<xs:choice>` catch-all. **`getReportActivity()`** is the activity accessor for *both* shapes; `getActivity()` is vestigial. |
+| **JAXB** | Jakarta XML Binding — maps Java objects ↔ XML. Used by the generated `domain/` model + `engine/marshal`. |
+| **XSD validation gate** | `engine/validation/XsdSchemaValidator` — validates marshalled report XML against `goAMLSchema.xsd` (standard JDK JAXP, XSD 1.0; the schema has no 1.1 asserts). Collects findings into a `ValidationResult`. |
+| **lookup ⊆ XSD invariant** | Any lookup the validator checks must be a subset of its XSD enumeration (`transmode ⊆ conduction_type`, `currencies ⊆ currency_type`), else a rules-clean report can fail the schema. Guarded by `LookupXsdConsistencyTest`. |
+| **`conduction_type`** | The XSD enumeration backing `transmode_code` (e.g. `ELCFT`, `SWIFT`, `CDM`). The `ae` `transmode` lookup is a subset of it. |
+| **DPMSR builder** | `engine/build/DpmsrReportBuilder` + `DpmsrReportInput` (record **and** fluent) + `GoamlParties`/`GoamlWrappers` + `ValidatedReport` — a schema-driven, invoice-generic convenience for building/validating DPMSR reports. |
 | **`report_code`** | The report type (STR…DPMSR). Drives which shape and rules apply. |
 | **`submission_code`** | E (electronic) or M (manual). |
 | **`rentity_id`** | FIU-assigned ID for a Reporting Entity. Per-tenant (in `tenant_goaml_config`). |
@@ -70,6 +77,8 @@
 | **BCrypt** | Password-hashing algorithm used for `app_user.password_hash`. |
 | **Flyway** | Database migration tool. Shared migrations at startup; tenant migrations at provisioning. |
 | **JPA / Hibernate** | Java Persistence API / its implementation — the ORM. |
+| **Lombok** | Annotation processor generating boilerplate (`@Getter`/`@Setter`/`@RequiredArgsConstructor`) — used on the JPA/web side only, not the generated domain or engine. |
+| **MapStruct** | Compile-time entity↔DTO mapper (`componentModel = "spring"`); mappers live in `model/mapper/<feature>/`. |
 | **Actuator** | Spring Boot's ops endpoints (`/actuator/health`, `/actuator/prometheus`). |
 | **Testcontainers** | Library that spins real Docker containers (Postgres) for integration tests. |
 | **XMLUnit** | Library for semantic XML comparison — used in golden-file tests. |

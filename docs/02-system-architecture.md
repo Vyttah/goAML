@@ -8,7 +8,8 @@
 
 The whole backend is **a single Spring Boot application** (`com.vyttah.goaml`), built as **one
 `bootJar`**. It is a *modular monolith*: internal Java packages keep concerns separated
-(`domain`, `engine`, `security`, `tenant`, …) without the overhead of multiple build modules.
+(`domain`, `engine`, `security`, `config/tenant`, …) without the overhead of multiple build modules. The
+package layout follows the **layer-first Vyttah conventions** — see [`CONVENTIONS.md`](CONVENTIONS.md).
 
 That one application is designed to expose **four surfaces** over the same core logic:
 
@@ -36,10 +37,10 @@ That one application is designed to expose **four surfaces** over the same core 
    ┌────────────────────────▼─────────────────────────────────────┐
    │  Spring Boot monolith (com.vyttah.goaml)                       │
    │                                                                │
-   │  web/(REST) · mcp/(Tools) · cli/(picocli) · security/(JWT,RBAC)│
+   │ controller/(REST) · mcp/(Tools) · cli/(picocli) · security/(JWT)│
    │  service/(orchestration) · engine/(build·validate·marshal·zip) │
-   │  b2b/(goAML REST client) · persistence/(JPA) · domain/(JAXB)   │
-   │  scheduler/(async poller) · tenant/(schema-per-tenant) · config│
+   │  b2b/(goAML REST client) · repository+model/(JPA) · domain/(JAXB)│
+   │  scheduler/(async poller) · config/tenant/(schema-per-tenant)  │
    └───┬─────────┬──────────┬───────────┬──────────┬───────────────┘
        │ RDS     │ S3        │ Secrets/KMS│ SES      │ goAML B2B (per FIU)
    (schema/tenant)(attach)  (tenant creds)(email)   (UAE test/prod)
@@ -56,18 +57,22 @@ Legend of the external dependencies (right-hand edge):
 
 ## 3. The package map (what lives where)
 
-These are the Java packages under `src/main/java/com/vyttah/goaml/`. ✅ = exists today, ⚠️ = planned.
+These are the Java packages under `src/main/java/com/vyttah/goaml/`. ✅ = exists today, ⚠️ = planned. The
+layout is **layer-first** (controllers / services / repositories / model split by feature) per
+[`CONVENTIONS.md`](CONVENTIONS.md), with `domain/` + `engine/` kept outside the CRUD layout as product core.
 
 | Package | Responsibility | Status | Doc |
 |---------|----------------|--------|-----|
-| `domain/` | JAXB POJOs modelling the goAML `<report>` XML tree + fixed enums. | ✅ | [04](04-domain-model.md) |
-| `engine/` | Build reports, validate, marshal to XML, ZIP-package; jurisdiction + lookup config. | ✅ | [05](05-engine.md) |
-| `tenant/` | Schema-per-tenant Hibernate plumbing (resolver, connection provider, ThreadLocal context). | ✅ | [06](06-multitenancy-and-security.md) |
-| `security/` | JWT auth filter/service, RBAC, user principal. | ✅ | [06](06-multitenancy-and-security.md) |
-| `persistence/` | JPA entities + repositories (shared `public` schema + per-tenant). | ✅ | [07](07-persistence-and-migrations.md) |
-| `service/` | Orchestration. Today: tenant provisioning + audit. | ✅ (partial) | [06](06-multitenancy-and-security.md), [07](07-persistence-and-migrations.md) |
-| `web/` | REST controllers + DTOs + error mapping. Today: auth, me, admin. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
-| `config/` | App config beans (today: `SecurityCryptoConfig` → BCrypt encoder). | ✅ | [03](03-tech-stack-and-local-dev.md) |
+| `domain/` | The **xjc-generated** JAXB model (`domain.generated.*`, built from the goAML XSD) + the one hand-written `domain/adapter/GoamlDateTimeAdapter`. | ✅ | [04](04-domain-model.md) |
+| `engine/` | Build reports, validate (rules **+** XSD), marshal to XML, ZIP-package; jurisdiction + lookup config. | ✅ | [05](05-engine.md) |
+| `config/tenant/` | Schema-per-tenant Hibernate plumbing (resolver, connection provider, ThreadLocal context, customizer). | ✅ | [06](06-multitenancy-and-security.md) |
+| `security/` | JWT auth filter/service, RBAC, user principal, security config. | ✅ | [06](06-multitenancy-and-security.md) |
+| `model/entity/` + `repository/` | JPA entities (no `Entity` suffix) + Spring Data repositories, split per feature (shared `public` schema + per-tenant). | ✅ | [07](07-persistence-and-migrations.md) |
+| `model/dto/` + `model/mapper/` | Request/response DTOs + MapStruct mappers, per feature. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
+| `service/` | Orchestration as interface + `Default*` impl, per feature. Today: `auth`, `tenant` (provisioning), `audit`. | ✅ (partial) | [06](06-multitenancy-and-security.md), [07](07-persistence-and-migrations.md) |
+| `controller/` | Thin REST controllers per feature (today: `auth`, `me`, `admin`) — no repos injected directly; delegate to services. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
+| `config/` | App config beans (today: `SecurityCryptoConfig` → BCrypt encoder; `config/tenant/*`). | ✅ | [03](03-tech-stack-and-local-dev.md) |
+| `exception/` | `GlobalExceptionHandler` (`@RestControllerAdvice`). | ✅ | [06](06-multitenancy-and-security.md) |
 | `b2b/` | goAML B2B REST client (auth, PostReport, OData status, MessageBoard). | ⚠️ Phase 6 | [10](10-b2b-submission-protocol.md) |
 | `integration/aws/` | S3, Secrets Manager/KMS, SES clients. | ⚠️ Phase 6/8/10 | — |
 | `ingestion/` | Generic inbound REST + file import (goAML XML / CSV). | ⚠️ Phase 11 | — |

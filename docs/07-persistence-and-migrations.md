@@ -1,8 +1,9 @@
 # 07 — Persistence & Migrations
 
 > Every database table, how Flyway manages them, and the JPA entities that map to them.
-> Packages: `com.vyttah.goaml.persistence.shared`, `.persistence.tenant`; migrations under
-> `src/main/resources/db/migration/`.
+> Entities live in `com.vyttah.goaml.model.entity.<feature>/` and repositories in
+> `com.vyttah.goaml.repository.<feature>/` (split per feature, **no `Entity` suffix** — see
+> [`CONVENTIONS.md`](CONVENTIONS.md)); migrations under `src/main/resources/db/migration/`.
 
 ---
 
@@ -133,21 +134,22 @@ Indexes `idx_audit_log_action`, `idx_audit_log_occurred_at`.
 
 ## 4. JPA entities
 
-All in `persistence/`. Key mapping facts:
+Entities live in `model/entity/<feature>/` and carry **no `Entity` suffix**; Lombok `@Getter` (etc.)
+replaces hand-written accessors. Key mapping facts:
 
-| Entity | `@Table` | Id | Notable |
-|--------|----------|-----|---------|
-| `AppUserEntity` | `app_user`, **schema=public** | `UUID` (assigned) | `@ManyToMany(EAGER)` to `RoleEntity` via `user_role`; `@PrePersist/@PreUpdate` timestamps; `addRole(...)` helper |
-| `JurisdictionEntity` | `jurisdiction`, schema=public | `String code` | read-only |
-| `RoleEntity` | `role`, schema=public | `Short id` | read-only; `findByName` |
-| `TenantEntity` | `tenant`, schema=public | `UUID` | `schemaName` is the routing key |
-| `AuditLogEntity` | `audit_log`, **no schema** | `UUID` | resolves via search_path (tenant-scoped) |
+| Entity (class) | Package | `@Table` | Id | Notable |
+|--------|---------|----------|-----|---------|
+| `AppUser` | `model/entity/appuser/` | `app_user`, **schema=public** | `UUID` (assigned) | `@ManyToMany(EAGER)` to `Role` via `user_role`; `@PrePersist/@PreUpdate` timestamps; `addRole(...)` helper |
+| `Jurisdiction` | `model/entity/jurisdiction/` | `jurisdiction`, schema=public | `String code` | read-only |
+| `Role` | `model/entity/role/` | `role`, schema=public | `Short id` | read-only; `findByName` |
+| `Tenant` | `model/entity/tenant/` | `tenant`, schema=public | `UUID` | `schemaName` is the routing key |
+| `AuditLog` | `model/entity/audit/` | `audit_log`, **no schema** | `UUID` | resolves via search_path (tenant-scoped) |
 
 **No JPA enums** — `status`, role names, `auth_mode` are all plain `String`s (allowed values documented
 in SQL comments only). Money/dates follow the project convention (`BigDecimal` / `OffsetDateTime`) where
 they appear.
 
-### Repositories (Spring Data JPA)
+### Repositories (Spring Data JPA, in `repository/<feature>/`)
 - `AppUserRepository` — `findByEmail`, `existsByEmail`.
 - `JurisdictionRepository` — (no custom methods).
 - `RoleRepository` — `findByName`.
@@ -155,12 +157,16 @@ they appear.
 - `AuditLogRepository` — (no custom methods). ⚠️ Every call needs a tenant bound to `TenantContext` or
   it routes to `public` and fails.
 
+> Repositories are accessed only through services (`service/<feature>/`), never injected straight into
+> controllers. Entity↔DTO conversion uses MapStruct mappers in `model/mapper/<feature>/` (today:
+> `TenantMapper`).
+
 ---
 
 ## 5. Why `ddl-auto: none`
 
 Hibernate schema validation is **off** on purpose. A startup `validate` would check entities against the
-`public` schema — but tenant entities (`AuditLogEntity`) have **no** table in `public` (they live in
+`public` schema — but tenant entities (`AuditLog`) have **no** table in `public` (they live in
 `tenant_<id>` schemas), so validation would fail. Flyway is the single source of truth for schema; JPA
 never creates or validates it.
 

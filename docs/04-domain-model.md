@@ -1,230 +1,167 @@
 # 04 — Domain Model
 
-> The `domain/` package: Java POJOs that, via JAXB, serialize to/from the goAML v4.0 `<report>` XML.
-> Package: `com.vyttah.goaml.domain`.
+> The data model: **xjc-generated JAXB types** built from the authoritative goAML XSD, that serialize
+> to/from the goAML `<report>` XML. Generated package: `com.vyttah.goaml.domain.generated`.
 
-> ⚠️ **Superseding decision (2026-06-03): XSD-first.** These hand-modeled v4.0 POJOs are being replaced
-> by **xjc-generated JAXB types built from the authoritative latest goAML XSD (target 5.0.x, XSD 1.1)**.
-> This doc still accurately describes the *current* code, but the data model is migrating — see
-> [`.planning/plans/xsd-first-foundation.md`](../.planning/plans/xsd-first-foundation.md). Once codegen
-> lands, the element-ordering rules and naming quirks below become the schema's responsibility, not ours.
+> **As of the XSD-first migration (2026-06):** the domain is **no longer hand-modeled**. It is generated
+> at build time by **xjc** from the vendored, authoritative **goAML 5.0.2** schema
+> (`src/main/resources/xsd/goaml/5.0.2/goAMLSchema.xsd`). Element names, ordering, types, and code-list
+> enums are now the **schema's** responsibility, not ours. See
+> [`.planning/plans/xsd-first-foundation.md`](../.planning/plans/xsd-first-foundation.md) for the migration.
 
 ---
 
 ## 1. What this layer is (and isn't)
 
-These classes are a **hand-modeled, representative subset** of the goAML schema v4.0 `<report>` tree.
-JAXB (Jakarta `jakarta.xml.bind`) turns a `Report` object graph into XML and back.
+The model is the set of Java classes xjc emits from `goAMLSchema.xsd`. JAXB (Jakarta `jakarta.xml.bind`)
+turns a `Report` object graph into XML and back. The schema is the single source of truth: if the XSD
+says a field exists, is mandatory, or has a fixed code list, that's reflected in the generated type — we
+don't restate it.
 
-What they are: plain data holders with JAXB annotations controlling element names and ordering.
+What the generated types are: plain data holders with JAXB annotations (`@XmlType`, `@XmlElement`,
+`propOrder`, enums for closed code lists) that exactly match the schema's wire shape.
 
-What they are **not**: they carry **no business validation**. The `*_my_client` "stricter" variants
-are structurally identical to their base types — the extra mandatory-field rules live in the **engine's
-validator** (Phase 5), not here. POJOs just shape the XML; the engine enforces correctness.
-
----
-
-## 2. The golden rule: element ordering is annotation-driven
-
-The goAML XSD uses `<sequence>`, so **element order in the XML is significant** — emit fields out of
-order and the FIU rejects the report. Two facts make this work:
-
-1. Every class is `@XmlAccessorType(XmlAccessType.FIELD)` — JAXB binds private fields directly.
-2. Every class declares `@XmlType(propOrder = {...})` giving the exact wire order.
-
-So order is governed **only** by `propOrder`, never by field declaration order, getter order, or the
-marshaller. If you add a field, you **must** add it to `propOrder` in the right place.
-
-There is **no `ObjectFactory` and no `package-info.java`**, and no namespace is declared anywhere — so
-JAXB emits **unqualified, no-namespace XML**, which matches the goAML convention. The only
-`@XmlRootElement` is `Report` (`<report>`); everything else is a reusable `@XmlType` complex type.
+What they are **not**: they carry **no business validation**. The `*MyClient` "stricter" variants are
+structurally close to their base types — the extra mandatory-field / conditional rules live in the
+**engine's validator** ([05 — The Engine](05-engine.md)), not here. Generated POJOs shape the XML; the
+engine enforces correctness; the **XSD gate** enforces structural conformance.
 
 ---
 
-## 3. The root: `Report` (`domain/Report.java`)
+## 2. How the model is generated (xjc)
 
-`@XmlRootElement(name = "report")`. Its `propOrder` is **header fields first, then the body**:
+Codegen is wired in `build.gradle` via the **`com.github.bjornvester.xjc` plugin (1.9.0)**:
 
-```
-rentityId, rentityBranch, submissionCode, reportCode,
-entityReference, fiuRefNumber, submissionDate, currencyCodeLocal,
-reportingPerson, location, reason, action,
-transactions, activity, reportIndicators
+```groovy
+xjc {
+    xsdDir.set(layout.projectDirectory.dir("src/main/resources/xsd/goaml/5.0.2"))
+    bindingFiles.setFrom(layout.projectDirectory.file("src/main/jaxb/goaml-bindings.xjb"))
+    defaultPackage.set("com.vyttah.goaml.domain.generated")
+    useJakarta.set(true)          // jakarta.xml.bind, not legacy javax
+    xjcVersion.set("4.0.5")       // pinned to match jaxb-runtime 4.0.5 (see note below)
+    options.set(["-extension"])   // required for the .xjb javaType adapter binding
+}
 ```
 
-| Field | Java type | XML element | Meaning |
-|-------|-----------|-------------|---------|
-| `rentityId` | `Integer` | `rentity_id` | FIU-assigned Reporting Entity ID |
-| `rentityBranch` | `String` | `rentity_branch` | RE branch |
-| `submissionCode` | `SubmissionCode` enum | `submission_code` | E / M |
-| `reportCode` | `ReportCode` enum | `report_code` | STR/SAR/.../DPMSR — **drives the shape** |
-| `entityReference` | `String` | `entity_reference` | RE's own ref — used as the per-tenant idempotency key |
-| `fiuRefNumber` | `String` | `fiu_ref_number` | the FIU request being answered (conditional) |
-| `submissionDate` | `OffsetDateTime` | `submission_date` | uses the date adapter |
-| `currencyCodeLocal` | `String` | `currency_code_local` | AED for UAE |
-| `reportingPerson` | `ReportingPerson` | `reporting_person` | the MLRO/officer filing |
-| `location` | `TAddress` | `location` | (reuses the address type) |
-| `reason` | `String` | `reason` | conditional (STR/SAR) |
-| `action` | `String` | `action` | conditional (STR/SAR) |
-| `transactions` | `List<Transaction>` | `transaction` (repeating, no wrapper) | **transaction shape** |
-| `activity` | `Activity` | `activity` | **activity shape** |
-| `reportIndicators` | `List<ReportIndicator>` | wrapper `report_indicators` → `indicator` | why this report was flagged |
+Key facts:
+- **Output is generated, never committed.** It lands in `build/generated/sources/xjc` and is regenerated
+  on every build. There is **no committed `domain/generated/*.java`** — don't look for it in `src/`.
+  (`.gitignore` is anchored to `/build/` so this generated tree stays out of git but a *source* package
+  named `build` elsewhere would not be ignored.)
+- **xjc version is pinned to 4.0.5** to match the project's `jaxb-runtime` and the BOM-managed codemodel.
+  The plugin defaults to 4.0.6, which mismatches codemodel 4.0.5 → `NoSuchMethodError`
+  `JDocComment.appendXML` (jaxb-ri #1854). Keeping tool + codemodel on 4.0.5 avoids it.
+- Only `goAMLSchema.xsd` lives in `xsdDir`, so xjc compiles exactly that one schema. It is self-contained
+  (no `xs:include`/`xs:import`).
 
-> `transactions` is ordered **before** `activity` in `propOrder`, so whichever shape you populate lands
-> in the correct schema slot. A `Report` carries fields for both shapes but uses exactly one; the POJO
-> does **not** enforce the either/or — the **validator** does (`SHAPE_REQUIRED` / `SHAPE_CONFLICT`).
-
-List setters null-guard and defensively copy (`v == null ? new ArrayList<>() : new ArrayList<>(v)`).
+### The only hand-written file in `domain/`
+**`domain/adapter/GoamlDateTimeAdapter`** — an `XmlAdapter<String, OffsetDateTime>` referenced by the
+binding file (below). Everything else under `domain.generated` is machine-generated.
 
 ---
 
-## 4. Enums (the only type-safe code lists)
+## 3. The binding file: `src/main/jaxb/goaml-bindings.xjb`
 
-- **`ReportCode`** (`domain/enums/`): `STR, SAR, AIF, AIFT, ECDD, ECDDT, DPMSR`. Serializes by name.
-- **`SubmissionCode`**: `E` (electronic), `M` (manual). The schema's `-` (unknown) is intentionally not
-  modeled.
+Two customizations make the generated model usable:
 
-Everything else that *looks* like a code (countries, currencies, transmission modes, funds, ID types,
-roles, genders…) is a **plain validated `String`**, because those are **FIU-defined lookup lists** that
-refresh at runtime — see §8.
+### 3a. Dates → `OffsetDateTime`
+A `globalBindings` `javaType` maps the schema's `sql_date` type (an `xs:dateTime` restriction) to
+`java.time.OffsetDateTime` via `GoamlDateTimeAdapter`, instead of the default `XMLGregorianCalendar`. The
+adapter's wire format is **`yyyy-MM-dd'T'HH:mm:ss`** — second precision, **no timezone suffix**, normalized
+to UTC on marshal. There is **no date-only type**: birthdates, ID issue/expiry, incorporation dates all
+serialize through this datetime adapter (e.g. an Emirates-ID issue date → `2020-01-15T00:00:00`).
 
----
+### 3b. The `Report` choice-slot rename (the one non-obvious binding)
+The `<report>` complexType ends with an `<xs:choice>` whose **two branches both declare an element named
+`activity`**:
+- branch 1 = `<sequence>(transaction+, activity?)` — the **transaction-shaped** report;
+- branch 2 = `activity` — the **activity-shaped** report (DPMSR / SAR / AIF / ECDD).
 
-## 5. Dates: `GoamlDateTimeAdapter` (`domain/adapter/`)
+That name clash makes xjc give up on typed properties and dump the **whole report body** (including all
+header fields) into a catch-all `List<JAXBElement<?>> content`. The binding renames **branch 1's** nested
+`activity` to the property **`reportActivity`**, breaking the clash so xjc regenerates `Report` with typed
+getters (`getReportCode()`, `getRentityId()`, …).
 
-An `XmlAdapter<String, OffsetDateTime>` used on **every** date field. Pattern:
-**`yyyy-MM-dd'T'HH:mm:ss`** — second precision, **no timezone suffix**.
-- marshal: converts to UTC, drops the offset, formats.
-- unmarshal: parses as local datetime, attaches UTC.
+**The critical accessor fact:** JAXB's generated unmarshaller **greedily routes any `<activity>` element
+to branch 1** even when no `<transaction>` precedes it. So **`getReportActivity()` is the slot actually
+populated for *both* report shapes** — it is THE activity accessor the engine uses. Branch 2's
+`getActivity()` is **vestigial** (never populated by the JAXB RI), but must keep a distinct property name
+to break the catch-all. Marshalling `getReportActivity()` with no transactions emits a bare `<activity>`,
+which is XSD-valid via branch 2 (confirmed by round-trip XSD re-validation).
 
-There is **no date-only type** — birthdates, ID issue/expiry, incorporation dates all use this datetime
-adapter (so e.g. an Emirates-ID issue date serializes as `2020-01-15T00:00:00`).
-
----
-
-## 6. Money
-
-All amounts and quantities are **`BigDecimal`**: `Transaction.amountLocal`,
-`TForeignCurrency.foreignAmount` & `foreignExchangeRate`, and `GoodsServices.estimatedValue` /
-`disposedValue` / `size`. No `double`/`float` anywhere.
-
----
-
-## 7. The complex types (the building blocks)
-
-Organized into sub-packages. Each lists its `propOrder` so you can see the wire shape.
-
-### Parties — `domain/party/`
-
-**`TPerson` / `TPersonMyClient`** (`t_person` / `t_person_my_client`) — **structurally identical**;
-the only difference is the `@XmlType` name (so JAXB emits the stricter schema type). propOrder:
-`gender, title, firstName, middleName, prefix, lastName, birthdate, birthPlace, mothersName, alias,
-ssn, passportNumber, passportCountry, idNumber, phones, addresses, nationality1, nationality2,
-nationality3, residence, email, occupation, employerName, identifications, comments, deceased,
-deceasedDate, taxNumber, taxRegNumber, sourceOfWealth`. `birthdate`/`deceasedDate` use the date adapter;
-`phones` and `addresses` are wrapped lists (`phones`→`phone`, `addresses`→`address`); `identifications`
-is an **un-wrapped** repeating `identification`.
-
-**`TPersonIdentification`** (`t_person_identification`) — propOrder: `type, number, issueDate,
-expiryDate, issuedBy, issueCountry, comments`. `type` is a lookup string (e.g. `EID` = Emirates ID,
-`PASSPORT`). Dates use the adapter.
-
-**`TEntity` / `TEntityMyClient`** (`t_entity` / `t_entity_my_client`) — identical to each other.
-propOrder: `name, commercialName, incorporationLegalForm, incorporationNumber, business, phones,
-addresses, email, url, incorporationState, incorporationCountryCode, incorporationDate, taxNumber,
-comments`. A company/organization (vs a natural person).
-
-**`TAccount` / `TAccountMyClient`** (`t_account` / `t_account_my_client`) — identical to each other.
-propOrder: `institutionName, swift, branch, account, currencyCode, accountName, iban, comments`.
-
-**`TAddress`** (`t_address`) — propOrder: `addressType, address, town, city, zip, countryCode, state,
-comments`. Reused widely (report `location`, person/entity addresses, goods address).
-
-**`TPhone`** (`t_phone`) — propOrder: `contactType, communicationType, countryPrefix, number,
-extension, comments`. ⚠️ **Element-name trap:** the elements carry a `tph_` prefix —
-`tph_contact_type, tph_communication_type, tph_country_prefix, tph_number, tph_extension` (then plain
-`comments`).
-
-### Transactions — `domain/transaction/`
-
-**`Transaction`** (`transaction`) — supports **bi-party** OR **multi-party**. propOrder:
-`transactionNumber, internalRefNumber, transactionLocation, transactionDescription, dateTransaction,
-teller, authorized, lateDeposit, datePosting, valueDate, transmodeCode, transmodeComment, amountLocal,
-tFromMyClient, tFrom, tToMyClient, tTo, tParties, goodsServices`.
-- ⚠️ **Element-name trap:** `transactionNumber` serializes as **`transactionnumber`** (all lowercase,
-  no underscore). `amountLocal` → `amount_local` (BigDecimal). `lateDeposit` is `Boolean`.
-- **Bi-party** = exactly one *from*-side and one *to*-side, using either the plain or `_my_client`
-  variant: `tFrom`/`tFromMyClient` + `tTo`/`tToMyClient`.
-- **Multi-party** (new in v4.0) = a list `tParties` (`t_party`, un-wrapped) of subjects with roles.
-
-**`TFrom` / `TFromMyClient`** (`t_from` / `t_from_my_client`) — same propOrder
-(`fromFundsCode, fromFundsComment, fromForeignCurrency, fromAccount, fromPerson, fromEntity,
-fromCountry`); the difference is the **subject types**: `TFrom` uses non-client
-`TAccount`/`TPerson`/`TEntity`, while `TFromMyClient` uses the strict client variants. Exactly one of
-account/person/entity must be set (enforced by the validator).
-
-**`TTo` / `TToMyClient`** — mirror of the From pair (`toFundsCode, toFundsComment, toForeignCurrency,
-toAccount, toPerson, toEntity, toCountry`).
-
-**`TParty`** (`t_party`) — a multi-party subject with a role. Holds **all six** subject variants
-(person/account/entity × plain/my-client); exactly one must be set. propOrder: `role, person,
-personMyClient, account, accountMyClient, entity, entityMyClient, fundsCode, fundsComment,
-foreignCurrency, country, significance, comments`. `role` is a string (Buyer/Seller/…), `significance`
-is an `Integer`.
-
-**`TForeignCurrency`** (`t_foreign_currency`) — propOrder: `foreignCurrencyCode, foreignAmount,
-foreignExchangeRate`. For transactions denominated in a non-local currency.
-
-### Activity — `domain/activity/`
-
-**`Activity`** (`activity`) — propOrder: `reportParties, goodsServices`. `reportParties` is a wrapped
-list (`report_parties`→`report_party`); `goodsServices` is un-wrapped repeating `goods_services`.
-
-**`ReportParty`** (`report_party_type`) — propOrder: `person, personMyClient, significance, reason,
-comments`. ⚠️ **Currently models only the two person variants** (`person`/`person_my_client`);
-account/entity subjects are deferred — so unlike `TParty`, a report party can only be a person today.
-
-### Common — `domain/common/`
-
-**`ReportingPerson`** (`t_person_registration_in_report`) — the MLRO/officer filing the report. Same
-lead fields as a person minus the deceased/tax/source-of-wealth tail. propOrder: `gender, title,
-firstName, middleName, prefix, lastName, birthdate, birthPlace, mothersName, alias, ssn, passportNumber,
-passportCountry, idNumber, phones, addresses, nationality1, nationality2, nationality3, residence,
-email, occupation, employerName, identifications, comments`.
-
-**`GoodsServices`** (`goods_services`) — central to **DPMSR** (the gold/diamond line item). propOrder:
-`itemType, itemMake, description, previouslyRegisteredTo, presentlyRegisteredTo, estimatedValue,
-statusCode, statusComments, disposedValue, currencyCode, size, sizeUom, address, registrationDate,
-registrationNumber, identificationNumber, comments`. `estimatedValue`/`disposedValue`/`size` are
-`BigDecimal`; `address` is a `TAddress`.
-
-**`ReportIndicator`** (`<indicator>`) — a single `@XmlValue String` (the text content of the element),
-because indicators come from FIU lookup tables (e.g. `DPMSR_CASH_THRESHOLD`, `STRUCTURING_SUSPECTED`,
-`PEP_REVIEW`).
+> If you ever see `getActivity()` return null on an activity report, that's expected — use
+> `getReportActivity()`.
 
 ---
 
-## 8. Why so many fields are `String`, not enums
+## 4. The shape of the generated tree
 
-goAML defines large code lists (countries, currencies, transmission modes, funds types, ID types, item
-types…) that the **FIU controls and refreshes** (downloadable from the B2B `OdataLookups` endpoint). If
-these were Java enums, every FIU code-list change would force a code release. So they're modeled as
-**plain Strings** and validated at runtime against loaded lookup sets (see
-[05 — The Engine](05-engine.md) §6). Only the two truly-fixed lists — `ReportCode` and `SubmissionCode`
-— are enums.
+The root is **`Report`** (`@XmlRootElement(name="report")`), and an **`ObjectFactory`** is generated
+alongside it (the marshaller builds its `JAXBContext` from `ObjectFactory.class`, not `Report.class`, so
+the whole generated package is in context). Notable generated types the engine touches:
+
+| Generated type | Role |
+|---|---|
+| `Report` | root; typed header getters + the choice slot (`getReportActivity()`) + `getTransaction()` (a `List<Report.Transaction>`) + `getReportIndicators()` (wrapper → `getIndicator()`) |
+| `Report.Transaction` | a transaction (money movement); bi-party (`getTFrom()/getTFromMyClient()` + `getTTo()/getTToMyClient()`) or multi-party (`getInvolvedParties().getParty()`) |
+| `ActivityType` | the activity body; `getReportParties().getReportParty()` + `getGoodsServices().getItem()` |
+| `ReportPartyType` | a report party: holds all **six** subject kinds (person/account/entity × plain/my-client) + `reason`/`comments`/`role`/`significance`/`isSuspected` |
+| `TTransItem` | a goods/services line item (the gold/diamond line) — central to DPMSR |
+| `TParty` | a multi-party transaction subject (six subject kinds + `role`) |
+| `TPerson` / `TPersonMyClient` | natural-person party (base / RE's-own-client variant) |
+| `TEntity` / `TEntityMyClient` | company/organization party; `TEntity.DirectorId` (extends `TPerson`, adds `role` of `EntityPersonRoleType`) is the director used by real DPMSR entity parties |
+| `TAccount` / `TAccountMyClient` | account party |
+| `TPersonRegistrationInReport` | the MLRO/officer filing the report (`reporting_person`) |
+| `TAddress`, `TPhone`, `TPersonIdentification` | reused leaf types |
+
+### Closed code lists become enums; open ones stay `String`
+Where the XSD declares a **closed enumeration**, xjc generates a Java **enum** — e.g.:
+- **`ReportType`** — every schema report-type code. We functionally model **7** today (STR, SAR, AIF,
+  AIFT, ECDD, ECDDT, DPMSR); the other ~10 are valid enum values deferred to later phases.
+- **`CurrencyType`** — currency codes (`CurrencyType.AED`); `.value()` gives the wire string.
+- **`FundsType`**, **`EntityPersonRoleType`** (e.g. `ATR`), and others.
+
+Where a code list is **very large** (xjc has an enum-member cap), the type stays a **plain `String`** even
+though the schema constrains it. The two the engine cares about:
+- **`item_type`** (`TTransItem.getItemType()`) — `String` (the broad `trans_item_type` codelist).
+- **`transmode_code` / conduction type** (`Report.Transaction.getTransmodeCode()`) — `String`.
+
+These String-typed-but-enumerated fields are exactly why the **lookup ⊆ XSD-enum invariant** exists (see
+[05 §7](05-engine.md)) — the validator checks them against a lookup set that must be a subset of the XSD
+enumeration, so a validator-clean report can't fail the schema.
+
+### Money
+All amounts and quantities are **`BigDecimal`** (`TTransItem.estimatedValue/disposedValue/size`,
+`Report.Transaction.amountLocal`, FX amounts/rates). No `double`/`float` anywhere.
+
+### Wrapper-per-owner
+JAXB generates a **distinct wrapper class per owner** for repeating elements — e.g. `TEntity.Phones` is a
+different type from `TPersonMyClient.Phones`, each with its own `getPhone()`. This "wrapper-per-owner tax"
+is why `GoamlWrappers.wrap(...)` ([05 §2](05-engine.md)) exists: a single generic helper instead of one
+method per wrapper.
 
 ---
 
-## 9. The two element-name traps (memorize these)
+## 5. Element ordering & naming — now the schema's job
 
-The model is uniformly snake_case **except**:
-1. `TPhone` fields serialize with a **`tph_`** prefix (`tph_number`, `tph_country_prefix`, …).
-2. `Transaction.transactionNumber` serializes as **`transactionnumber`** (lowercase, no underscore).
+The schema uses `<sequence>`, so element order is significant — but with the model generated, **xjc emits
+`@XmlType(propOrder=…)` straight from the XSD**, so ordering is correct by construction. You no longer
+hand-maintain `propOrder`. Likewise the historical naming quirks (`tph_`-prefixed phone fields,
+`transactionnumber` with no underscore, inconsistent element wrappers) are all reproduced automatically
+from the schema — they're still there in the XML, but you read them off the generated getters
+(`getTransactionnumber()`, `TPhone.getTphNumber()`, …) rather than memorizing them.
 
-`@XmlElementWrapper` is also used **inconsistently by design** (to match the schema): `phones`,
-`addresses`, `report_parties`, and `report_indicators` are wrapped; but `identification`, `t_party`,
-`goods_services`, and `report`→`transaction` are flat repeating elements.
+JAXB emits **unqualified, no-namespace XML**, matching the goAML convention.
 
 ---
 
-**Next:** [05 — The Engine](05-engine.md) — building, validating, marshalling, and packaging these objects.
+## 6. Why validation isn't here
+
+The generated model guarantees *structural* shape; the **`XsdSchemaValidator`** ([05 §3](05-engine.md))
+guarantees structural *conformance* against the same XSD at runtime; and the **`ReportValidator`**
+enforces the conditional **business** rules (which field is mandatory for which report code, the AED
+threshold, lookup membership). Three distinct gates — keep them separate in your head.
+
+---
+
+**Next:** [05 — The Engine](05-engine.md) — building, validating (rules **and** XSD), marshalling, and packaging these objects.

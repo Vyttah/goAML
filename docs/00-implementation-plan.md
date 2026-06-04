@@ -8,6 +8,14 @@
 
 # goAML Multi-Tenant Report Submission Platform — Implementation Plan
 
+> 📜 **Historical — original plan, preserved as intent.** This is the *original* end-to-end plan and is
+> kept for the "why" and the 14-phase build order. The codebase has since evolved beyond it — notably the
+> **XSD-first foundation** (the domain is now xjc-generated from the real goAML 5.0.2 XSD, with an XSD
+> validation gate) and the **Vyttah layer-first refactor** (`controller`/`service`/`repository`/`model`,
+> Lombok + MapStruct). For the **current** structure and state, see [`CONVENTIONS.md`](CONVENTIONS.md),
+> the rest of `docs/`, and [`.planning/STATE.md`](../.planning/STATE.md) / [`.planning/ROADMAP.md`](../.planning/ROADMAP.md).
+> Don't treat package names or "not-yet-built" notes below as current.
+
 ## Context
 
 **Why this is being built.** Vyttah is building a **RegTech platform** that files Anti-Money-Laundering

@@ -17,6 +17,8 @@
 | ORM | Hibernate via **Spring Data JPA** | (Boot-managed) |
 | Auth | Spring Security + **JJWT** (HS256) | jjwt 0.12.6 |
 | XML binding | **Jakarta JAXB** | api 4.0.2 / runtime 4.0.5 |
+| Domain codegen | **xjc** via the `com.github.bjornvester.xjc` plugin (generates the domain model from the goAML XSD) | plugin 1.9.0 / xjc 4.0.5 |
+| Boilerplate / mapping | **Lombok** + **MapStruct** (JPA/web side only) | lombok (BOM-managed) / mapstruct 1.6.3 |
 | Tests | JUnit 5, AssertJ, Testcontainers, XMLUnit, spring-security-test | — |
 | Coordinates | group `com.vyttah`, name `goaml` | version `0.1.0-SNAPSHOT` |
 
@@ -28,7 +30,15 @@ Spring / Flyway / Postgres / Testcontainers artifacts are **unpinned** (versions
 
 ## 2. Every dependency (from `build.gradle`)
 
-Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)` = `testImplementation`.
+Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)` = `testImplementation`,
+`(ap)` = `annotationProcessor`, `(co)` = `compileOnly`.
+
+**Boilerplate / mapping** (JPA/web side only — the generated domain + engine use neither)
+- `org.projectlombok:lombok` (co + ap, plus `testCompileOnly`/`testAnnotationProcessor`) — version BOM-managed
+- `org.mapstruct:mapstruct:1.6.3` (impl) — **pinned**
+- `org.mapstruct:mapstruct-processor:1.6.3` (ap + test ap) — **pinned**
+- `org.projectlombok:lombok-mapstruct-binding:0.2.0` (ap + test ap) — **pinned**; lets MapStruct see
+  Lombok-generated accessors during annotation processing
 
 **Web / validation**
 - `spring-boot-starter-web` (impl)
@@ -52,6 +62,9 @@ Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)
 **XML / JAXB** (Jakarta namespace — `jakarta.xml.bind`, not legacy `javax`)
 - `jakarta.xml.bind:jakarta.xml.bind-api:4.0.2` (impl) — **pinned**
 - `org.glassfish.jaxb:jaxb-runtime:4.0.5` (impl) — **pinned**
+- The **`com.github.bjornvester.xjc` plugin (1.9.0)** generates the domain model from the goAML XSD at
+  build time (`xjcVersion 4.0.5`, `useJakarta`, `-extension`). Output → `build/generated/sources/xjc`,
+  package `com.vyttah.goaml.domain.generated` — **not committed** (see [04 — Domain Model](04-domain-model.md)).
 
 **Test**
 - `spring-boot-starter-test` (test)
@@ -217,8 +230,15 @@ There are **no Spring profiles** defined in this file yet (single baseline confi
 ## 9. Coding conventions you'll see
 
 - **Records** for DTOs and value types (`LoginRequest`, `ReportHeader`, `Attachment`, `PackagingLimits`,
-  `JurisdictionConfig`, `ValidationMessage`, etc.).
-- **Constructor injection** everywhere (no field `@Autowired`).
+  `JurisdictionConfig`, `ValidationMessage`, `DpmsrReportInput`, `ValidatedReport`, etc.).
+- **Constructor injection** everywhere (no field `@Autowired`); Lombok `@RequiredArgsConstructor` on the
+  JPA/web side.
+- **Layer-first packages** (`controller/<feature>`, `service/<feature>`, `repository/<feature>`,
+  `model/{entity,dto,mapper}/<feature>`) per [`../docs/CONVENTIONS.md`](CONVENTIONS.md). Services are an
+  **interface + `Default*` impl**; controllers are thin and **never inject repositories directly**.
+- **Lombok** (`@Getter`/`@Setter`/`@RequiredArgsConstructor`) + **MapStruct** mappers on entities/DTOs —
+  **not** on the generated domain or the engine, which stay plain.
+- Entity classes carry **no `Entity` suffix** (`AppUser`, `Tenant`, `Role`, `Jurisdiction`, `AuditLog`).
 - **`BigDecimal`** for all money/amounts/quantities — never `double`/`float`.
 - **`OffsetDateTime`** for all timestamps, normalized to UTC.
 - Status/role values are **plain Strings** in the DB (documented via SQL comments), not DB enums.
