@@ -1,10 +1,11 @@
 package com.vyttah.goaml.tenant;
 
 import com.vyttah.goaml.GoamlApplication;
-import com.vyttah.goaml.persistence.shared.TenantEntity;
-import com.vyttah.goaml.persistence.tenant.AuditLogEntity;
-import com.vyttah.goaml.persistence.tenant.AuditLogRepository;
-import com.vyttah.goaml.service.tenant.TenantProvisioningRequest;
+import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.model.entity.tenant.Tenant;
+import com.vyttah.goaml.model.entity.audit.AuditLog;
+import com.vyttah.goaml.repository.audit.AuditLogRepository;
+import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.service.tenant.TenantProvisioningService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,17 +43,17 @@ class TenantIsolationTest {
 
     @Test
     void perTenantWritesAreInvisibleToOtherTenants() {
-        TenantEntity tenantA = provisioningService.provision(new TenantProvisioningRequest(
+        Tenant tenantA = provisioningService.provision(new TenantProvisioningRequest(
                 "iso-a", "Isolation Tenant A", "AE",
                 "a@iso.test", "P@ssw0rd!", "Iso", "A"));
-        TenantEntity tenantB = provisioningService.provision(new TenantProvisioningRequest(
+        Tenant tenantB = provisioningService.provision(new TenantProvisioningRequest(
                 "iso-b", "Isolation Tenant B", "AE",
                 "b@iso.test", "P@ssw0rd!", "Iso", "B"));
 
         // Write two rows under tenant A's schema.
         runAsTenant(tenantA.getSchemaName(), () -> {
-            auditLogRepository.save(new AuditLogEntity(UUID.randomUUID(), "TEST.WRITE", "alpha-1"));
-            auditLogRepository.save(new AuditLogEntity(UUID.randomUUID(), "TEST.WRITE", "alpha-2"));
+            auditLogRepository.save(new AuditLog(UUID.randomUUID(), "TEST.WRITE", "alpha-1"));
+            auditLogRepository.save(new AuditLog(UUID.randomUUID(), "TEST.WRITE", "alpha-2"));
             return null;
         });
 

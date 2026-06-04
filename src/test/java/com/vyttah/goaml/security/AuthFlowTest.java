@@ -3,11 +3,11 @@ package com.vyttah.goaml.security;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyttah.goaml.GoamlApplication;
-import com.vyttah.goaml.persistence.shared.TenantEntity;
-import com.vyttah.goaml.persistence.tenant.AuditLogRepository;
-import com.vyttah.goaml.service.tenant.TenantProvisioningRequest;
+import com.vyttah.goaml.model.entity.tenant.Tenant;
+import com.vyttah.goaml.repository.audit.AuditLogRepository;
+import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.service.tenant.TenantProvisioningService;
-import com.vyttah.goaml.tenant.TenantContext;
+import com.vyttah.goaml.config.tenant.TenantContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -48,7 +48,7 @@ class AuthFlowTest {
 
     @Test
     void loginIssuesJwtAndProtectedEndpointAcceptsIt() throws Exception {
-        TenantEntity tenant = provisioningService.provision(new TenantProvisioningRequest(
+        Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "auth-tenant", "Auth Test FZE", "AE",
                 "mlro@auth.test", "Sup3rS3cret!", "Auth", "Admin"));
 

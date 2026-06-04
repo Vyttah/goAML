@@ -2,11 +2,11 @@ package com.vyttah.goaml.security;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vyttah.goaml.GoamlApplication;
-import com.vyttah.goaml.persistence.shared.AppUserEntity;
-import com.vyttah.goaml.persistence.shared.AppUserRepository;
-import com.vyttah.goaml.persistence.shared.RoleEntity;
-import com.vyttah.goaml.persistence.shared.RoleRepository;
-import com.vyttah.goaml.service.tenant.TenantProvisioningRequest;
+import com.vyttah.goaml.model.entity.appuser.AppUser;
+import com.vyttah.goaml.repository.appuser.AppUserRepository;
+import com.vyttah.goaml.model.entity.role.Role;
+import com.vyttah.goaml.repository.role.RoleRepository;
+import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.service.tenant.TenantProvisioningService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,8 +84,8 @@ class RbacTest {
     // ----- helpers -----
 
     private void createSuperAdmin(String email, String password) {
-        RoleEntity role = roleRepository.findByName("SUPER_ADMIN").orElseThrow();
-        AppUserEntity user = new AppUserEntity(
+        Role role = roleRepository.findByName("SUPER_ADMIN").orElseThrow();
+        AppUser user = new AppUser(
                 UUID.randomUUID(), null, email, passwordEncoder.encode(password),
                 "Super", "Admin", "ACTIVE");
         user.addRole(role);

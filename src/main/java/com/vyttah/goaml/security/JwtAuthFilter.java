@@ -1,7 +1,7 @@
 package com.vyttah.goaml.security;
 
-import com.vyttah.goaml.tenant.TenantContext;
-import com.vyttah.goaml.tenant.TenantIdentifierResolver;
+import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.config.tenant.TenantIdentifierResolver;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;

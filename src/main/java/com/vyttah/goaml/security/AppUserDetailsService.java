@@ -1,6 +1,6 @@
 package com.vyttah.goaml.security;
 
-import com.vyttah.goaml.persistence.shared.AppUserRepository;
+import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
