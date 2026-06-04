@@ -57,9 +57,11 @@ big engine re-point. Codegen + validation-gate + sample validation can proceed f
 
 ---
 
-## Next Action — Phase 6
+## After the XSD-first foundation — Phase 6 (standalone core resumes)
 
-Two independently-testable pieces (build 6a first — the B2B client depends on it for credentials):
+> The XSD-first codegen above comes first. Once the domain is regenerated, Phase 6 continues the
+> standalone core. Two independently-testable pieces (build 6a first — the B2B client depends on it for
+> credentials):
 
 - **6a. `integration/aws/`** — `SecretsManagerClient` (+KMS), `S3StorageClient`, `SesClient`, tested
   against **LocalStack** (`docker compose up -d localstack`). Resolve a tenant's goAML creds from
@@ -112,18 +114,15 @@ Protocol spec: [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-pr
 
 ## Blockers / Concerns
 
-- **🔑 XSD acquisition (now a foundational blocker, not just a correctness gate):** the XSD-first decision
-  needs the authoritative UAE FIU goAML XSD exported from the FIU portal into the repo. Until then,
-  the domain/engine rework (Phases 3–5 migration) is gated — though X.2/X.3 can scaffold against a
-  generic UNODC 5.0.x reference XSD. Also confirm which goAML version UAE production accepts (4.x vs 5.x).
-  **→ When UAT access is granted, follow [field-acquisition-checklist.md](field-acquisition-checklist.md)**
-  to collect the XSD, lookups, B2B URLs/creds, rentity_id, report codes, and the BRRs doc. Minimum to
-  unblock the most work: the **XSD** + **lookup tables**.
-- **SACM registration is gated to a real regulated entity (learned 2026-06-03)** — a solo developer
-  cannot self-register (needs a supervisory body + registration number + authorization PDF). Live UAE
-  access needs a real client-RE relationship. **Unblock for now:** bootstrap the XSD-first build against
-  a **generic UNODC goAML 5.0.x reference XSD**, swap in the authoritative UAE XSD later. (See the
-  "Reality check" in the checklist.)
+- **✅ XSD acquisition — RESOLVED:** the authoritative goAML **5.0.2** XSD + 2 real DPMSR samples are
+  vendored (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). XSD-first codegen is
+  **unblocked**. **Still pending via [field-acquisition-checklist.md](field-acquisition-checklist.md)**
+  (needs UAT access; does NOT block codegen): per-tenant B2B URLs + creds, full UAE lookup exports, the
+  BRRs doc, `rentity_id`. Confirm the UAE *production* goAML version (4.x vs 5.x) before go-live.
+- **SACM registration is gated to a real regulated entity** — a solo developer cannot self-register
+  (needs a supervisory body + registration number + authorization PDF). This gates **live UAT/B2B access**
+  (creds, submission), **not** the XSD-first codegen (the XSD is already in hand). Live access needs a real
+  client-RE relationship. (See the "Reality check" in the checklist.)
 - **External inputs gate live correctness** (not the build): UAE XSD, per-tenant B2B URLs + credentials,
   UAE Business Rejection Rules, real lookup exports, CSV template, AWS account specifics. See
   [docs/09 §4 Open Items](../docs/09-build-order-and-roadmap.md).

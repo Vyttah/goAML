@@ -86,11 +86,11 @@ relies on.
 These are external inputs that gate *correctness*, tracked from the plan. None block building the
 plumbing; they block going live.
 
-1. **UAE goAML XSD file(s)** — **now a foundational dependency, not just a correctness gate.** Per the
-   **XSD-first decision** ([`.planning/plans/xsd-first-foundation.md`](../.planning/plans/xsd-first-foundation.md)),
-   the domain + structural validation will be rebuilt over the authoritative latest goAML XSD (target
-   5.0.x, XSD 1.1) via xjc-generated JAXB. Export the XSD from the UAE FIU portal into
-   `src/main/resources/xsd/` (login-gated — not fetchable from the open web). This reworks Phases 3–5.
+1. **UAE goAML XSD — ✅ OBTAINED.** The authoritative goAML **5.0.2** XSD + 2 real DPMSR samples are
+   vendored (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). Per the **XSD-first
+   decision** ([`.planning/plans/xsd-first-foundation.md`](../.planning/plans/xsd-first-foundation.md)) the
+   domain + structural validation are being rebuilt over it via xjc-generated JAXB (standard JDK JAXP gate —
+   the schema has no 1.1 asserts). This reworks Phases 3–5. *(Confirm UAE production version, 4.x vs 5.x, before go-live.)*
 2. **Per-tenant B2B base URLs (test + prod) + each RE's goAML credentials** — for live submission.
 3. **UAE Business Rejection Rules (BRRs)** doc — to complete validation beyond `*`-mandatory fields
    (this is where Emirates-ID/passport rules and many others come from — see the
@@ -108,7 +108,7 @@ plumbing; they block going live.
 A consolidated list of "the plan mentions it but the code doesn't do it yet," so you're not surprised:
 
 - **No Emirates-ID/passport validation** (awaits BRRs — open item #3).
-- **No XSD validation gate** (awaits the real XSD — open item #1).
+- **No XSD validation gate yet** (XSD now obtained; the gate is built in XSD-first step X.3, standard JAXP).
 - **`ANALYST`/`MLRO` authorization not enforced** on any endpoint yet (the submit endpoint doesn't exist
   until Phase 7).
 - **Platform/SUPER_ADMIN actions aren't audited** (no shared audit table yet).

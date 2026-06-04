@@ -53,7 +53,7 @@ external inputs (see STATE.md → Blockers).
 | Deployment | Docker + AWS EKS, RDS Postgres, Secrets Manager + KMS, S3, SES |
 | Observability | Actuator probes, Prometheus metrics, structured JSON logs, correlation IDs |
 | CI/CD | GitHub Actions — build+test, image push to ECR, deploy to EKS |
-| Domain model | **XSD-first (DECIDED 2026-06-03):** build over the **authoritative latest goAML XSD** (target **5.0.x, XSD 1.1**) via **xjc-generated JAXB** + an XSD-1.1 validation gate. Supersedes the interim hand-modeled v4.0 POJOs. Migration plan: [plans/xsd-first-foundation.md](plans/xsd-first-foundation.md) |
+| Domain model | **XSD-first (DECIDED 2026-06-03):** build over the **authoritative goAML 5.0.2 XSD** (obtained + vendored) via **xjc-generated JAXB** + an XSD validation gate using **standard JDK JAXP** (the schema has **no** XSD-1.1 asserts → no Saxon/Xerces-EE). Supersedes the interim hand-modeled v4.0 POJOs. Migration plan: [plans/xsd-first-foundation.md](plans/xsd-first-foundation.md) |
 | Report types | The authoritative `goAMLSchema.xsd` (5.0.2) defines **17 codes**: AIF, AIFT, CIR, CNMRA, DPMSR, ECDD, ECDDT, HRC, HRCA, IRR, ITR, PNMRA, PSTR, REAR, SAR, SIR, STR. (CIR/IRR/ITR/PSTR/SIR meanings TBC from UAE "Different Types of Reports v1.2".) Coverage is delivered per the phased Report-scope decision above. |
 
 Rationale and the full clarification history are in
