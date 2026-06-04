@@ -19,48 +19,45 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–6 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+- **Phases 1–7 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
   gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 7 next** — `persistence/` + `service/` + `web/` reports/submissions REST, wiring
-  the (built, tested) engine + b2b client to HTTP. This is the first phase that makes the report lifecycle
-  manually testable via the API.
-- **Last completed:** **Phase 6 (AWS + B2B)** — `integration/aws/GoamlSecretsClient` (Secrets Manager),
-  Redis-backed `TokenManager`, and the `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + a JaCoCo
-  ≥90% gate (~98.7% on the new code). Commits `e6a03d6`…`81f61b0`. Per-step docs: `steps/PHASE-6.1..6.5`.
-- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phase 6).
+- **Active focus: Phase 8 next** — **S3 attachments** (presigned upload, pull into the ZIP), tested vs
+  LocalStack; adds the `attachment` tenant table + the `S3StorageClient` deferred from Phase 6.
+- **Last completed:** **Phase 7 (persistence + service + web REST)** — the **DPMSR report lifecycle API**:
+  `report`/`submission` tenant tables + `TenantGoamlConfig`; `ReportService` (create→build+validate→persist)
+  + `SubmissionService` (package→B2B submit→reportkey, on-demand status); `ReportController`
+  (`/api/v1/reports` create/list/get/submit/status, **MLRO-gated submit**). Testcontainers + WireMock E2E;
+  JaCoCo gate (~98.5% on the gated packages). Commits `154a2f5`…`82af99f`. Per-step docs: `steps/PHASE-7.1..7.4`.
+  **The report flow is now manually testable via the API** (see [docs/03 — Trying the report API locally](../docs/03-tech-stack-and-local-dev.md)).
+- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phases 6–7).
 - **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
   `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — Phase 7 (persistence + service + web REST)
+## Next Action — Phase 8 (S3 attachments)
 
-Wire the engine + b2b client (both built & tested as libraries) to HTTP. Expected scope:
-1. **Persistence:** tenant-schema migrations + JPA for `report`, `submission` (and a `TenantGoamlConfig`
-   shared entity/repo so the orchestration can build `B2bTenantConfig` from the DB), per Vyttah conventions
-   (`model/entity/<feature>`, `repository/<feature>`, no `Entity` suffix).
-2. **Service:** a submission orchestration (`service/...`, interface + `Default*`) that builds/validates a
-   report, persists it, packages the ZIP, resolves the tenant's `B2bTenantConfig`, and calls
-   `GoamlB2bClient.postReport` — idempotent on `entity_reference`.
-3. **Web:** REST endpoints (`controller/...`) to create/validate/submit/track a report (RBAC: submit gated
-   to MLRO), Testcontainers-Postgres integration tests.
+Add supporting-document attachments to a report and into the submission ZIP. Expected scope:
+1. **`integration/aws/S3StorageClient`** (the client deferred from Phase 6) — per-tenant prefixes; tested
+   vs LocalStack S3.
+2. **`attachment` tenant table** + entity/repo; presigned upload URL, then pull the bytes into
+   `ReportZipPackager` at submit (within `PackagingLimits.UAE_DEFAULT`: 5 MB/file, 20 MB/ZIP).
+3. **Web:** attach/list/remove endpoints on a report; submit includes the attachments.
 
-> First phase where the **report lifecycle is manually testable via the API** (curl/Postman). Live FIU
-> submission still needs real per-tenant base URLs + credentials (external input). Follow the gated
-> workflow: write the Phase 7 plan + per-step understanding docs, get approval, then build step-by-step.
+> Follow the gated workflow: write the Phase 8 plan + per-step understanding docs, get approval, then build
+> step-by-step (one green commit per step, JaCoCo gate extended).
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
-STEP-R) → domain xjc-generated from goAML 5.0.2, XSD gate, lookup⊆XSD invariant, DPMSR builder, docs
-refresh; **Phase 6** (PHASE-6.1..6.5) → Secrets Manager seam, Redis token cache, goAML B2B client, JaCoCo
-≥90% gate.
+STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
+(PHASE-7.1..7.4) → report/submission persistence, report + submission services, REST API + RBAC + E2E.
 
 ## Progress
 
-`[████▎░░░░░] 6/14 (≈43%)` + XSD-first foundation + layer-first refactor
+`[█████░░░░░] 7/14 (≈50%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · **6 integration/aws/ + b2b/ client** |
-| ⏭️ | **7 persistence + service + web REST** (wires engine + b2b to HTTP) |
-| ⬜ | 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · **7 persistence + service + web REST** |
+| ⏭️ | **8 S3 attachments** (LocalStack) |
+| ⬜ | 9 scheduler · 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)

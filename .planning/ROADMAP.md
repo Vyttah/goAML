@@ -12,8 +12,8 @@
 | 4 | **`engine/` builders + marshaller** + golden-file XML per report type | ✅ done | `220b763` |
 | 5 | **`engine/` validation + UAE jurisdiction + lookups** | ✅ done | `102484d` |
 | 6 | **`integration/aws/` Secrets Manager + Redis B2B token cache → `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + JaCoCo ≥90% gate** (Secrets-only; S3/SES → 8/10) | ✅ done | `e6a03d6`…`81f61b0` |
-| 7 | **`persistence/` + `service/` + `web/`** reports/submissions REST (Testcontainers Postgres) — wires the engine + b2b to HTTP | ⏭️ **next** | — |
-| 8 | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | ⬜ todo | — |
+| 7 | **`persistence/` + `service/` + `web/`** DPMSR reports/submissions REST — wires the engine + b2b to HTTP (Testcontainers + WireMock E2E; JaCoCo gate) | ✅ done | `154a2f5`…`82af99f` |
+| 8 | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | ⏭️ **next** | — |
 | 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⬜ todo | — |
 | 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⬜ todo | — |
 | 11 | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | ⬜ todo | — |

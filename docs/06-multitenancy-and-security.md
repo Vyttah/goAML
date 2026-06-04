@@ -139,9 +139,8 @@ adminPassword, adminFirstName, adminLastName`.
 Roles travel in the JWT `roles` claim. `UserPrincipal` maps each role name to a Spring authority
 **`ROLE_<name>`** (e.g. `ROLE_SUPER_ADMIN`). `@EnableMethodSecurity` is on, so `@PreAuthorize` works.
 
-> ⚠️ Today only one endpoint is actually role-gated (`/api/v1/admin/ping` → `hasRole('SUPER_ADMIN')`).
-> The `ANALYST`/`MLRO` distinction (e.g. submit gated to MLRO) is defined in the data model but not yet
-> enforced on any endpoint — those endpoints (report submit) don't exist until Phase 7+.
+> Role-gated endpoints (via `@PreAuthorize`): `/api/v1/admin/ping` → `SUPER_ADMIN`; the **report API**
+> (Phase 7) → create/read for `ANALYST`/`MLRO`(/`TENANT_ADMIN` for read), and **submit is `MLRO`-only**.
 
 ### `SecurityConfig` (`security/SecurityConfig`)
 - CSRF disabled (stateless JWT API). Session policy **STATELESS**.
@@ -164,6 +163,14 @@ Roles travel in the JWT `roles` claim. `UserPrincipal` maps each role name to a 
 | POST | `/api/v1/auth/login` | `LoginRequest{email,password}` | `LoginResponse{accessToken, tokenType, expiresInSeconds}` | public |
 | GET | `/api/v1/me` | — | `{userId, tenantId, tenantSchema, email, roles[]}` | any valid JWT |
 | GET | `/api/v1/admin/ping` | — | `{ok:true, role:"SUPER_ADMIN"}` | `SUPER_ADMIN` |
+| POST | `/api/v1/reports` | `DpmsrCreateRequest` | `201 {reportId, status, validationMessages[]}` | `ANALYST`/`MLRO` |
+| GET | `/api/v1/reports` · `/{id}` | — | report view(s) | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+| POST | `/api/v1/reports/{id}/submit` | — | `{submissionId, reportKey, status}` | **`MLRO`** |
+| GET | `/api/v1/reports/{id}/status` | — | `{reportKey, status, errors}` | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+
+> The report API maps service exceptions via `GlobalExceptionHandler`: 404 not-found, 409
+> duplicate-reference / not-submittable / config-missing, 422 FIU-rejection (+ `fiuError`), 502
+> auth/transport, 400 bad input.
 
 - **`MeController`** uses `@AuthenticationPrincipal UserPrincipal`, strips the `ROLE_` prefix off roles,
   and returns `TenantContext.get()` as `tenantSchema` (proving routing works).

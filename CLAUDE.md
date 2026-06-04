@@ -25,9 +25,10 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–6 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 7
-  (persistence + service + web REST — wires the engine + b2b to HTTP)**. Phase 6 built the AWS Secrets
-  Manager seam, a Redis B2B token cache, and the goAML B2B client (tested; not yet endpoint-wired).
+- **Status:** Phases 1–7 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 8
+  (S3 attachments)**. Phase 7 wired the engine + b2b to HTTP: the **DPMSR report lifecycle REST API**
+  (`/api/v1/reports` create/validate/submit/status, MLRO-gated submit) over `report`/`submission` tenant
+  tables — so the flow is now manually testable via the API (live submit needs per-tenant FIU config).
 - **First report type = `DPMSR`** (precious-metals dealers; cash ≥ AED 55,000). All 17 schema codes later.
 - **DPMSR is activity-shaped** (goods + parties, no `<transaction>` block).
 - **Auth:** self-managed HS256 JWT, RBAC roles SUPER_ADMIN/TENANT_ADMIN/MLRO/ANALYST; tenant routing via

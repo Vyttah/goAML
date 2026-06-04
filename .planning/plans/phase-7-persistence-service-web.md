@@ -119,6 +119,26 @@ asserted; `git status` scoped to Phase 7 dirs + the 7.4 docs.
 
 ---
 
-## Outcome (filled in after implementation)
+## Outcome — ✅ COMPLETE (2026-06-05)
 
-_(Pending approval.)_
+Delivered across `154a2f5` (7.1) · `fc96046` (7.2) · `82af99f` (7.3) · this commit (7.4):
+
+- **7.1 persistence** — `V2__reports.sql` (`report` JSONB-input + XML snapshot + metadata, `entity_reference`
+  UNIQUE; `submission`); `Report`/`Submission`/`TenantGoamlConfig` entities + repos.
+- **7.2 service** — `ValidatedReport` carries the marshalled XML (so the service never touches the JAXB
+  `Report`); `DpmsrCreateRequest` + `DpmsrRequestMapper`; `ReportService` (create/validate/persist) +
+  `SubmissionService` (package → B2B submit → reportkey; status refresh); typed exceptions.
+- **7.3 web** — `ReportController` (`/api/v1/reports` create/list/get/submit/status, MLRO-gated submit) +
+  response DTOs + `GlobalExceptionHandler` mappings; Testcontainers + WireMock E2E.
+- **7.4 docs/planning sync** — `docs/{02,03,06,07,09}`, `CLAUDE.md`, `.planning/{ROADMAP,STATE}`, + the
+  local-seed snippet for hands-on submit (docs/03).
+
+**Decisions realised:** DPMSR-only; JSONB input + XML snapshot (no normalized tree); the `Report` name
+clash eliminated via `ValidatedReport.xml()`; no prod auto-seeder (documented local seed instead).
+
+**Coverage:** gated packages (b2b + aws + report/submission service + mapper + controller) **98.5% instr /
+84.5% branch** — gate passes. The report flow is **manually testable via the API**; live submit needs a
+`tenant_goaml_config` row + a Secrets Manager secret + a reachable goAML endpoint.
+
+**Not done (later phases):** S3 attachments (8), async poller + retry (9), notifications (10), non-DPMSR
+report types, React UI (13).

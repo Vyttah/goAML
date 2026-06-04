@@ -127,8 +127,39 @@ Index `idx_refresh_token_user`.
 
 Indexes `idx_audit_log_action`, `idx_audit_log_occurred_at`.
 
-> Later phases add the rest of the per-tenant tables here: `report`, `submission`, `attachment`,
-> `report_party`, `notification`, `import_job` (Phases 7–11).
+### `V2__reports.sql` (Phase 7) — `report` + `submission`
+
+**`report`** — a stored DPMSR report. Content is the structured **`input` (JSONB)** + the marshalled goAML
+**`report_xml`** snapshot + metadata — the XSD-generated model is the structure authority, so there is no
+normalized report tree.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID` PK | |
+| `entity_reference` | `VARCHAR(255)` NOT NULL **UNIQUE** | per-tenant idempotency key |
+| `report_code` | `VARCHAR(16)` NOT NULL | `DPMSR` (others later) |
+| `rentity_id` | `INTEGER` NOT NULL | from `tenant_goaml_config` |
+| `status` | `VARCHAR(16)` NOT NULL DEFAULT `'DRAFT'` | DRAFT/VALID/INVALID/SUBMITTED/ACCEPTED/REJECTED/FAILED |
+| `input` | `JSONB` NOT NULL | the create request, persisted verbatim |
+| `report_xml` | `TEXT` NULL | marshalled goAML XML snapshot |
+| `validation_errors` | `JSONB` NULL | `[{severity,path,code,message}]` |
+| `created_by` | `UUID` NULL | author `app_user.id` |
+| `created_at`, `updated_at` | `TIMESTAMPTZ` | |
+
+Indexes `idx_report_status`, `idx_report_created_at`.
+
+**`submission`** — one row per submission attempt to the FIU.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID` PK | |
+| `report_id` | `UUID` NOT NULL → `report(id)` CASCADE | |
+| `reportkey` | `VARCHAR(128)` NULL | the FIU's handle (poll status with it) |
+| `status` | `VARCHAR(16)` NOT NULL DEFAULT `'SUBMITTED'` | SUBMITTED/ACCEPTED/REJECTED/FAILED |
+| `errors` | `TEXT` NULL | FIU error body on rejection/failure |
+| `submitted_at`, `updated_at` | `TIMESTAMPTZ` | |
+
+Index `idx_submission_report`.
+
+> Later phases add `attachment` (Phase 8), `notification` (10), `import_job` (11).
 
 ---
 
@@ -144,6 +175,9 @@ replaces hand-written accessors. Key mapping facts:
 | `Role` | `model/entity/role/` | `role`, schema=public | `Short id` | read-only; `findByName` |
 | `Tenant` | `model/entity/tenant/` | `tenant`, schema=public | `UUID` | `schemaName` is the routing key |
 | `AuditLog` | `model/entity/audit/` | `audit_log`, **no schema** | `UUID` | resolves via search_path (tenant-scoped) |
+| `TenantGoamlConfig` | `model/entity/goamlconfig/` | `tenant_goaml_config`, schema=public | `UUID` | read-mostly; `findByTenantId`; resolves the tenant's B2B config |
+| `Report` | `model/entity/report/` | `report`, **no schema** | `UUID` | tenant-scoped; JSONB `input`/`validation_errors` via `@JdbcTypeCode(SqlTypes.JSON)`; **distinct from the JAXB `domain.generated.Report`** |
+| `Submission` | `model/entity/submission/` | `submission`, **no schema** | `UUID` | tenant-scoped; FK → `report` |
 
 **No JPA enums** — `status`, role names, `auth_mode` are all plain `String`s (allowed values documented
 in SQL comments only). Money/dates follow the project convention (`BigDecimal` / `OffsetDateTime`) where

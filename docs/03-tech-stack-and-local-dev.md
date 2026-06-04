@@ -138,6 +138,50 @@ schema/fixture change, regenerate them:
 This overwrites `src/test/resources/golden/*.xml` with current engine output instead of asserting.
 Review the diff before committing. (More in [08 — Testing](08-testing.md).)
 
+### Trying the DPMSR report API locally (Phase 7)
+
+`bootRun`, then exercise the lifecycle over HTTP. **Create + validate + read need no FIU setup**; only
+**submit** needs a tenant's goAML config + credentials.
+
+```bash
+# 1. Log in (seeded admin, or any ANALYST/MLRO you create) → copy the accessToken
+curl -s localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"<email>","password":"<password>"}'
+
+# 2. Create + validate a DPMSR (Bearer <token>) → returns {reportId, status, validationMessages}
+curl -s localhost:8080/api/v1/reports -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{
+    "entityReference":"PAY-0001","submissionDate":"2026-06-02T12:00:00Z",
+    "reason":"DPMS threshold met","action":"Filed","indicators":["DPMSJ"],
+    "reportingPerson":{"firstName":"Sara","lastName":"Khan"},
+    "parties":[{"reason":"Seller","entity":{"name":"Gold Trading FZE",
+        "incorporationNumber":"123456","incorporationCountryCode":"AE"}}],
+    "goods":[{"itemType":"GOLD","estimatedValue":90000.00,"currencyCode":"AED"}]}'
+
+# 3. List / fetch
+curl -s localhost:8080/api/v1/reports -H "Authorization: Bearer $TOKEN"
+```
+
+**Local seed for submit** (needs the LocalStack + Redis compose services, and a goAML endpoint — point
+`base_url` at a stub/WireMock for a dry run). Seed a `tenant_goaml_config` row + the credentials secret:
+
+```bash
+# the tenant's FIU config (rentity_id, endpoint, secret path, auth mode)
+psql "$SPRING_DATASOURCE_URL" -c "INSERT INTO public.tenant_goaml_config
+  (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
+  VALUES (gen_random_uuid(), '<tenant-uuid>', 'AE', 3177,
+          'http://localhost:8089', 'goaml/<tenant>/creds', 'TOKEN');"
+
+# the goAML B2B credentials in LocalStack Secrets Manager
+aws --endpoint-url http://localhost:4566 secretsmanager create-secret \
+  --name 'goaml/<tenant>/creds' \
+  --secret-string '{"username":"re-3177","password":"secret"}'
+```
+
+Then `POST /api/v1/reports/{id}/submit` (as an **MLRO**) calls the goAML B2B client with that tenant's
+credentials and stores the returned `reportkey`.
+
 ---
 
 ## 5. Configuration (`src/main/resources/application.yml`)

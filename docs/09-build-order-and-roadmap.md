@@ -35,8 +35,8 @@ machine-local state — so anyone on any machine can resume.
 | — | **XSD-first foundation** (migration, not a numbered phase) — generate the domain from the real goAML **5.0.2** XSD via xjc, add the **XSD validation gate**, reconcile lookups (lookup⊆XSD), add the **DPMSR convenience builder** | ✅ | `6911cf6`…`70f9cdb` |
 | — | **Vyttah layer-first refactor** — restructure to `controller`/`service`/`repository`/`model` conventions; Lombok + MapStruct on the JPA/web side | ✅ | `8fed6a1`…`e54f64c` |
 | 6 | **`integration/aws/` Secrets Manager (per-tenant creds) + Redis token cache → `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + JaCoCo ≥90% gate** | ✅ | `e6a03d6`…`81f61b0` |
-| **7** | **`persistence/` + `service/` + `web/`** reports/submissions REST (Testcontainers Postgres) — wires the engine + b2b to HTTP | **⏭️ NEXT** | — |
-| 8 | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | ⬜ | — |
+| 7 | **`persistence/` + `service/` + `web/`** DPMSR reports/submissions REST — wires the engine + b2b to HTTP (Testcontainers + WireMock E2E) | ✅ | `154a2f5`…`82af99f` |
+| **8** | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | **⏭️ NEXT** | — |
 | 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⬜ | — |
 | 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⬜ | — |
 | 11 | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | ⬜ | — |
@@ -44,7 +44,7 @@ machine-local state — so anyone on any machine can resume.
 | 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ | — |
 | 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ | — |
 
-Progress: **6 / 14 (≈43%)** + the XSD-first foundation + the layer-first refactor.
+Progress: **7 / 14 (≈50%)** + the XSD-first foundation + the layer-first refactor.
 
 ---
 
