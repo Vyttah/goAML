@@ -60,8 +60,9 @@ public class DpmsrReportBuilder {
      */
     public ValidatedReport buildAndValidate(DpmsrReportInput in, String jurisdictionCode) {
         Report report = build(in);
+        byte[] xml = reportMarshaller.marshal(report);
         ValidationResult rules = reportValidator.validate(report, jurisdictionCode);
-        ValidationResult xsd = xsdSchemaValidator.validate(reportMarshaller.marshal(report));
-        return new ValidatedReport(report, rules, xsd);
+        ValidationResult xsd = xsdSchemaValidator.validate(xml);
+        return new ValidatedReport(report, new String(xml, java.nio.charset.StandardCharsets.UTF_8), rules, xsd);
     }
 }

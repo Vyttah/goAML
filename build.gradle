@@ -119,11 +119,14 @@ def jacocoExcludes = [
         'com/vyttah/goaml/domain/generated/**',
         'com/vyttah/goaml/GoamlApplication*'
 ]
-// Phase 6 code we hold to a ≥90% bar (the rest of the report is informational for now).
+// Phase 6+7 code we hold to a ≥90% bar (the rest of the report is informational for now).
 def coveredPackages = [
         'com/vyttah/goaml/b2b/**',
         'com/vyttah/goaml/integration/aws/**',
-        'com/vyttah/goaml/config/aws/**'
+        'com/vyttah/goaml/config/aws/**',
+        'com/vyttah/goaml/service/report/**',
+        'com/vyttah/goaml/service/submission/**',
+        'com/vyttah/goaml/model/mapper/report/**'
 ]
 
 jacocoTestReport {
