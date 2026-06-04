@@ -1,6 +1,7 @@
 # Step 4 — Re-point the engine onto the generated model & retire hand-modeled `domain/*`
 
-> **Status: 🔲 PROPOSED (2026-06-04) — awaiting your approval before implementation.**
+> **Status: ✅ DONE (2026-06-04) — engine re-pointed onto the generated model; hand-modeled `domain/*` deleted.
+> Landed as 4a (codegen) → 4b (re-point + tests + goldens) → 4c (delete). See "Outcome".**
 > Part of [../plans/xsd-first-foundation.md](../plans/xsd-first-foundation.md) (step X.4).
 > Predecessors: Step 1 ✅ (XSD gate) · Step 2 ✅ (xjc codegen) · Step 3 ✅ (real samples round-trip).
 > ⚠️ **This is the substantive/destructive step** STATE.md flagged — it deletes the hand-modeled `domain/*`
@@ -262,8 +263,23 @@ so CASH still passes there).
 --tests '*ReportZipPackagerTest' --tests '*GoamlXsdValidationTest'` → 35 passed, 0 failed. Hand-modeled
 `domain/*` still present (referenced only by the 2 round-trip tests) — deleted in 4c.
 
-### 4c — Delete hand-modeled `domain/*` + retire its round-trip tests
+### 4c — Delete hand-modeled `domain/*` + retire its round-trip tests ✅ (2026-06-04)
 
-_(Pending — next. Delete `domain/{Report,activity,common,enums,party,transaction}`, keep
-`domain/adapter/GoamlDateTimeAdapter`; delete `domain/DpmsrReportRoundTripTest` +
-`domain/StrTransactionRoundTripTest` — the generated round-trip is covered by `GeneratedModelRoundTripTest`.)_
+**Done & green.** Deleted the hand-modeled model — `domain/Report.java` and all of
+`domain/{activity,common,enums,party,transaction}/*` (24 files) — plus the two hand-model round-trip tests
+(`domain/DpmsrReportRoundTripTest`, `domain/StrTransactionRoundTripTest`; the generated round-trip is covered
+by `GeneratedModelRoundTripTest`). **Kept** `domain/adapter/GoamlDateTimeAdapter` (reused by the generated
+model). Under `domain/` only the adapter (main) and the two `domain/generated/*` tests remain.
+
+**Verified:** no source references `com.vyttah.goaml.domain.{Report,activity,common,enums,party,transaction}`
+anymore; `compileJava`/`compileTestJava` clean; the 35 engine (non-DB) tests still green. The generated model
+is now the **single source of truth** for the report model.
+
+---
+
+## Step 4 — DONE (2026-06-04)
+
+The engine builds, validates, and marshals against the xjc-generated model only; the hand-modeled `domain/*`
+is gone (adapter kept). Validation rules + codes unchanged; goldens are XSD-validated. **Carry-overs for
+Step 5:** (1) reconcile `lookups/ae/transmode.json` with the XSD `transmode_type` enumeration, then restore
+transaction-shaped goldens (STR/AIFT/ECDDT); (2) expand report-type coverage toward the 17 schema codes.

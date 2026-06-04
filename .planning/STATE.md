@@ -32,21 +32,17 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 > **Progress:** Step 1 ✅ (XSD validation gate + real samples validate), Step 2 ✅ (xjc codegen → 46
 > generated classes, dates→OffsetDateTime, ReportType enum), and Step 3 ✅ (both real DPMSR samples
-> round-trip through the generated model) are done & green. **Step 4 in progress** (re-point engine onto the
-> generated model + retire hand-modeled `domain/*`), as 4 sub-commits 4a–4d:
-> - **4a ✅** — `.xjb` rename killed the `Report` catch-all; `Report` now has typed getters (no shim needed).
->   The catch-all was caused by the `<xs:choice>` declaring `activity` in both branches; renaming branch-1's
->   nested `activity` → property **`reportActivity`** fixed it. ⚠️ The engine's activity accessor is
->   **`getReportActivity()`** (the slot JAXB actually fills for DPMSR), NOT `getActivity()` (vestigial).
-> - **4b ✅** — full engine re-point onto the generated model (jurisdiction/build/marshal/validation) + tests
->   (`SampleReports`, golden/marshaller/validator) + goldens regenerated & **XSD-validated**. 35 engine tests
->   green. Same validation rules/codes; activity accessor = `getReportActivity()`. (The 4b/4c/4d split
->   collapsed to one re-point commit since Java compiles the module at once.) ⚠️ **Step-5 carry-overs:**
->   transaction-shaped goldens (STR/AIFT/ECDDT) deferred — `lookups/ae/transmode.json` is **disjoint** from the
->   XSD `transmode_type` enum (needs reconciling); golden XSD coverage = 4 activity types (DPMSR/SAR/AIF/ECDD),
->   validator rule coverage = all 7.
-> - **4c** (next) — delete hand-modeled `domain/*` (keep `GoamlDateTimeAdapter`) + the 2 hand-model round-trip
->   tests.
+> round-trip through the generated model), and **Step 4 ✅** (engine re-pointed onto the generated model;
+> hand-modeled `domain/*` deleted) are done & green. The **generated model is now the single source of truth**.
+> Landed as: **4a** (`.xjb` rename → typed `Report` getters; activity accessor = **`getReportActivity()`**,
+> not `getActivity()`), **4b** (full engine re-point + tests + goldens regenerated & **XSD-validated**; 35
+> engine tests green; fixed a latent `.gitignore` bug that had left `engine/build/` untracked since Phase 4),
+> **4c** (deleted hand-modeled `domain/*`, kept `GoamlDateTimeAdapter`). **Next = Step 5** (see carry-overs).
+>
+> ⚠️ **Step-5 carry-overs:** (1) reconcile `lookups/ae/transmode.json` with the XSD `transmode_type` enum (they
+> are **disjoint**), then restore transaction-shaped goldens (STR/AIFT/ECDDT) — currently XSD golden coverage =
+> 4 activity types (DPMSR/SAR/AIF/ECDD), validator rule coverage = all 7; (2) expand report-type coverage
+> toward the 17 schema codes.
 >
 > Step docs in [steps/](steps/STEP-4-repoint-engine.md).
 
