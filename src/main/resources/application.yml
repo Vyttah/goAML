@@ -50,6 +50,12 @@ goaml:
     secret: ${GOAML_JWT_SECRET:dev-secret-please-replace-with-a-long-random-value-min-256-bits}
     issuer: goaml
     access-token-ttl-minutes: 15
+  aws:
+    # AWS region for Secrets Manager (per-tenant goAML B2B credentials). me-central-1 = UAE.
+    region: ${GOAML_AWS_REGION:me-central-1}
+    # Endpoint override for LocalStack (docker-compose, :4566). Leave EMPTY for real AWS — the SDK
+    # then resolves the regional endpoint and uses IRSA / the default credentials chain on EKS.
+    endpoint: ${GOAML_AWS_ENDPOINT:}
 
 logging:
   pattern:
