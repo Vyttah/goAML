@@ -83,8 +83,12 @@
 | **Testcontainers** | Library that spins real Docker containers (Postgres) for integration tests. |
 | **XMLUnit** | Library for semantic XML comparison — used in golden-file tests. |
 | **Golden file** | A committed expected-output XML; tests assert the engine still produces it. |
-| **WireMock** | HTTP mock server — will stub the goAML B2B API in Phase 6 tests (not yet added). |
-| **LocalStack** | Local emulator of AWS services (S3/Secrets/KMS/SES) — in `docker-compose.yml`, used from Phase 6. |
+| **WireMock** | In-process HTTP mock server — stubs the goAML B2B API in tests (auth/submit/status). Added in Phase 6. |
+| **LocalStack** | Local emulator of AWS services — in `docker-compose.yml`; the Phase 6 Secrets Manager integration test runs against it (`:4566`). |
+| **Redis** | In-memory store (`docker-compose` `redis`); caches per-tenant goAML B2B session tokens (`goaml:b2b:token:<tenantId>`, TTL) via `TokenManager`. Phase 6. |
+| **JaCoCo** | Java code-coverage tool; the build enforces a ≥90% instruction / ≥80% branch gate on the Phase 6 packages. |
+| **`TokenManager`** | Authenticates to goAML B2B and caches the per-tenant `SqlAuthCookie` in Redis; re-auths on 401. |
+| **`GoamlSecretsClient`** | Fetches a tenant's goAML B2B credentials from AWS Secrets Manager (named to avoid a clash with the AWS SDK's `SecretsManagerClient`). |
 | **MCP** | Model Context Protocol — lets AI agents call the platform's tools (Phase 12). |
 | **B2B** | The goAML machine-to-machine REST interface for submission. See [10](10-b2b-submission-protocol.md). |
 | **`reportkey`** | The FIU's handle returned after a successful `PostReport`; used to poll status. |

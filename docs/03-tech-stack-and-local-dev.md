@@ -19,7 +19,9 @@
 | XML binding | **Jakarta JAXB** | api 4.0.2 / runtime 4.0.5 |
 | Domain codegen | **xjc** via the `com.github.bjornvester.xjc` plugin (generates the domain model from the goAML XSD) | plugin 1.9.0 / xjc 4.0.5 |
 | Boilerplate / mapping | **Lombok** + **MapStruct** (JPA/web side only) | lombok (BOM-managed) / mapstruct 1.6.3 |
-| Tests | JUnit 5, AssertJ, Testcontainers, XMLUnit, spring-security-test | — |
+| AWS / cache | **AWS SDK v2** (Secrets Manager) + **Redis** (Spring Data Redis) | awssdk BOM 2.28.16 |
+| Tests | JUnit 5, AssertJ, Mockito, Testcontainers, XMLUnit, **WireMock**, spring-security-test | wiremock 3.9.2 |
+| Coverage | **JaCoCo** (≥90%/≥80% gate on Phase 6 packages) | plugin (Gradle-bundled) |
 | Coordinates | group `com.vyttah`, name `goaml` | version `0.1.0-SNAPSHOT` |
 
 The Spring Boot `io.spring.dependency-management` plugin supplies the Boot **platform BOM**, so most
@@ -47,11 +49,16 @@ Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)
 **Observability**
 - `spring-boot-starter-actuator` (impl)
 
-**Persistence**
+**Persistence / cache**
 - `spring-boot-starter-data-jpa` (impl)
 - `org.flywaydb:flyway-core` (impl)
 - `org.flywaydb:flyway-database-postgresql` (impl)
 - `org.postgresql:postgresql` (rt)
+- `spring-boot-starter-data-redis` (impl) — Phase 6; caches per-tenant goAML B2B session tokens
+
+**AWS (Phase 6)**
+- `software.amazon.awssdk:bom:2.28.16` (platform) + `software.amazon.awssdk:secretsmanager` (impl) —
+  per-tenant goAML credentials from Secrets Manager (KMS decryption is transparent on read)
 
 **Security / JWT**
 - `spring-boot-starter-security` (impl)
@@ -74,9 +81,16 @@ Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)
 - `org.testcontainers:postgresql` (test)
 - `org.xmlunit:xmlunit-core:2.10.0` (test) — **pinned**
 - `org.xmlunit:xmlunit-assertj3:2.10.0` (test) — **pinned**
+- `org.wiremock:wiremock-standalone:3.9.2` (test) — **pinned**; stubs the goAML B2B REST API
+- Mockito (via `spring-boot-starter-test`) — unit tests mock the AWS SDK / Redis / collaborators
 
-⚠️ **Not present yet** (deferred to later phases, noted as comments in `build.gradle`): AWS SDK,
-Spring AI MCP, picocli (CLI), and the Node/Vite frontend build plugin.
+**Coverage**
+- The **`jacoco`** plugin: `jacocoTestReport` (after `test`) + `jacocoTestCoverageVerification` — a
+  **≥90% instruction / ≥80% branch** gate scoped to the Phase 6 packages (`b2b`, `integration.aws`,
+  `config.aws`); generated domain excluded. Report at `build/reports/jacoco/test/html/index.html`.
+
+⚠️ **Not present yet** (deferred to later phases, noted as comments in `build.gradle`): Spring AI MCP,
+picocli (CLI), the Node/Vite frontend build plugin, and the S3 / SES AWS clients (Phases 8 / 10).
 
 ---
 
@@ -92,11 +106,14 @@ You need:
 ## 4. Build, run, test
 
 ```bash
-# 1. Start Postgres (LocalStack is only needed from Phase 6 onward — skip it for now)
-docker compose up -d postgres
+# 1. Start the dev dependencies. Postgres uses Testcontainers for tests, but the Phase 6
+#    LocalStack + Redis integration tests run against these compose services (they skip cleanly
+#    if absent). Start all three for the complete suite:
+docker compose up -d postgres localstack redis
 
 # 2. Run the full test suite (auto-provisions Java 21; spins Testcontainers Postgres)
 ./gradlew test
+#   With coverage gate: ./gradlew test jacocoTestCoverageVerification
 
 # 3. Run the app
 ./gradlew bootRun

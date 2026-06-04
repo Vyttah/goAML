@@ -73,8 +73,8 @@ layout is **layer-first** (controllers / services / repositories / model split b
 | `controller/` | Thin REST controllers per feature (today: `auth`, `me`, `admin`) — no repos injected directly; delegate to services. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
 | `config/` | App config beans (today: `SecurityCryptoConfig` → BCrypt encoder; `config/tenant/*`). | ✅ | [03](03-tech-stack-and-local-dev.md) |
 | `exception/` | `GlobalExceptionHandler` (`@RestControllerAdvice`). | ✅ | [06](06-multitenancy-and-security.md) |
-| `b2b/` | goAML B2B REST client (auth, PostReport, OData status, MessageBoard). | ⚠️ Phase 6 | [10](10-b2b-submission-protocol.md) |
-| `integration/aws/` | S3, Secrets Manager/KMS, SES clients. | ⚠️ Phase 6/8/10 | — |
+| `b2b/` | goAML B2B REST client (`GoamlB2bClient`/`RestGoamlB2bClient` + `TokenManager` Redis token cache): PostReport, OData status, delete, MessageBoard, lookups; typed errors. **Built, tested (not yet wired to an endpoint — Phase 7).** | ✅ | [10](10-b2b-submission-protocol.md) |
+| `integration/aws/` | AWS clients. **`GoamlSecretsClient` (Secrets Manager) built** (Phase 6); `S3StorageClient` (Phase 8) + `SesClient` (Phase 10) planned. | ✅ (partial) | — |
 | `ingestion/` | Generic inbound REST + file import (goAML XML / CSV). | ⚠️ Phase 11 | — |
 | `notification/` | In-app + SES email notifications. | ⚠️ Phase 10 | — |
 | `scheduler/` | Async submission poller + retry. | ⚠️ Phase 9 | — |

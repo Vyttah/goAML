@@ -25,7 +25,9 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–5 committed; next functional phase = **Phase 6 (AWS + B2B client)**.
+- **Status:** Phases 1–6 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 7
+  (persistence + service + web REST — wires the engine + b2b to HTTP)**. Phase 6 built the AWS Secrets
+  Manager seam, a Redis B2B token cache, and the goAML B2B client (tested; not yet endpoint-wired).
 - **First report type = `DPMSR`** (precious-metals dealers; cash ≥ AED 55,000). All 17 schema codes later.
 - **DPMSR is activity-shaped** (goods + parties, no `<transaction>` block).
 - **Auth:** self-managed HS256 JWT, RBAC roles SUPER_ADMIN/TENANT_ADMIN/MLRO/ANALYST; tenant routing via
@@ -35,6 +37,7 @@ suite (accounting/ERP + AML screening).
 
 ## Conventions
 - Money = `BigDecimal`; timestamps = `OffsetDateTime` (UTC). Flyway owns the schema (`ddl-auto: none`).
-- Build/test: `docker compose up -d postgres` then `./gradlew test`.
+- Build/test: `docker compose up -d postgres localstack redis` then `./gradlew test` (Postgres uses
+  Testcontainers; the Phase 6 LocalStack/Redis integration tests run against compose and skip if absent).
 - Update `.planning/STATE.md` + `ROADMAP.md` when a phase starts/finishes; append `discussion-log.md` for
   decisions. **Commit `.planning/` + `docs/`** — they're the durable project memory.

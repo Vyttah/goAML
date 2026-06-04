@@ -34,8 +34,8 @@ machine-local state — so anyone on any machine can resume.
 | 5 | **`engine/` validation + UAE jurisdiction + lookups** | ✅ | `102484d` |
 | — | **XSD-first foundation** (migration, not a numbered phase) — generate the domain from the real goAML **5.0.2** XSD via xjc, add the **XSD validation gate**, reconcile lookups (lookup⊆XSD), add the **DPMSR convenience builder** | ✅ | `6911cf6`…`70f9cdb` |
 | — | **Vyttah layer-first refactor** — restructure to `controller`/`service`/`repository`/`model` conventions; Lombok + MapStruct on the JPA/web side | ✅ | `8fed6a1`…`e54f64c` |
-| **6** | **`integration/aws/` + Secrets Manager (LocalStack) → `b2b/` client (per-tenant creds) vs WireMock** | **⏭️ NEXT** | — |
-| 7 | **`persistence/` + `service/` + `web/`** reports/submissions REST (Testcontainers Postgres) | ⬜ | — |
+| 6 | **`integration/aws/` Secrets Manager (per-tenant creds) + Redis token cache → `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + JaCoCo ≥90% gate** | ✅ | `e6a03d6`…`81f61b0` |
+| **7** | **`persistence/` + `service/` + `web/`** reports/submissions REST (Testcontainers Postgres) — wires the engine + b2b to HTTP | **⏭️ NEXT** | — |
 | 8 | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | ⬜ | — |
 | 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⬜ | — |
 | 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⬜ | — |
@@ -44,42 +44,34 @@ machine-local state — so anyone on any machine can resume.
 | 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ | — |
 | 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ | — |
 
-Progress: **5 / 14 (≈36%).**
+Progress: **6 / 14 (≈43%)** + the XSD-first foundation + the layer-first refactor.
 
 ---
 
-## 3. Phase 6 in detail (what's next)
+## 3. Phase 6 (DONE) — what was built
 
-Phase 6 connects the (already-built, tested) engine to the outside world: AWS for secrets, and the FIU
-for submission. It splits into **two independently-testable pieces**:
+Phase 6 connected the (already-built, tested) engine to the outside world: AWS for secrets, and the goAML
+B2B REST surface. It built **two independently-tested pieces** as standalone libraries (not yet wired to an
+HTTP endpoint — that's Phase 7). Detail per step: [`.planning/steps/PHASE-6.1..6.5`](../.planning/steps/).
 
-### 6a. `integration/aws/` — AWS clients (tested vs LocalStack)
-- **`SecretsManagerClient`** (+ KMS) — fetch a tenant's goAML credentials from the `secrets_path` stored
-  in `tenant_goaml_config`. Also the home for the JWT signing key in prod.
-- **`S3StorageClient`** — attachment storage (fully used in Phase 8, but the client lands here).
-- **`SesClient`** — email (fully used in Phase 10).
-- Tested against the **LocalStack** service already declared in `docker-compose.yml`
-  (`SERVICES=s3,secretsmanager,kms,ses`, region `me-central-1`).
-- ⚠️ Requires adding the **AWS SDK v2** dependency to `build.gradle` (not present yet) and, on EKS,
-  **IRSA** for credential-free access.
+### 6a. `integration/aws/` — Secrets Manager (tested vs LocalStack)
+- **`GoamlSecretsClient`** / `DefaultGoamlSecretsClient` — fetches a tenant's goAML credentials
+  (`GoamlCredentials` JSON) from the `secrets_path` in `tenant_goaml_config`. **No separate KMS client** —
+  Secrets Manager decrypts on `GetSecretValue`. (Named `GoamlSecretsClient`, not `SecretsManagerClient`, to
+  avoid a clash with the AWS SDK type.)
+- **Scope:** Secrets Manager only this phase. `S3StorageClient` (Phase 8) + `SesClient` (Phase 10) land when
+  first used.
+- AWS SDK v2 added to `build.gradle`; tested against the docker-compose **LocalStack** (`:4566`).
 
 ### 6b. `b2b/` — the goAML B2B REST client (tested vs WireMock)
-- **`GoamlB2bClient`** interface + **`RestGoamlB2bClient`** (Spring `RestClient`).
-- **`TokenManager`** — resolves **per-tenant** goAML creds from Secrets Manager, authenticates, caches
-  the token per tenant, attaches `SqlAuthCookie`, re-auths on 401 (or HTTP-Basic mode).
-- Operations: `postReport(zip) → reportkey`, `getReportStatus(reportkey)`, `deleteReport`, `postMessage`,
-  `getLookups`.
-- Typed errors: `B2bAuthException` (401), `B2bValidationException` (400 + body),
-  `B2bTransportException`.
-- Tested against **WireMock** (200 / 400 / 401, reportkey parse, OData status parse).
-- ⚠️ Requires adding a **WireMock** test dependency (not present yet).
+- **`GoamlB2bClient`** + **`RestGoamlB2bClient`** (Spring `RestClient`, pinned **HTTP/1.1**).
+- **`TokenManager`** (Redis-backed) — resolves per-tenant creds, authenticates, caches the `SqlAuthCookie`
+  in **Redis** (`goaml:b2b:token:<tenantId>`, TTL), re-auths on 401; HTTP-Basic mode supported.
+- Operations: `postReport(zip) → reportkey`, `getReportStatus`, `deleteReport`, `postMessage`, `getLookups`.
+- Typed errors: `B2bAuthException` (401), `B2bValidationException` (400 + body), `B2bTransportException`.
+- Tested with **WireMock** + a **JaCoCo ≥90% gate** on the new code (achieved ~98.7% instr).
 
-See [10 — B2B Submission Protocol](10-b2b-submission-protocol.md) for the actual goAML wire protocol
-this client implements.
-
-**Suggested order:** build 6a (Secrets Manager first, since the B2B client depends on it for creds),
-then 6b. Keep the per-tenant credential resolution path clean — it's the seam everything downstream
-relies on.
+See [10 — B2B Submission Protocol](10-b2b-submission-protocol.md) for the wire protocol this client speaks.
 
 ---
 
@@ -116,9 +108,8 @@ A consolidated list of "the plan mentions it but the code doesn't do it yet," so
   until Phase 7).
 - **Platform/SUPER_ADMIN actions aren't audited** (no shared audit table yet).
 - **`countries` and `funds` lookups are loaded but unused** by validation.
-- **AWS SDK and WireMock dependencies aren't in `build.gradle`** — adding them is part of Phase 6.
-- **No HTTP endpoint exercises the engine yet** — build/validate/marshal/zip work in tests only until
-  Phase 7 wires them to `web/`.
+- **No HTTP endpoint exercises the engine or the B2B client yet** — build/validate/marshal/zip and
+  submit/auth work in tests only until Phase 7 wires them to `web/` + persistence.
 
 ---
 

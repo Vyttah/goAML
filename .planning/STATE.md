@@ -19,88 +19,51 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Active focus: XSD-first foundation migration — UNBLOCKED.** Authoritative **goAML 5.0.2** schema +
-  2 real DPMSR samples obtained from the live UAE portal and vendored into the repo
-  (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). This pivots the data layer
-  ahead of continuing Phase 6. Plan: [plans/xsd-first-foundation.md](plans/xsd-first-foundation.md).
-- **Phases 1–5 complete** (Phase 6 = next functional phase after the migration).
-- **Branch:** `main` (uncommitted: docs/, .planning/, assets/, vendored XSDs+samples).
-- **Build/tests:** ✅ green at last full run — `./gradlew test` → `BUILD SUCCESSFUL`.
-- **Last completed:** Phase 5 — engine validation + UAE jurisdiction + lookups (commit `102484d`).
+- **Phases 1–6 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+  gate + DPMSR builder) and the **Vyttah layer-first refactor**.
+- **Active focus: Phase 7 next** — `persistence/` + `service/` + `web/` reports/submissions REST, wiring
+  the (built, tested) engine + b2b client to HTTP. This is the first phase that makes the report lifecycle
+  manually testable via the API.
+- **Last completed:** **Phase 6 (AWS + B2B)** — `integration/aws/GoamlSecretsClient` (Secrets Manager),
+  Redis-backed `TokenManager`, and the `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + a JaCoCo
+  ≥90% gate (~98.7% on the new code). Commits `e6a03d6`…`81f61b0`. Per-step docs: `steps/PHASE-6.1..6.5`.
+- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phase 6).
+- **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
+  `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — XSD-first codegen
+## Next Action — Phase 7 (persistence + service + web REST)
 
-> **Progress:** Step 1 ✅ (XSD validation gate + real samples validate), Step 2 ✅ (xjc codegen → 46
-> generated classes, dates→OffsetDateTime, ReportType enum), and Step 3 ✅ (both real DPMSR samples
-> round-trip through the generated model), and **Step 4 ✅** (engine re-pointed onto the generated model;
-> hand-modeled `domain/*` deleted) are done & green. The **generated model is now the single source of truth**.
-> Landed as: **4a** (`.xjb` rename → typed `Report` getters; activity accessor = **`getReportActivity()`**,
-> not `getActivity()`), **4b** (full engine re-point + tests + goldens regenerated & **XSD-validated**; 35
-> engine tests green; fixed a latent `.gitignore` bug that had left `engine/build/` untracked since Phase 4),
-> **4c** (deleted hand-modeled `domain/*`, kept `GoamlDateTimeAdapter`). **Next = Step 5** (see carry-overs).
->
-> **Step 5 ✅** (2026-06-04) — reconciled `lookups/ae/transmode.json` to the XSD `conduction_type` enum (they
-> were disjoint) + tidied `funds.json`; restored the 3 transaction goldens so **all 7 modeled report types are
-> XSD-golden-covered**; added `LookupXsdConsistencyTest` (every validator lookup ⊆ its XSD enum — guards future
-> drift). The other 10 schema report types are deferred to their functional phase (PNMRA/CNMRA with Phase 1.5
-> sanctions; rest later).
->
-> **Step 6 ✅** (2026-06-04) — `DpmsrReportBuilder` in `engine/build/`: a `DpmsrReportInput` record **and** a
-> fluent builder (both → `build`/`buildAndValidate`), `GoamlParties` (all 6 report_party subjects) +
-> `GoamlWrappers`, `ValidatedReport`. Schema-driven, invoice-generic (any `item_type`, multiple goods/parties),
-> full DPMSR field reach via the generated leaf types. Fixed a `ReportValidator` bug (report_party now accepts
-> all 6 subjects, incl. the **entity** party real DPMSRs use). **Next = Step 7** (docs refresh — `docs/` still
-> describes the retired hand-modeled domain), then the functional roadmap resumes at **Phase 6** (AWS + B2B).
->
-> Also done this session: **Refactor R1–R3** — restructured to the Vyttah layer-first conventions
-> (`docs/CONVENTIONS.md`): entity/repository separation, interface+`Default*` services, thin controllers,
-> Lombok + MapStruct on the JPA/web side.
->
-> Step docs in [steps/](steps/) (STEP-1..5, STEP-R).
+Wire the engine + b2b client (both built & tested as libraries) to HTTP. Expected scope:
+1. **Persistence:** tenant-schema migrations + JPA for `report`, `submission` (and a `TenantGoamlConfig`
+   shared entity/repo so the orchestration can build `B2bTenantConfig` from the DB), per Vyttah conventions
+   (`model/entity/<feature>`, `repository/<feature>`, no `Entity` suffix).
+2. **Service:** a submission orchestration (`service/...`, interface + `Default*`) that builds/validates a
+   report, persists it, packages the ZIP, resolves the tenant's `B2bTenantConfig`, and calls
+   `GoamlB2bClient.postReport` — idempotent on `entity_reference`.
+3. **Web:** REST endpoints (`controller/...`) to create/validate/submit/track a report (RBAC: submit gated
+   to MLRO), Testcontainers-Postgres integration tests.
 
-1. Wire **xjc** codegen into `build.gradle` (JAXB Gradle plugin) → generate JAXB types from
-   `goAMLSchema.xsd` into `com.vyttah.goaml.domain.generated`; `.xjb` binding maps `sql_date` →
-   `OffsetDateTime` (reuse `GoamlDateTimeAdapter`).
-2. Build the **XSD validation gate** (`engine/validation/XsdSchemaValidator`) using **standard JDK JAXP**
-   (no asserts in the schema → no Saxon needed). Validate the 2 real sample XMLs as the first test.
-3. Re-point `engine/` (builders, marshaller, validator, samples) to generated types; retire hand-modeled
-   `domain/*`.
-4. Regenerate goldens against 5.0.2; expand report-type coverage toward the 17 real codes.
+> First phase where the **report lifecycle is manually testable via the API** (curl/Postman). Live FIU
+> submission still needs real per-tenant base URLs + credentials (external input). Follow the gated
+> workflow: write the Phase 7 plan + per-step understanding docs, get approval, then build step-by-step.
 
-⚠️ Substantive/destructive step (replaces Phase 3 hand-modeled domain) — confirm approach before the
-big engine re-point. Codegen + validation-gate + sample validation can proceed first (low risk).
+**Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
+STEP-R) → domain xjc-generated from goAML 5.0.2, XSD gate, lookup⊆XSD invariant, DPMSR builder, docs
+refresh; **Phase 6** (PHASE-6.1..6.5) → Secrets Manager seam, Redis token cache, goAML B2B client, JaCoCo
+≥90% gate.
 
 ## Progress
 
-`[███▌░░░░░░] 5/14 (≈36%)`
+`[████▎░░░░░] 6/14 (≈43%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups |
-| ⏭️ | **6 integration/aws/ + b2b/ client** |
-| ⬜ | 7 persistence+web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · **6 integration/aws/ + b2b/ client** |
+| ⏭️ | **7 persistence + service + web REST** (wires engine + b2b to HTTP) |
+| ⬜ | 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
 
-(Full table + Phase 6 detail in [ROADMAP.md](ROADMAP.md) and
+(Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)
-
----
-
-## After the XSD-first foundation — Phase 6 (standalone core resumes)
-
-> The XSD-first codegen above comes first. Once the domain is regenerated, Phase 6 continues the
-> standalone core. Two independently-testable pieces (build 6a first — the B2B client depends on it for
-> credentials):
-
-- **6a. `integration/aws/`** — `SecretsManagerClient` (+KMS), `S3StorageClient`, `SesClient`, tested
-  against **LocalStack** (`docker compose up -d localstack`). Resolve a tenant's goAML creds from
-  `tenant_goaml_config.secrets_path`.
-- **6b. `b2b/`** — `GoamlB2bClient` + `RestGoamlB2bClient` (Spring `RestClient`) + `TokenManager`
-  (per-tenant creds, cache token, re-auth on 401). Ops: `postReport→reportkey`, `getReportStatus`,
-  `deleteReport`, `postMessage`, `getLookups`. Typed errors. Tested against **WireMock**.
-
-Protocol spec: [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md).
-**Before coding:** add the **AWS SDK v2** dependency and a **WireMock** test dependency to
-`build.gradle` (neither is present yet), and run `superpowers:brainstorming` to lock the design.
 
 ---
 

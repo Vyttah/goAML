@@ -119,6 +119,24 @@ first used — no unused clients now. *(This narrows the original "6a builds all
 
 ---
 
-## Outcome (filled in after implementation)
+## Outcome — ✅ COMPLETE (2026-06-05)
 
-_(Pending approval.)_
+Delivered across commits `e6a03d6` (6.1) · `50cbcd9` (6.2) · `81f61b0` (6.3) · this commit (6.5):
+
+- **6.1 Secrets Manager** — `integration/aws/GoamlSecretsClient` reads per-tenant goAML creds from Secrets
+  Manager (Secrets-only; no KMS client; LocalStack-tested). Compose `redis` added.
+- **6.2 Redis token cache + auth** — `b2b/auth/TokenManager` (Redis-cached `SqlAuthCookie`, 401 re-auth),
+  typed errors, `B2bTenantConfig`/`B2bAuthMode`/`B2bProperties`; HTTP/1.1 pin.
+- **6.3 B2B client ops + coverage** — `GoamlB2bClient`/`RestGoamlB2bClient` (postReport/status/delete/
+  message/lookups, 400/401/transport mapping, retry-once); JaCoCo ≥90% gate (achieved ~98.7% instr /
+  89.3% branch on the new packages); Mockito/WireMock unit tests + LocalStack/Redis integration tests.
+- **6.5 docs/planning sync** — `docs/{02,03,09,10,11}`, `CLAUDE.md`, `.planning/{ROADMAP,STATE}.md`
+  updated; the `GoamlSecretsClient` rename + Secrets-only scope reconciled.
+
+**Deviations from the original plan (recorded):** (1) wrapper named `GoamlSecretsClient`, not
+`SecretsManagerClient` (SDK clash); (2) **Secrets Manager only** this phase — S3/SES deferred to 8/10;
+(3) token cache is **Redis** (your call), not in-memory; (4) AWS/Redis integration tests run against the
+**docker-compose** services (your call), tagged + conditional; unit tests (Mockito/WireMock) carry coverage.
+
+**Not done (by design):** no HTTP endpoint / submission persistence (Phase 7), no real FIU calls (needs
+per-tenant URLs + creds), no scheduler/poller (Phase 9).
