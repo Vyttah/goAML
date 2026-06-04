@@ -38,6 +38,21 @@ xjc {
 }
 
 dependencies {
+    // Lombok — boilerplate reduction on the JPA/web side (entities, constructor injection).
+    // Version managed by the Spring Boot BOM. NOT used by the generated domain or the engine.
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // MapStruct — entity<->DTO mapping on the JPA/web side (componentModel = "spring").
+    // lombok-mapstruct-binding lets MapStruct see Lombok-generated accessors during annotation processing.
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    testAnnotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    testAnnotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'

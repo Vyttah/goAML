@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.time.OffsetDateTime;
 
@@ -11,6 +12,7 @@ import java.time.OffsetDateTime;
  * Shared-schema row: one per FIU instance the platform can target.
  * Only {@code AE} ships in v1 (seeded by V2 migration).
  */
+@Getter
 @Entity
 @Table(name = "jurisdiction", schema = "public")
 public class Jurisdiction {
@@ -29,9 +31,4 @@ public class Jurisdiction {
     private OffsetDateTime createdAt;
 
     protected Jurisdiction() {}
-
-    public String getCode() { return code; }
-    public String getName() { return name; }
-    public String getCurrencyCode() { return currencyCode; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
 }

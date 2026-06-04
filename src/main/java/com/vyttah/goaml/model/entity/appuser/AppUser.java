@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -21,6 +22,7 @@ import java.util.UUID;
  * Platform user. {@code tenantId} is null for SUPER_ADMIN platform staff and non-null for
  * users belonging to a single client tenant. Roles are joined via {@code public.user_role}.
  */
+@Getter
 @Entity
 @Table(name = "app_user", schema = "public")
 public class AppUser {
@@ -90,16 +92,4 @@ public class AppUser {
     public void addRole(Role role) {
         roles.add(role);
     }
-
-    public UUID getId() { return id; }
-    public UUID getTenantId() { return tenantId; }
-    public String getEmail() { return email; }
-    public String getPasswordHash() { return passwordHash; }
-    public String getFirstName() { return firstName; }
-    public String getLastName() { return lastName; }
-    public String getStatus() { return status; }
-    public Set<Role> getRoles() { return roles; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
-    public OffsetDateTime getLastLoginAt() { return lastLoginAt; }
 }

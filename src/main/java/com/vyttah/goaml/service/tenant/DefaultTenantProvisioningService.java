@@ -8,6 +8,7 @@ import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import lombok.RequiredArgsConstructor;
 import org.flywaydb.core.Flyway;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,6 +33,7 @@ import java.util.UUID;
  * <p>If anything after the {@code CREATE SCHEMA} fails the schema is dropped to avoid orphans.
  * The DB inserts run in a single Spring transaction so they roll back together.
  */
+@RequiredArgsConstructor
 @Service
 public class DefaultTenantProvisioningService implements TenantProvisioningService {
 
@@ -44,22 +46,6 @@ public class DefaultTenantProvisioningService implements TenantProvisioningServi
     private final DataSource dataSource;
     private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
-
-    public DefaultTenantProvisioningService(TenantRepository tenantRepository,
-                                     AppUserRepository userRepository,
-                                     RoleRepository roleRepository,
-                                     JurisdictionRepository jurisdictionRepository,
-                                     DataSource dataSource,
-                                     JdbcTemplate jdbcTemplate,
-                                     PasswordEncoder passwordEncoder) {
-        this.tenantRepository = tenantRepository;
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-        this.jurisdictionRepository = jurisdictionRepository;
-        this.dataSource = dataSource;
-        this.jdbcTemplate = jdbcTemplate;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     @Override
     public Tenant provision(TenantProvisioningRequest request) {

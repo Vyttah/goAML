@@ -6,6 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -17,6 +18,7 @@ import java.util.UUID;
  * {@code TenantProvisioningService}. The {@link #schemaName} is the routing key used by
  * {@link com.vyttah.goaml.config.tenant.SchemaMultiTenantConnectionProvider}.
  */
+@Getter
 @Entity
 @Table(name = "tenant", schema = "public")
 public class Tenant {
@@ -68,13 +70,4 @@ public class Tenant {
     void onUpdate() {
         updatedAt = OffsetDateTime.now();
     }
-
-    public UUID getId() { return id; }
-    public String getSlug() { return slug; }
-    public String getName() { return name; }
-    public String getJurisdictionCode() { return jurisdictionCode; }
-    public String getSchemaName() { return schemaName; }
-    public String getStatus() { return status; }
-    public OffsetDateTime getCreatedAt() { return createdAt; }
-    public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }

@@ -1,6 +1,6 @@
 # Step R — Restructure to the Vyttah folder conventions
 
-> **Status: 🔶 IN PROGRESS (2026-06-04) — R1 ✅ done & full suite green; R2 (Lombok) + R3 (MapStruct) next.**
+> **Status: ✅ DONE (2026-06-04) — R1 (moves) + R2 (Lombok) + R3 (MapStruct) all landed; full suite green.**
 > Reference: [../../docs/CONVENTIONS.md](../../docs/CONVENTIONS.md) (the goAML-adapted conventions).
 > This is a **structural refactor** (no feature behaviour change) done **before Step 5**, while the codebase
 > is still small (~40 files). Proposed as **three reviewable sub-commits R1 → R2 → R3.**
@@ -129,10 +129,32 @@ the layer-first layout:
 They compile & pass; mirroring them to the new feature packages is a low-risk follow-up (can fold into R2 or a
 later tidy). Noted so it's not silently skipped.
 
-### R2 — Adopt Lombok (JPA/web side)
+### R2 — Adopt Lombok (JPA/web side) ✅ (2026-06-04)
 
-_(Pending — next.)_
+**Done & green.** Added Lombok (Spring-BOM-managed; `compileOnly` + `annotationProcessor`, test variants).
+- Entities use `@Getter` (and field-level `@Setter` on `AuditLog`'s mutable columns), dropping ~50 lines of
+  boilerplate getters/setters. Custom constructors, `@PrePersist`/`@PreUpdate`, and `AppUser.addRole` kept.
+- Constructor-injected components now use `@RequiredArgsConstructor` (explicit constructors removed):
+  `AuthController`, `DefaultAuthService`, `DefaultTenantProvisioningService`, `AppUserDetailsService`,
+  `JwtAuthFilter`, `SecurityConfig`. `DefaultAuditService` + `JwtService` keep explicit constructors (they
+  have construction logic — `TransactionTemplate` / key derivation). Generated `domain.generated.*` + `engine/`
+  untouched.
 
-### R3 — Wire MapStruct infrastructure
+### R3 — Wire MapStruct infrastructure ✅ (2026-06-04)
 
-_(Pending.)_
+**Done & green — wiring verified end-to-end.** Added MapStruct `1.6.3` + `lombok-mapstruct-binding 0.2.0`
+(so MapStruct sees Lombok accessors) to `build.gradle`. Seeded the first real mapper to prove the processor
+runs and to satisfy "controllers never return entities": `model/dto/tenant/TenantDto` +
+`model/mapper/tenant/TenantMapper` (`@Mapper(componentModel = "spring")`, `Tenant → TenantDto`). A pure-POJO
+`TenantMapperTest` confirms the generated `TenantMapperImpl` maps correctly (no Spring/DB needed). Feature
+mappers for report CRUD arrive in Phase 7.
+
+---
+
+## Step R — DONE (2026-06-04)
+
+The app follows `docs/CONVENTIONS.md`: layer-first feature packages, entities separated from repositories
+(no `Entity` suffix), interface + `Default*` services, thin controllers (no repo injection — login behind
+`AuthService`), Lombok on the JPA/web side, MapStruct wired. Product-core `domain/` + `engine/` unchanged.
+Full suite (incl. Testcontainers DB tests) green. **Next = Step 5** (XSD-first goldens / report-type expansion;
+carry-overs: transmode lookup vs XSD enum reconciliation, then transaction goldens).

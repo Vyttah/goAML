@@ -5,8 +5,8 @@ spring:
     name: goaml
   datasource:
     url:      ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/goaml}
-    username: ${SPRING_DATASOURCE_USERNAME:goaml}
-    password: ${SPRING_DATASOURCE_PASSWORD:goaml}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
   jpa:
     hibernate:
       # Flyway is the source of truth for both shared and per-tenant schemas;

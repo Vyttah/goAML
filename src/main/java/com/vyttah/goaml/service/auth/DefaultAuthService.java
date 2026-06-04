@@ -9,6 +9,7 @@ import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.security.JwtService;
 import com.vyttah.goaml.service.audit.AuditService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,6 +21,7 @@ import org.springframework.stereotype.Service;
  * resolves the user's tenant schema, issues the JWT, and records the login. (Moved out of
  * {@code AuthController} so the controller stays thin and does no repository access.)
  */
+@RequiredArgsConstructor
 @Service
 public class DefaultAuthService implements AuthService {
 
@@ -28,18 +30,6 @@ public class DefaultAuthService implements AuthService {
     private final TenantRepository tenantRepository;
     private final JwtService jwtService;
     private final AuditService auditService;
-
-    public DefaultAuthService(AuthenticationManager authenticationManager,
-                              AppUserRepository userRepository,
-                              TenantRepository tenantRepository,
-                              JwtService jwtService,
-                              AuditService auditService) {
-        this.authenticationManager = authenticationManager;
-        this.userRepository = userRepository;
-        this.tenantRepository = tenantRepository;
-        this.jwtService = jwtService;
-        this.auditService = auditService;
-    }
 
     @Override
     public LoginResponse login(LoginRequest request) {

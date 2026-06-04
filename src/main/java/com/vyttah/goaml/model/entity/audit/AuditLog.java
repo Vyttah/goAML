@@ -5,6 +5,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
@@ -18,6 +20,7 @@ import java.util.UUID;
  * {@link com.vyttah.goaml.config.tenant.TenantContext} will hit {@code public.audit_log} (which
  * does not exist) and error — that's intentional: tenant-scoped data must be tenanted.
  */
+@Getter
 @Entity
 @Table(name = "audit_log")
 public class AuditLog {
@@ -25,21 +28,26 @@ public class AuditLog {
     @Id
     private UUID id;
 
+    @Setter
     @Column(name = "actor_user_id")
     private UUID actorUserId;
 
+    @Setter
     @Column(name = "actor_email")
     private String actorEmail;
 
     @Column(nullable = false, length = 64)
     private String action;
 
+    @Setter
     @Column(name = "entity_type", length = 64)
     private String entityType;
 
+    @Setter
     @Column(name = "entity_id", length = 64)
     private String entityId;
 
+    @Setter
     @Column(name = "correlation_id", length = 64)
     private String correlationId;
 
@@ -61,20 +69,4 @@ public class AuditLog {
     void onCreate() {
         if (occurredAt == null) occurredAt = OffsetDateTime.now();
     }
-
-    public UUID getId() { return id; }
-    public UUID getActorUserId() { return actorUserId; }
-    public String getActorEmail() { return actorEmail; }
-    public String getAction() { return action; }
-    public String getEntityType() { return entityType; }
-    public String getEntityId() { return entityId; }
-    public String getCorrelationId() { return correlationId; }
-    public String getSummary() { return summary; }
-    public OffsetDateTime getOccurredAt() { return occurredAt; }
-
-    public void setActorUserId(UUID actorUserId) { this.actorUserId = actorUserId; }
-    public void setActorEmail(String actorEmail) { this.actorEmail = actorEmail; }
-    public void setEntityType(String entityType) { this.entityType = entityType; }
-    public void setEntityId(String entityId) { this.entityId = entityId; }
-    public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
 }
