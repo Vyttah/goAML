@@ -38,8 +38,15 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 >   The catch-all was caused by the `<xs:choice>` declaring `activity` in both branches; renaming branch-1's
 >   nested `activity` → property **`reportActivity`** fixed it. ⚠️ The engine's activity accessor is
 >   **`getReportActivity()`** (the slot JAXB actually fills for DPMSR), NOT `getActivity()` (vestigial).
-> - **4b** (next) — re-point `marshal/` + `build/`; **4c** — `validation/` + `jurisdiction/`; **4d** — delete
->   `domain/*` (keep adapter), retire hand-model tests, regenerate + XSD-validate the 7 goldens.
+> - **4b ✅** — full engine re-point onto the generated model (jurisdiction/build/marshal/validation) + tests
+>   (`SampleReports`, golden/marshaller/validator) + goldens regenerated & **XSD-validated**. 35 engine tests
+>   green. Same validation rules/codes; activity accessor = `getReportActivity()`. (The 4b/4c/4d split
+>   collapsed to one re-point commit since Java compiles the module at once.) ⚠️ **Step-5 carry-overs:**
+>   transaction-shaped goldens (STR/AIFT/ECDDT) deferred — `lookups/ae/transmode.json` is **disjoint** from the
+>   XSD `transmode_type` enum (needs reconciling); golden XSD coverage = 4 activity types (DPMSR/SAR/AIF/ECDD),
+>   validator rule coverage = all 7.
+> - **4c** (next) — delete hand-modeled `domain/*` (keep `GoamlDateTimeAdapter`) + the 2 hand-model round-trip
+>   tests.
 >
 > Step docs in [steps/](steps/STEP-4-repoint-engine.md).
 

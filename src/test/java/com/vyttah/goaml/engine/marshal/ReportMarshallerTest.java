@@ -1,8 +1,8 @@
 package com.vyttah.goaml.engine.marshal;
 
-import com.vyttah.goaml.domain.Report;
-import com.vyttah.goaml.domain.enums.ReportCode;
-import com.vyttah.goaml.domain.enums.SubmissionCode;
+import com.vyttah.goaml.domain.generated.CurrencyType;
+import com.vyttah.goaml.domain.generated.Report;
+import com.vyttah.goaml.domain.generated.ReportType;
 import org.junit.jupiter.api.Test;
 
 import java.nio.charset.StandardCharsets;
@@ -19,11 +19,11 @@ class ReportMarshallerTest {
     void marshalsAsUtf8WithDeclarationAndRoundTrips() {
         Report report = new Report();
         report.setRentityId(42);
-        report.setSubmissionCode(SubmissionCode.E);
-        report.setReportCode(ReportCode.DPMSR);
+        report.setSubmissionCode("E");
+        report.setReportCode(ReportType.DPMSR);
         report.setEntityReference("UNIT-TEST-001");
         report.setSubmissionDate(OffsetDateTime.of(2026, 5, 26, 9, 0, 0, 0, ZoneOffset.UTC));
-        report.setCurrencyCodeLocal("AED");
+        report.setCurrencyCodeLocal(CurrencyType.AED);
 
         byte[] bytes = marshaller.marshal(report);
         String xml = new String(bytes, StandardCharsets.UTF_8);
@@ -34,7 +34,7 @@ class ReportMarshallerTest {
 
         Report parsed = marshaller.unmarshal(bytes);
         assertThat(parsed.getRentityId()).isEqualTo(42);
-        assertThat(parsed.getReportCode()).isEqualTo(ReportCode.DPMSR);
+        assertThat(parsed.getReportCode()).isEqualTo(ReportType.DPMSR);
         assertThat(parsed.getEntityReference()).isEqualTo("UNIT-TEST-001");
     }
 

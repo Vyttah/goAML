@@ -1,6 +1,6 @@
 package com.vyttah.goaml.engine.jurisdiction;
 
-import com.vyttah.goaml.domain.enums.ReportCode;
+import com.vyttah.goaml.domain.generated.ReportType;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
@@ -70,9 +70,9 @@ public class JurisdictionRegistry {
         if (!(codesRaw instanceof List<?> codeList) || codeList.isEmpty()) {
             throw new IllegalStateException("Jurisdiction config " + filename + " missing 'allowedReportCodes'");
         }
-        Set<ReportCode> codes = new LinkedHashSet<>();
+        Set<ReportType> codes = new LinkedHashSet<>();
         for (Object c : codeList) {
-            codes.add(ReportCode.valueOf(c.toString().trim().toUpperCase(Locale.ROOT)));
+            codes.add(ReportType.valueOf(c.toString().trim().toUpperCase(Locale.ROOT)));
         }
         return new JurisdictionConfig(code, name, currency, codes, threshold, lookupSet);
     }

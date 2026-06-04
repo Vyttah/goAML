@@ -1,6 +1,7 @@
 package com.vyttah.goaml.engine.marshal;
 
-import com.vyttah.goaml.domain.Report;
+import com.vyttah.goaml.domain.generated.ObjectFactory;
+import com.vyttah.goaml.domain.generated.Report;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
@@ -24,7 +25,7 @@ public class ReportMarshaller {
 
     public ReportMarshaller() {
         try {
-            this.jaxbContext = JAXBContext.newInstance(Report.class);
+            this.jaxbContext = JAXBContext.newInstance(ObjectFactory.class);
         } catch (JAXBException e) {
             throw new IllegalStateException("Failed to build JAXBContext for Report", e);
         }

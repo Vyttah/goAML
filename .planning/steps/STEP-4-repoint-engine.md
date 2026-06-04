@@ -221,14 +221,49 @@ intact; we only renamed a Java property).
 
 **Verify:** `./gradlew test --tests '*GeneratedModelRoundTripTest' --tests '*GeneratedModelTest'` → green.
 
-### 4b — Re-point `marshal/` + `build/`
+### 4b — Re-point the engine onto the generated model ✅ (2026-06-04)
 
-_(Pending — next.)_
+> **Scope note:** the planned 4b/4c/4d split assumed engine slices could be separate green commits, but Java
+> compiles the whole module at once and `SampleReports` couples builders + marshaller + validator. So the
+> re-point lands as **one coherent commit (this 4b)**; **4c** is now just the deletion of the hand-modeled
+> `domain/*`.
 
-### 4c — Re-point `validation/` + `jurisdiction/`
+**Done & green — 35 engine (non-DB) tests pass.** Re-pointed (main): `engine/jurisdiction/*` (→ `ReportType`),
+`engine/build/{ReportHeader,ReportHeaderApplier,ActivityReportBuilder,TransactionReportBuilder}`,
+`engine/marshal/ReportMarshaller` (→ `ObjectFactory` JAXB context), `engine/validation/ReportValidator`
+(same rules + codes, generated types). Re-pointed (test): `engine/SampleReports` (rebuilt on the generated
+model), `EngineGoldenTest`, `ReportMarshallerTest`, `ReportValidatorTest`.
 
-_(Pending.)_
+**Key behaviours preserved:** `ReportValidator` enforces the **same rules with the same codes** (MANDATORY,
+SHAPE_CONFLICT, CURRENCY_MISMATCH, DPMS_THRESHOLD, BIPARTY_FROM, LOOKUP, …) — all assertions pass. The engine's
+activity accessor is **`getReportActivity()`** (per 4a). `currency_code_local` / goods currency are now
+`CurrencyType` (compared via `.value()`); `submission_code` is a plain `String`; goods item is `TTransItem`
+(`BigDecimal` values); multi-party is `tx.getInvolvedParties().getParty()`.
 
-### 4d — Delete hand-modeled `domain/*` + retire its tests + regenerate goldens
+**Goldens now XSD-validated.** `EngineGoldenTest` validates every marshalled output against `goAMLSchema.xsd`
+(Step-1 gate) before comparing/regenerating — so a malformed sample can never be blessed. Regenerating the
+goldens surfaced real **XSD-mandatory fields** the hand-model never enforced (the old goldens predate the XSD
+gate):
+- `t_person_my_client` requires **`birthdate`**, a **`phones`** wrapper, and **`tax_reg_number`** (a
+  single-char flag, `maxLength=1` — set to `"Y"`).
+- `indicator` and `transmode_code` are **enumerations**, not free text. Sample indicators are now real codes
+  (`DPMSJ`, `STRUC`, `RFIUR`).
 
-_(Pending.)_
+**Deferred to Step 5 (logged, not silent) — transaction-shaped goldens (STR/AIFT/ECDDT):** the hand-authored
+`lookups/ae/transmode.json` (CASH/WIRE/CHEQUE/BANKD/CARD/CRYPTO) is **disjoint** from the goAML XSD
+`transmode_type` enumeration (ATM/ELCFT/SWIFT/…). A transmode value can't satisfy both the validator's lookup
+and the XSD until that lookup is reconciled — a real data task for Step 5. So `EngineGoldenTest` covers the **4
+activity types (DPMSR/SAR/AIF/ECDD)**; the 3 transaction golden files were removed. **Validator-level rule
+coverage for all 7 types is retained** in `ReportValidatorTest` (the validator checks the lookup, not the XSD,
+so CASH still passes there).
+
+**Verify:** `docker compose up -d postgres` not needed for these — `./gradlew test --tests '*EngineGoldenTest'
+--tests '*ReportValidatorTest' --tests '*ReportMarshallerTest' --tests '*GeneratedModel*'
+--tests '*ReportZipPackagerTest' --tests '*GoamlXsdValidationTest'` → 35 passed, 0 failed. Hand-modeled
+`domain/*` still present (referenced only by the 2 round-trip tests) — deleted in 4c.
+
+### 4c — Delete hand-modeled `domain/*` + retire its round-trip tests
+
+_(Pending — next. Delete `domain/{Report,activity,common,enums,party,transaction}`, keep
+`domain/adapter/GoamlDateTimeAdapter`; delete `domain/DpmsrReportRoundTripTest` +
+`domain/StrTransactionRoundTripTest` — the generated round-trip is covered by `GeneratedModelRoundTripTest`.)_
