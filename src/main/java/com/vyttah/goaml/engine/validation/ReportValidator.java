@@ -320,10 +320,13 @@ public class ReportValidator {
     }
 
     private void validateReportPartySubject(ReportPartyType party, String path, ValidationResult result) {
-        int subjects = count(party.getPerson(), party.getPersonMyClient());
+        int subjects = count(party.getPerson(), party.getPersonMyClient(),
+                party.getAccount(), party.getAccountMyClient(),
+                party.getEntity(), party.getEntityMyClient());
         if (subjects != 1) {
             result.error(path, "PARTY_SUBJECT",
-                    "report_party must have exactly one subject (person or person_my_client), found " + subjects);
+                    "report_party must have exactly one subject (person/account/entity, plain or my_client), found "
+                            + subjects);
         }
     }
 

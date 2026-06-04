@@ -43,7 +43,14 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 > were disjoint) + tidied `funds.json`; restored the 3 transaction goldens so **all 7 modeled report types are
 > XSD-golden-covered**; added `LookupXsdConsistencyTest` (every validator lookup ⊆ its XSD enum — guards future
 > drift). The other 10 schema report types are deferred to their functional phase (PNMRA/CNMRA with Phase 1.5
-> sanctions; rest later). **Next = Step 6** (DPMSR convenience builder API), then Step 7 (docs refresh).
+> sanctions; rest later).
+>
+> **Step 6 ✅** (2026-06-04) — `DpmsrReportBuilder` in `engine/build/`: a `DpmsrReportInput` record **and** a
+> fluent builder (both → `build`/`buildAndValidate`), `GoamlParties` (all 6 report_party subjects) +
+> `GoamlWrappers`, `ValidatedReport`. Schema-driven, invoice-generic (any `item_type`, multiple goods/parties),
+> full DPMSR field reach via the generated leaf types. Fixed a `ReportValidator` bug (report_party now accepts
+> all 6 subjects, incl. the **entity** party real DPMSRs use). **Next = Step 7** (docs refresh — `docs/` still
+> describes the retired hand-modeled domain), then the functional roadmap resumes at **Phase 6** (AWS + B2B).
 >
 > Also done this session: **Refactor R1–R3** — restructured to the Vyttah layer-first conventions
 > (`docs/CONVENTIONS.md`): entity/repository separation, interface+`Default*` services, thin controllers,
