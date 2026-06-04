@@ -15,11 +15,13 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -77,7 +79,9 @@ class TokenManagerIT {
                 new GoamlCredentials("re-3177", "s3cr3t!", null);
 
         tokenManager = new DefaultTokenManager(
-                secrets, redis, new B2bProperties(Duration.ofMinutes(20)), RestClient.builder());
+                secrets, redis, new B2bProperties(Duration.ofMinutes(20)), RestClient.builder(),
+                new JdkClientHttpRequestFactory(
+                        HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build()));
 
         // Unique tenant id per test so the Redis key never collides across runs.
         config = new B2bTenantConfig("t-" + UUID.randomUUID(), wireMock.baseUrl(),

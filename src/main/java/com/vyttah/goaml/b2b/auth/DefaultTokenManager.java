@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
-import java.net.http.HttpClient;
 import java.util.Map;
 
 /**
@@ -32,21 +31,17 @@ public class DefaultTokenManager implements TokenManager {
     private final StringRedisTemplate redis;
     private final B2bProperties properties;
     private final RestClient.Builder restClientBuilder;
-
-    /**
-     * Pinned to HTTP/1.1: goAML Web is a legacy ASP.NET service that speaks HTTP/1.1, and the JDK client's
-     * default HTTP/2 (h2c) negotiation otherwise fails ({@code RST_STREAM}). The underlying client is
-     * thread-safe and reused.
-     */
-    private final JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
-            HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build());
+    /** Shared HTTP/1.1 factory (see {@link com.vyttah.goaml.b2b.B2bConfig}). */
+    private final JdkClientHttpRequestFactory requestFactory;
 
     public DefaultTokenManager(GoamlSecretsClient secretsClient, StringRedisTemplate redis,
-                               B2bProperties properties, RestClient.Builder restClientBuilder) {
+                               B2bProperties properties, RestClient.Builder restClientBuilder,
+                               JdkClientHttpRequestFactory b2bRequestFactory) {
         this.secretsClient = secretsClient;
         this.redis = redis;
         this.properties = properties;
         this.restClientBuilder = restClientBuilder;
+        this.requestFactory = b2bRequestFactory;
     }
 
     @Override

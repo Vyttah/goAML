@@ -7,6 +7,8 @@ plugins {
     id 'io.spring.dependency-management'    version '1.1.6'
     // XSD-first (Step 2): generate JAXB types from the authoritative goAML 5.0.2 schema via xjc.
     id 'com.github.bjornvester.xjc'         version '1.9.0'
+    // Phase 6: test coverage measurement + a ≥90% gate on the new b2b / aws integration code.
+    id 'jacoco'
 }
 
 group   = 'com.vyttah'
@@ -106,6 +108,56 @@ tasks.named('test') {
     ['goaml.golden.regenerate'].each { key ->
         if (System.getProperty(key) != null) {
             systemProperty key, System.getProperty(key)
+        }
+    }
+    finalizedBy 'jacocoTestReport'
+}
+
+// ---- Coverage (JaCoCo) ----------------------------------------------------------------------------
+// The xjc-generated domain is machine-generated (build/generated/...) and is excluded everywhere.
+def jacocoExcludes = [
+        'com/vyttah/goaml/domain/generated/**',
+        'com/vyttah/goaml/GoamlApplication*'
+]
+// Phase 6 code we hold to a ≥90% bar (the rest of the report is informational for now).
+def coveredPackages = [
+        'com/vyttah/goaml/b2b/**',
+        'com/vyttah/goaml/integration/aws/**',
+        'com/vyttah/goaml/config/aws/**'
+]
+
+jacocoTestReport {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, include: coveredPackages, exclude: jacocoExcludes)
+        }))
+    }
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                minimum = 0.90
+            }
+        }
+        rule {
+            limit {
+                counter = 'BRANCH'
+                minimum = 0.80
+            }
         }
     }
 }
