@@ -39,12 +39,17 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 > engine tests green; fixed a latent `.gitignore` bug that had left `engine/build/` untracked since Phase 4),
 > **4c** (deleted hand-modeled `domain/*`, kept `GoamlDateTimeAdapter`). **Next = Step 5** (see carry-overs).
 >
-> ⚠️ **Step-5 carry-overs:** (1) reconcile `lookups/ae/transmode.json` with the XSD `transmode_type` enum (they
-> are **disjoint**), then restore transaction-shaped goldens (STR/AIFT/ECDDT) — currently XSD golden coverage =
-> 4 activity types (DPMSR/SAR/AIF/ECDD), validator rule coverage = all 7; (2) expand report-type coverage
-> toward the 17 schema codes.
+> **Step 5 ✅** (2026-06-04) — reconciled `lookups/ae/transmode.json` to the XSD `conduction_type` enum (they
+> were disjoint) + tidied `funds.json`; restored the 3 transaction goldens so **all 7 modeled report types are
+> XSD-golden-covered**; added `LookupXsdConsistencyTest` (every validator lookup ⊆ its XSD enum — guards future
+> drift). The other 10 schema report types are deferred to their functional phase (PNMRA/CNMRA with Phase 1.5
+> sanctions; rest later). **Next = Step 6** (DPMSR convenience builder API), then Step 7 (docs refresh).
 >
-> Step docs in [steps/](steps/STEP-4-repoint-engine.md).
+> Also done this session: **Refactor R1–R3** — restructured to the Vyttah layer-first conventions
+> (`docs/CONVENTIONS.md`): entity/repository separation, interface+`Default*` services, thin controllers,
+> Lombok + MapStruct on the JPA/web side.
+>
+> Step docs in [steps/](steps/) (STEP-1..5, STEP-R).
 
 1. Wire **xjc** codegen into `build.gradle` (JAXB Gradle plugin) → generate JAXB types from
    `goAMLSchema.xsd` into `com.vyttah.goaml.domain.generated`; `.xjb` binding maps `sql_date` →

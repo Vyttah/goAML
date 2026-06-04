@@ -258,6 +258,15 @@ public final class SampleReports {
         TPersonMyClient.Phones senderPhones = new TPersonMyClient.Phones();
         senderPhones.getPhone().add(phone("PRIVT", "L", "971", "509998877"));
         sender.setPhones(senderPhones); // phones wrapper mandatory in t_person_my_client
+        TPersonIdentification senderEid = new TPersonIdentification();
+        senderEid.setType("EID");
+        senderEid.setNumber("784198512345671");
+        senderEid.setIssueDate(odt("2020-01-15T00:00:00"));
+        senderEid.setExpiryDate(odt("2030-01-14T00:00:00"));
+        senderEid.setIssueCountry("AE");
+        TPersonMyClient.Identifications senderIds = new TPersonMyClient.Identifications();
+        senderIds.getIdentification().add(senderEid);
+        sender.setIdentifications(senderIds); // identifications mandatory in t_person_my_client
 
         Report.Transaction.TFromMyClient from = new Report.Transaction.TFromMyClient();
         from.setFromFundsCode(FundsType.CASH);
@@ -282,7 +291,8 @@ public final class SampleReports {
         tx.setTransactionLocation(location);
         tx.setTransactionDescription(description);
         tx.setDateTransaction(odt("2026-05-24T14:30:00"));
-        tx.setTransmodeCode("CASH");
+        tx.setTransmodeCode("ELCFT"); // conduction_type code, valid in both the lookup and the XSD enum
+        tx.setTransmodeComment("E");  // mandatory single-char field after transmode_code
         tx.setAmountLocal(amount);
         tx.setTFromMyClient(from);
         tx.setTTo(to);

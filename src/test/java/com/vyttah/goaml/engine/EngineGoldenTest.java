@@ -31,10 +31,9 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class EngineGoldenTest {
 
-    // Golden coverage = the activity-shaped report types (DPMSR-first). The transaction-shaped types
-    // (STR/AIFT/ECDDT) are deferred to Step 5: their goldens need the `transmode.json` lookup reconciled
-    // with the goAML XSD `transmode_type` enumeration (the two are currently disjoint — see STEP-4 doc).
-    // Validator-level rule coverage for the transaction types is retained in ReportValidatorTest.
+    // Golden coverage = all 7 currently-modeled report types (4 activity + 3 transaction). The transaction
+    // types were restored in Step 5 once the `transmode.json` lookup was reconciled with the XSD
+    // `conduction_type` enum. The other 10 schema codes arrive with their functional phase (see STEP-5 doc).
     private static final boolean REGENERATE =
             Boolean.parseBoolean(System.getProperty("goaml.golden.regenerate", "false"));
     private static final Path GOLDEN_DIR = Paths.get("src/test/resources/golden");
@@ -45,7 +44,7 @@ class EngineGoldenTest {
     private final XsdSchemaValidator xsdValidator = new XsdSchemaValidator();
 
     @ParameterizedTest
-    @EnumSource(value = ReportType.class, names = {"DPMSR", "SAR", "AIF", "ECDD"})
+    @EnumSource(value = ReportType.class, names = {"DPMSR", "SAR", "AIF", "ECDD", "STR", "AIFT", "ECDDT"})
     void engineOutputMatchesGoldenForEveryReportType(ReportType code) throws IOException {
         byte[] actualXml = marshalSample(code);
 
