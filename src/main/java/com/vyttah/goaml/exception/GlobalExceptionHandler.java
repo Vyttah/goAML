@@ -1,5 +1,6 @@
 package com.vyttah.goaml.exception;
 
+import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.submission.SubmissionExceptions;
 import org.springframework.http.HttpStatus;
@@ -20,8 +21,9 @@ import java.util.Map;
  * emit a {@code 401}. {@code AuthenticationException} is intentionally left to Spring Security's
  * {@code AuthenticationEntryPoint} ({@code 401}, no JSON body — a JSON 401 trips retry-on-401 clients).
  *
- * <p>Report/submission service exceptions map to: not-found → 404, duplicate/conflict/not-submittable →
- * 409, FIU rejection → 422 (with the FIU error body), auth/transport → 502, bad input → 400.
+ * <p>Report/submission/attachment service exceptions map to: not-found → 404, duplicate/conflict/
+ * not-submittable/report-not-editable → 409, FIU rejection + packaging-too-large → 422 (rejection also
+ * carries the FIU error body), auth/transport → 502, bad input / rejected upload → 400.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -31,7 +33,10 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
-    @ExceptionHandler(ReportExceptions.ReportNotFoundException.class)
+    @ExceptionHandler({
+            ReportExceptions.ReportNotFoundException.class,
+            AttachmentExceptions.AttachmentNotFoundException.class
+    })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());
     }
@@ -39,7 +44,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             ReportExceptions.DuplicateEntityReferenceException.class,
             SubmissionExceptions.ReportNotSubmittableException.class,
-            SubmissionExceptions.TenantConfigMissingException.class
+            SubmissionExceptions.TenantConfigMissingException.class,
+            AttachmentExceptions.ReportNotEditableException.class
     })
     public ResponseEntity<Map<String, Object>> handleConflict(RuntimeException ex) {
         return body(HttpStatus.CONFLICT, ex.getMessage());
@@ -52,12 +58,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(b);
     }
 
+    @ExceptionHandler(SubmissionExceptions.SubmissionPackagingException.class)
+    public ResponseEntity<Map<String, Object>> handlePackaging(RuntimeException ex) {
+        return body(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
     @ExceptionHandler(SubmissionExceptions.SubmissionTransportException.class)
     public ResponseEntity<Map<String, Object>> handleTransport(RuntimeException ex) {
         return body(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
-    @ExceptionHandler({MethodArgumentNotValidException.class, IllegalArgumentException.class})
+    @ExceptionHandler({
+            MethodArgumentNotValidException.class,
+            IllegalArgumentException.class,
+            AttachmentExceptions.AttachmentRejectedException.class
+    })
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception ex) {
         return body(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
