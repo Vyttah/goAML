@@ -8,11 +8,16 @@ import com.vyttah.goaml.b2b.error.B2bAuthException;
 import com.vyttah.goaml.b2b.error.B2bTransportException;
 import com.vyttah.goaml.b2b.error.B2bValidationException;
 import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.engine.packaging.Attachment;
+import com.vyttah.goaml.engine.packaging.PackagingException;
 import com.vyttah.goaml.engine.packaging.PackagingLimits;
 import com.vyttah.goaml.engine.packaging.ReportZipPackager;
+import com.vyttah.goaml.integration.aws.S3AccessException;
+import com.vyttah.goaml.integration.aws.S3StorageClient;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.entity.submission.Submission;
+import com.vyttah.goaml.repository.attachment.AttachmentRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.submission.SubmissionRepository;
@@ -37,8 +42,10 @@ public class DefaultSubmissionService implements SubmissionService {
     private final ReportRepository reportRepository;
     private final SubmissionRepository submissionRepository;
     private final TenantGoamlConfigRepository configRepository;
+    private final AttachmentRepository attachmentRepository;
     private final GoamlB2bClient b2bClient;
     private final ReportZipPackager packager;
+    private final S3StorageClient s3StorageClient;
     private final AuditService auditService;
 
     @Override
@@ -51,8 +58,15 @@ public class DefaultSubmissionService implements SubmissionService {
         }
 
         B2bTenantConfig cfg = b2bConfig(tenantId);
-        byte[] zip = packager.zip(report.getReportXml().getBytes(StandardCharsets.UTF_8),
-                report.getEntityReference() + ".xml", List.of(), PackagingLimits.UAE_DEFAULT);
+        List<Attachment> attachments = loadAttachments(reportId);
+        byte[] zip;
+        try {
+            zip = packager.zip(report.getReportXml().getBytes(StandardCharsets.UTF_8),
+                    report.getEntityReference() + ".xml", attachments, PackagingLimits.UAE_DEFAULT);
+        } catch (PackagingException e) {
+            throw new SubmissionExceptions.SubmissionPackagingException(
+                    "Report " + reportId + " + attachments exceed packaging limits: " + e.getMessage(), e);
+        }
 
         Submission submission = new Submission(UUID.randomUUID(), reportId, "SUBMITTED");
         try {
@@ -100,6 +114,19 @@ public class DefaultSubmissionService implements SubmissionService {
             reportRepository.save(r);
         });
         return status;
+    }
+
+    /** Pull each stored attachment's bytes from S3 into a packaging {@link Attachment}. */
+    private List<Attachment> loadAttachments(UUID reportId) {
+        try {
+            return attachmentRepository.findByReportIdOrderByCreatedAt(reportId).stream()
+                    .map(a -> new Attachment(a.getFilename(), s3StorageClient.fetch(a.getS3Key()),
+                            a.getContentType()))
+                    .toList();
+        } catch (S3AccessException e) {
+            throw new SubmissionExceptions.SubmissionTransportException(
+                    "Failed to load attachments from S3 for report " + reportId, e);
+        }
     }
 
     private B2bTenantConfig b2bConfig(UUID tenantId) {

@@ -1,8 +1,9 @@
 package com.vyttah.goaml.service.submission;
 
 /**
- * Submission-service exceptions, mapped to HTTP by the global handler (Phase 7.3):
- * not-submittable → 409, missing tenant config → 409, FIU-rejected → 422, transport/auth → 502.
+ * Submission-service exceptions, mapped to HTTP by the global handler (Phase 7.3 + 8.4):
+ * not-submittable → 409, missing tenant config → 409, FIU-rejected → 422, packaging-too-large → 422,
+ * transport/auth → 502.
  */
 public final class SubmissionExceptions {
 
@@ -39,6 +40,16 @@ public final class SubmissionExceptions {
     /** Auth or transport failure talking to the FIU — typically transient; retry later. */
     public static class SubmissionTransportException extends RuntimeException {
         public SubmissionTransportException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /**
+     * The report + its attachments exceed the FIU packaging limits (total ZIP size / count). The report
+     * stays {@code VALID} — the fix is to remove attachments. Distinct from a per-file rejection at upload.
+     */
+    public static class SubmissionPackagingException extends RuntimeException {
+        public SubmissionPackagingException(String message, Throwable cause) {
             super(message, cause);
         }
     }
