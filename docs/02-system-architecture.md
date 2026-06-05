@@ -69,12 +69,12 @@ layout is **layer-first** (controllers / services / repositories / model split b
 | `security/` | JWT auth filter/service, RBAC, user principal, security config. | ✅ | [06](06-multitenancy-and-security.md) |
 | `model/entity/` + `repository/` | JPA entities (no `Entity` suffix) + Spring Data repositories, split per feature (shared `public` schema + per-tenant). | ✅ | [07](07-persistence-and-migrations.md) |
 | `model/dto/` + `model/mapper/` | Request/response DTOs + MapStruct mappers, per feature. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
-| `service/` | Orchestration as interface + `Default*` impl, per feature. Today: `auth`, `tenant` (provisioning), `audit`, `report` (create/validate/persist), `submission` (package + B2B submit + status). | ✅ (partial) | [05](05-engine.md), [06](06-multitenancy-and-security.md), [07](07-persistence-and-migrations.md) |
-| `controller/` | Thin REST controllers per feature (today: `auth`, `me`, `admin`, `report`) — no repos injected directly; delegate to services. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
+| `service/` | Orchestration as interface + `Default*` impl, per feature. Today: `auth`, `tenant` (provisioning), `audit`, `report` (create/validate/persist), `submission` (package + B2B submit + status), `attachment` (S3 upload/list/remove). | ✅ (partial) | [05](05-engine.md), [06](06-multitenancy-and-security.md), [07](07-persistence-and-migrations.md) |
+| `controller/` | Thin REST controllers per feature (today: `auth`, `me`, `admin`, `report` + `report` attachments) — no repos injected directly; delegate to services. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
 | `config/` | App config beans (today: `SecurityCryptoConfig` → BCrypt encoder; `config/tenant/*`). | ✅ | [03](03-tech-stack-and-local-dev.md) |
 | `exception/` | `GlobalExceptionHandler` (`@RestControllerAdvice`). | ✅ | [06](06-multitenancy-and-security.md) |
 | `b2b/` | goAML B2B REST client (`GoamlB2bClient`/`RestGoamlB2bClient` + `TokenManager` Redis token cache): PostReport, OData status, delete, MessageBoard, lookups; typed errors. **Built, tested (not yet wired to an endpoint — Phase 7).** | ✅ | [10](10-b2b-submission-protocol.md) |
-| `integration/aws/` | AWS clients. **`GoamlSecretsClient` (Secrets Manager) built** (Phase 6); `S3StorageClient` (Phase 8) + `SesClient` (Phase 10) planned. | ✅ (partial) | — |
+| `integration/aws/` | AWS clients. **`GoamlSecretsClient` (Secrets Manager, Phase 6) + `S3StorageClient` (S3 attachments, Phase 8) built**; `SesClient` (Phase 10) planned. | ✅ (partial) | — |
 | `ingestion/` | Generic inbound REST + file import (goAML XML / CSV). | ⚠️ Phase 11 | — |
 | `notification/` | In-app + SES email notifications. | ⚠️ Phase 10 | — |
 | `scheduler/` | Async submission poller + retry. | ⚠️ Phase 9 | — |

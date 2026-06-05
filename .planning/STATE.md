@@ -19,45 +19,48 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–7 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+- **Phases 1–8 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
   gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 8 next** — **S3 attachments** (presigned upload, pull into the ZIP), tested vs
-  LocalStack; adds the `attachment` tenant table + the `S3StorageClient` deferred from Phase 6.
-- **Last completed:** **Phase 7 (persistence + service + web REST)** — the **DPMSR report lifecycle API**:
-  `report`/`submission` tenant tables + `TenantGoamlConfig`; `ReportService` (create→build+validate→persist)
-  + `SubmissionService` (package→B2B submit→reportkey, on-demand status); `ReportController`
-  (`/api/v1/reports` create/list/get/submit/status, **MLRO-gated submit**). Testcontainers + WireMock E2E;
-  JaCoCo gate (~98.5% on the gated packages). Commits `154a2f5`…`82af99f`. Per-step docs: `steps/PHASE-7.1..7.4`.
-  **The report flow is now manually testable via the API** (see [docs/03 — Trying the report API locally](../docs/03-tech-stack-and-local-dev.md)).
-- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phases 6–7).
+- **Active focus: Phase 9 next** — **`scheduler/`**: an async submission-status poller + retry across
+  tenants (replacing the current on-demand `GET …/status`).
+- **Last completed:** **Phase 8 (S3 attachments)** — supporting documents are first-class:
+  `integration/aws/S3StorageClient` (+ `S3Client` bean, LocalStack path-style); `attachment` tenant table
+  (`V3`) + entity/repo (metadata + S3 key only); `AttachmentService` (validate ext/size → S3 → row;
+  status-gated, frozen once submitted); `DefaultSubmissionService` now **pulls attachment bytes from S3
+  into the ZIP** at submit; `AttachmentController` (`POST` multipart / `GET` / `DELETE`, ANALYST+MLRO).
+  Upload is **proxied through the API** (not presigned); **no AV scanning yet** (deferred). LocalStack IT +
+  Testcontainers E2E; JaCoCo gate holds (S3 client + attachment service 100% instr). Commits
+  `07afd21`…`77de56e`. Per-step docs: `steps/PHASE-8.1..8.5`.
+- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phases 6–8).
 - **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
   `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — Phase 8 (S3 attachments)
+## Next Action — Phase 9 (scheduler)
 
-Add supporting-document attachments to a report and into the submission ZIP. Expected scope:
-1. **`integration/aws/S3StorageClient`** (the client deferred from Phase 6) — per-tenant prefixes; tested
-   vs LocalStack S3.
-2. **`attachment` tenant table** + entity/repo; presigned upload URL, then pull the bytes into
-   `ReportZipPackager` at submit (within `PackagingLimits.UAE_DEFAULT`: 5 MB/file, 20 MB/ZIP).
-3. **Web:** attach/list/remove endpoints on a report; submit includes the attachments.
+Move submission-status tracking from on-demand to **proactive**. Expected scope:
+1. **`scheduler/`** — a periodic poller that finds `SUBMITTED` reports across tenants and refreshes their
+   FIU status (Accepted/Rejected/Errors), updating `report`/`submission` and firing notifications later
+   (Phase 10).
+2. **`RetryService`** — bounded retry/backoff for transient transport/auth failures on submit + poll.
+3. Tenant iteration must bind `TenantContext` per tenant (the poller runs unauthenticated/untenanted).
 
-> Follow the gated workflow: write the Phase 8 plan + per-step understanding docs, get approval, then build
+> Follow the gated workflow: write the Phase 9 plan + per-step understanding docs, get approval, then build
 > step-by-step (one green commit per step, JaCoCo gate extended).
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
-(PHASE-7.1..7.4) → report/submission persistence, report + submission services, REST API + RBAC + E2E.
+(PHASE-7.1..7.4) → report/submission persistence, services, REST API + RBAC + E2E; **Phase 8**
+(PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST.
 
 ## Progress
 
-`[█████░░░░░] 7/14 (≈50%)` + XSD-first foundation + layer-first refactor
+`[██████░░░░] 8/14 (≈57%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · **7 persistence + service + web REST** |
-| ⏭️ | **8 S3 attachments** (LocalStack) |
-| ⬜ | 9 scheduler · 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · **8 S3 attachments** |
+| ⏭️ | **9 scheduler** (async poller + retry) |
+| ⬜ | 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)

@@ -36,15 +36,15 @@ machine-local state — so anyone on any machine can resume.
 | — | **Vyttah layer-first refactor** — restructure to `controller`/`service`/`repository`/`model` conventions; Lombok + MapStruct on the JPA/web side | ✅ | `8fed6a1`…`e54f64c` |
 | 6 | **`integration/aws/` Secrets Manager (per-tenant creds) + Redis token cache → `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + JaCoCo ≥90% gate** | ✅ | `e6a03d6`…`81f61b0` |
 | 7 | **`persistence/` + `service/` + `web/`** DPMSR reports/submissions REST — wires the engine + b2b to HTTP (Testcontainers + WireMock E2E) | ✅ | `154a2f5`…`82af99f` |
-| **8** | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | **⏭️ NEXT** | — |
-| 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⬜ | — |
+| 8 | **S3 attachments** — `integration/aws/S3StorageClient` + `attachment` tenant table; multipart upload (proxied through the API) → S3, pulled into the submission ZIP; attach/list/remove REST; LocalStack IT + E2E | ✅ | `07afd21`…`77de56e` |
+| **9** | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | **⏭️ NEXT** | — |
 | 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⬜ | — |
 | 11 | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | ⬜ | — |
 | 12 | **`mcp/` tools + `cli/`** (picocli) | ⬜ | — |
 | 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ | — |
 | 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ | — |
 
-Progress: **7 / 14 (≈50%)** + the XSD-first foundation + the layer-first refactor.
+Progress: **8 / 14 (≈57%)** + the XSD-first foundation + the layer-first refactor.
 
 ---
 
@@ -104,12 +104,13 @@ plumbing; they block going live.
 A consolidated list of "the plan mentions it but the code doesn't do it yet," so you're not surprised:
 
 - **No Emirates-ID/passport validation** (awaits BRRs — open item #3).
-- **`ANALYST`/`MLRO` authorization not enforced** on any endpoint yet (the submit endpoint doesn't exist
-  until Phase 7).
+- **No attachment virus/content scanning** (Phase 8 deferred it): uploads are validated for
+  extension/size/content-type against `PackagingLimits.UAE_DEFAULT` only. An AV step (e.g. a ClamAV scan
+  hook in the upload path) is a planned later **hardening** task before live use.
 - **Platform/SUPER_ADMIN actions aren't audited** (no shared audit table yet).
 - **`countries` and `funds` lookups are loaded but unused** by validation.
-- **No HTTP endpoint exercises the engine or the B2B client yet** — build/validate/marshal/zip and
-  submit/auth work in tests only until Phase 7 wires them to `web/` + persistence.
+- **Status tracking is on-demand only** — `GET …/status` polls the FIU per call; the async poller +
+  retry across tenants lands in Phase 9.
 
 ---
 

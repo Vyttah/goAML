@@ -167,10 +167,18 @@ Roles travel in the JWT `roles` claim. `UserPrincipal` maps each role name to a 
 | GET | `/api/v1/reports` · `/{id}` | — | report view(s) | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
 | POST | `/api/v1/reports/{id}/submit` | — | `{submissionId, reportKey, status}` | **`MLRO`** |
 | GET | `/api/v1/reports/{id}/status` | — | `{reportKey, status, errors}` | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+| POST | `/api/v1/reports/{id}/attachments` | multipart `file` | `201 AttachmentView` | `ANALYST`/`MLRO` |
+| GET | `/api/v1/reports/{id}/attachments` | — | `AttachmentView[]` | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+| DELETE | `/api/v1/reports/{id}/attachments/{attachmentId}` | — | `204` | `ANALYST`/`MLRO` |
 
-> The report API maps service exceptions via `GlobalExceptionHandler`: 404 not-found, 409
-> duplicate-reference / not-submittable / config-missing, 422 FIU-rejection (+ `fiuError`), 502
-> auth/transport, 400 bad input.
+> Attachments (Phase 8) are **proxied through the API** (multipart → validated → stored in S3 under a
+> per-tenant/per-report key prefix); at **submit** the bytes are pulled from S3 into the ZIP (within
+> `PackagingLimits.UAE_DEFAULT`). Add/remove are **frozen once the report is submitted** (→ 409).
+>
+> The report/attachment API maps service exceptions via `GlobalExceptionHandler`: 404 not-found
+> (report/attachment), 409 duplicate-reference / not-submittable / config-missing / report-not-editable,
+> 422 FIU-rejection (+ `fiuError`) / packaging-too-large, 502 auth/transport, 400 bad input / rejected
+> upload (disallowed extension, oversize).
 
 - **`MeController`** uses `@AuthenticationPrincipal UserPrincipal`, strips the `ROLE_` prefix off roles,
   and returns `TenantContext.get()` as `tenantSchema` (proving routing works).

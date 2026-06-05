@@ -182,6 +182,27 @@ aws --endpoint-url http://localhost:4566 secretsmanager create-secret \
 Then `POST /api/v1/reports/{id}/submit` (as an **MLRO**) calls the goAML B2B client with that tenant's
 credentials and stores the returned `reportkey`.
 
+**Attachments (Phase 8).** Create the S3 bucket once in LocalStack, then upload a file (multipart) to a
+report; at submit it's pulled from S3 into the ZIP:
+
+```bash
+# create the attachment bucket (matches goaml.aws.s3.bucket; default goaml-attachments)
+aws --endpoint-url http://localhost:4566 s3 mb s3://goaml-attachments
+
+# attach a PDF to a report (ANALYST or MLRO) → 201 {id, filename, sizeBytes, ...}
+curl -s localhost:8080/api/v1/reports/<reportId>/attachments \
+  -H "Authorization: Bearer $TOKEN" -F "file=@invoice.pdf;type=application/pdf"
+
+# list / remove
+curl -s localhost:8080/api/v1/reports/<reportId>/attachments -H "Authorization: Bearer $TOKEN"
+curl -s -X DELETE localhost:8080/api/v1/reports/<reportId>/attachments/<attachmentId> \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Uploads are validated against `PackagingLimits.UAE_DEFAULT` (≤ 5 MB/file, allowed extensions); add/remove
+are frozen once the report is submitted. **No virus scanning yet** — see the gap noted in
+[09 §5](09-build-order-and-roadmap.md).
+
 ---
 
 ## 5. Configuration (`src/main/resources/application.yml`)

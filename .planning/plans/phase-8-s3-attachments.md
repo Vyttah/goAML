@@ -144,5 +144,35 @@ RBAC + tenant isolation asserted; `git status` scoped to Phase 8 dirs + the 8.5 
 
 ---
 
-## Outcome
-_(filled at phase close)_
+## Outcome — ✅ COMPLETE (2026-06-05)
+
+Delivered across `07afd21` (8.1) · `727701e` (8.2) · `d85bd09` (8.3) · `77de56e` (8.4) · this commit (8.5):
+
+- **8.1 S3 client** — `integration/aws/S3StorageClient` (+ `DefaultS3StorageClient`, `S3AccessException`);
+  `S3Client` bean in `AwsConfig` (LocalStack endpoint-override + `forcePathStyle`); `awssdk:s3` dep;
+  `goaml.aws.s3.bucket`. Unit (Mockito) + LocalStack IT.
+- **8.2 persistence** — `V3__attachments.sql` (tenant `attachment` table, metadata + `s3_key`,
+  `report_id` FK ON DELETE CASCADE); `Attachment` entity + `AttachmentRepository`. Testcontainers
+  round-trip + cascade.
+- **8.3 service** — `AttachmentService`/`DefaultAttachmentService` (validate ext/size → S3 → row;
+  status-gated; audited) + `AttachmentExceptions`; `DefaultSubmissionService` wired to **pull attachment
+  bytes from S3 into the ZIP** (`PackagingException`→422, `S3AccessException`→502). Unit tests incl. an
+  unzip-and-assert of the posted ZIP.
+- **8.4 web** — `AttachmentController` (multipart `POST` / `GET` / `DELETE`, ANALYST+MLRO) +
+  `AttachmentView` + `GlobalExceptionHandler` mappings; Testcontainers E2E (attach → list → submit-carries
+  → frozen-after-submit 409).
+- **8.5 docs/planning sync** — `docs/{02,03,06,07,09}`, `CLAUDE.md`, `.planning/{ROADMAP,STATE}`, + the
+  AV-scanning gap recorded in docs/09 §5 and the local seed (`s3 mb` + curl multipart) in docs/03.
+
+**Decisions realised:** upload **proxied through the API** (D1, not presigned); **no AV scanning** (D9,
+deferred + documented); single bucket + per-tenant/per-report key prefix; validate-at-upload **and**
+re-enforce-at-submit (packager = single source of truth); **S3-first/row-second** ordering
+(orphan-object-safe); attachments **frozen once submitted**; the engine vs JPA `Attachment` clash kept
+clean by package + FQN.
+
+**Coverage:** `DefaultS3StorageClient` + `DefaultAttachmentService` **100% instruction**; gate (≥90%/≥80%
+on the gated packages, now incl. `service/attachment/**`) passes. The attachment flow is **manually
+testable via the API** (create the `goaml-attachments` bucket in LocalStack; see docs/03).
+
+**Not done (later phases):** AV/content scanning (deferred hardening), async status poller + retry (9),
+notifications (10), non-DPMSR report types, React UI (13).

@@ -159,7 +159,24 @@ Indexes `idx_report_status`, `idx_report_created_at`.
 
 Index `idx_submission_report`.
 
-> Later phases add `attachment` (Phase 8), `notification` (10), `import_job` (11).
+### `V3__attachments.sql` (Phase 8) — `attachment`
+
+**`attachment`** — one supporting document on a report. **Metadata only** — the bytes live in S3
+(`goaml.aws.s3.bucket`) under a per-tenant/per-report key prefix; this row records where + what.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID` PK | also the `{id}` segment of the S3 key |
+| `report_id` | `UUID` NOT NULL → `report(id)` **CASCADE** | delete a report → its attachments go too |
+| `filename` | `VARCHAR(255)` NOT NULL | original upload name (also the ZIP entry name) |
+| `content_type` | `VARCHAR(255)` NULL | declared MIME type |
+| `size_bytes` | `BIGINT` NOT NULL | ≤ 5 MB/file (`PackagingLimits.UAE_DEFAULT`) |
+| `s3_key` | `VARCHAR(1024)` NOT NULL | `tenants/{tenantId}/reports/{reportId}/{id}-{filename}` |
+| `uploaded_by` | `UUID` NULL | uploader `app_user.id` |
+| `created_at` | `TIMESTAMPTZ` | |
+
+Index `idx_attachment_report`.
+
+> Later phases add `notification` (10), `import_job` (11).
 
 ---
 
@@ -178,6 +195,7 @@ replaces hand-written accessors. Key mapping facts:
 | `TenantGoamlConfig` | `model/entity/goamlconfig/` | `tenant_goaml_config`, schema=public | `UUID` | read-mostly; `findByTenantId`; resolves the tenant's B2B config |
 | `Report` | `model/entity/report/` | `report`, **no schema** | `UUID` | tenant-scoped; JSONB `input`/`validation_errors` via `@JdbcTypeCode(SqlTypes.JSON)`; **distinct from the JAXB `domain.generated.Report`** |
 | `Submission` | `model/entity/submission/` | `submission`, **no schema** | `UUID` | tenant-scoped; FK → `report` |
+| `Attachment` | `model/entity/attachment/` | `attachment`, **no schema** | `UUID` | tenant-scoped; metadata + `s3_key` only (bytes in S3); **distinct from the engine value record `engine.packaging.Attachment`** |
 
 **No JPA enums** — `status`, role names, `auth_mode` are all plain `String`s (allowed values documented
 in SQL comments only). Money/dates follow the project convention (`BigDecimal` / `OffsetDateTime`) where
@@ -190,6 +208,11 @@ they appear.
 - `TenantRepository` — `findBySlug`, `existsBySlug`.
 - `AuditLogRepository` — (no custom methods). ⚠️ Every call needs a tenant bound to `TenantContext` or
   it routes to `public` and fails.
+- `ReportRepository` — `findByEntityReference`, `existsByEntityReference` (tenant-scoped).
+- `SubmissionRepository` — `findByReportIdOrderBySubmittedAtDesc` (tenant-scoped).
+- `AttachmentRepository` — `findByReportIdOrderByCreatedAt`, `findByIdAndReportId` (scopes a lookup to its
+  parent report); tenant-scoped.
+- `TenantGoamlConfigRepository` — `findByTenantId` (shared `public` schema).
 
 > Repositories are accessed only through services (`service/<feature>/`), never injected straight into
 > controllers. Entity↔DTO conversion uses MapStruct mappers in `model/mapper/<feature>/` (today:
