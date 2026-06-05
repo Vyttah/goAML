@@ -5,6 +5,10 @@ plugins {
     id 'java'
     id 'org.springframework.boot'           version '3.3.5'
     id 'io.spring.dependency-management'    version '1.1.6'
+    // XSD-first (Step 2): generate JAXB types from the authoritative goAML 5.0.2 schema via xjc.
+    id 'com.github.bjornvester.xjc'         version '1.9.0'
+    // Phase 6: test coverage measurement + a ≥90% gate on the new b2b / aws integration code.
+    id 'jacoco'
 }
 
 group   = 'com.vyttah'
@@ -20,7 +24,37 @@ repositories {
     mavenCentral()
 }
 
+// Generate JAXB domain types from the authoritative goAML 5.0.2 schema (xjc).
+// Output → build/generated/sources/xjc (NOT committed; regenerated each build). Only goAMLSchema.xsd
+// lives in xsdDir, so xjc compiles just it. sql_date → OffsetDateTime via the binding file.
+xjc {
+    xsdDir.set(layout.projectDirectory.dir("src/main/resources/xsd/goaml/5.0.2"))
+    bindingFiles.setFrom(layout.projectDirectory.file("src/main/jaxb/goaml-bindings.xjb"))
+    defaultPackage.set("com.vyttah.goaml.domain.generated")
+    useJakarta.set(true)
+    // Pin to 4.0.5 to match the project's jaxb-runtime (and the Spring-BOM-managed codemodel). The plugin
+    // defaults to xjc 4.0.6, which mismatches codemodel 4.0.5 → NoSuchMethodError JDocComment.appendXML
+    // (jaxb-ri issue #1854). Keeping tool + codemodel on 4.0.5 avoids it.
+    xjcVersion.set("4.0.5")
+    options.set(["-extension"])
+}
+
 dependencies {
+    // Lombok — boilerplate reduction on the JPA/web side (entities, constructor injection).
+    // Version managed by the Spring Boot BOM. NOT used by the generated domain or the engine.
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+    testCompileOnly 'org.projectlombok:lombok'
+    testAnnotationProcessor 'org.projectlombok:lombok'
+
+    // MapStruct — entity<->DTO mapping on the JPA/web side (componentModel = "spring").
+    // lombok-mapstruct-binding lets MapStruct see Lombok-generated accessors during annotation processing.
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    testAnnotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+    testAnnotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -38,6 +72,17 @@ dependencies {
     implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.2'
     implementation 'org.glassfish.jaxb:jaxb-runtime:4.0.5'
 
+    // AWS SDK v2 (Phase 6) — Secrets Manager holds each tenant's goAML B2B credentials. KMS decryption is
+    // transparent on GetSecretValue, so no separate KMS client is needed for reads. SES lands in 10.
+    implementation platform('software.amazon.awssdk:bom:2.28.16')
+    implementation 'software.amazon.awssdk:secretsmanager'
+    // S3 (Phase 8) — stores per-report supporting-document attachments (per-tenant key prefixes); pulled
+    // into the submission ZIP at submit time. Version pinned by the BOM above.
+    implementation 'software.amazon.awssdk:s3'
+
+    // Redis (Phase 6.2) — caches each tenant's goAML B2B session token (SqlAuthCookie) across app instances.
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
     runtimeOnly    'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -49,6 +94,10 @@ dependencies {
     // XMLUnit for structural / ordering assertions on marshalled XML (Phase 3+).
     testImplementation 'org.xmlunit:xmlunit-core:2.10.0'
     testImplementation 'org.xmlunit:xmlunit-assertj3:2.10.0'
+
+    // WireMock (Phase 6) — stubs the goAML B2B REST API (auth/submit/status). Standalone (shaded) to
+    // avoid Jetty/Jackson clashes with Spring on the test classpath.
+    testImplementation 'org.wiremock:wiremock-standalone:3.9.2'
 }
 
 tasks.named('test') {
@@ -62,6 +111,61 @@ tasks.named('test') {
     ['goaml.golden.regenerate'].each { key ->
         if (System.getProperty(key) != null) {
             systemProperty key, System.getProperty(key)
+        }
+    }
+    finalizedBy 'jacocoTestReport'
+}
+
+// ---- Coverage (JaCoCo) ----------------------------------------------------------------------------
+// The xjc-generated domain is machine-generated (build/generated/...) and is excluded everywhere.
+def jacocoExcludes = [
+        'com/vyttah/goaml/domain/generated/**',
+        'com/vyttah/goaml/GoamlApplication*'
+]
+// Phase 6+7+8 code we hold to a ≥90% bar (the rest of the report is informational for now).
+def coveredPackages = [
+        'com/vyttah/goaml/b2b/**',
+        'com/vyttah/goaml/integration/aws/**',
+        'com/vyttah/goaml/config/aws/**',
+        'com/vyttah/goaml/service/report/**',
+        'com/vyttah/goaml/service/submission/**',
+        'com/vyttah/goaml/service/attachment/**',
+        'com/vyttah/goaml/model/mapper/report/**',
+        'com/vyttah/goaml/controller/report/**'
+]
+
+jacocoTestReport {
+    dependsOn tasks.named('test')
+    reports {
+        xml.required = true
+        html.required = true
+        csv.required = true
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, include: coveredPackages, exclude: jacocoExcludes)
+        }))
+    }
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                minimum = 0.90
+            }
+        }
+        rule {
+            limit {
+                counter = 'BRANCH'
+                minimum = 0.80
+            }
         }
     }
 }

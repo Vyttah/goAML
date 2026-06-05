@@ -1,7 +1,7 @@
 package com.vyttah.goaml.security;
 
-import com.vyttah.goaml.tenant.TenantContext;
-import com.vyttah.goaml.tenant.TenantIdentifierResolver;
+import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.config.tenant.TenantIdentifierResolver;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -12,6 +12,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import lombok.RequiredArgsConstructor;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,6 +24,7 @@ import java.util.UUID;
  * {@link TenantContext} so JPA calls during this request route to the correct schema.
  * Both are cleared in {@code finally} so pooled Tomcat threads don't leak state.
  */
+@RequiredArgsConstructor
 @Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
@@ -30,10 +32,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final JwtService jwtService;
-
-    public JwtAuthFilter(JwtService jwtService) {
-        this.jwtService = jwtService;
-    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,

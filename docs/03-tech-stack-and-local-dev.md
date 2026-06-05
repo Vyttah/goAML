@@ -17,7 +17,11 @@
 | ORM | Hibernate via **Spring Data JPA** | (Boot-managed) |
 | Auth | Spring Security + **JJWT** (HS256) | jjwt 0.12.6 |
 | XML binding | **Jakarta JAXB** | api 4.0.2 / runtime 4.0.5 |
-| Tests | JUnit 5, AssertJ, Testcontainers, XMLUnit, spring-security-test | — |
+| Domain codegen | **xjc** via the `com.github.bjornvester.xjc` plugin (generates the domain model from the goAML XSD) | plugin 1.9.0 / xjc 4.0.5 |
+| Boilerplate / mapping | **Lombok** + **MapStruct** (JPA/web side only) | lombok (BOM-managed) / mapstruct 1.6.3 |
+| AWS / cache | **AWS SDK v2** (Secrets Manager) + **Redis** (Spring Data Redis) | awssdk BOM 2.28.16 |
+| Tests | JUnit 5, AssertJ, Mockito, Testcontainers, XMLUnit, **WireMock**, spring-security-test | wiremock 3.9.2 |
+| Coverage | **JaCoCo** (≥90%/≥80% gate on Phase 6 packages) | plugin (Gradle-bundled) |
 | Coordinates | group `com.vyttah`, name `goaml` | version `0.1.0-SNAPSHOT` |
 
 The Spring Boot `io.spring.dependency-management` plugin supplies the Boot **platform BOM**, so most
@@ -28,7 +32,15 @@ Spring / Flyway / Postgres / Testcontainers artifacts are **unpinned** (versions
 
 ## 2. Every dependency (from `build.gradle`)
 
-Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)` = `testImplementation`.
+Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)` = `testImplementation`,
+`(ap)` = `annotationProcessor`, `(co)` = `compileOnly`.
+
+**Boilerplate / mapping** (JPA/web side only — the generated domain + engine use neither)
+- `org.projectlombok:lombok` (co + ap, plus `testCompileOnly`/`testAnnotationProcessor`) — version BOM-managed
+- `org.mapstruct:mapstruct:1.6.3` (impl) — **pinned**
+- `org.mapstruct:mapstruct-processor:1.6.3` (ap + test ap) — **pinned**
+- `org.projectlombok:lombok-mapstruct-binding:0.2.0` (ap + test ap) — **pinned**; lets MapStruct see
+  Lombok-generated accessors during annotation processing
 
 **Web / validation**
 - `spring-boot-starter-web` (impl)
@@ -37,11 +49,16 @@ Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)
 **Observability**
 - `spring-boot-starter-actuator` (impl)
 
-**Persistence**
+**Persistence / cache**
 - `spring-boot-starter-data-jpa` (impl)
 - `org.flywaydb:flyway-core` (impl)
 - `org.flywaydb:flyway-database-postgresql` (impl)
 - `org.postgresql:postgresql` (rt)
+- `spring-boot-starter-data-redis` (impl) — Phase 6; caches per-tenant goAML B2B session tokens
+
+**AWS (Phase 6)**
+- `software.amazon.awssdk:bom:2.28.16` (platform) + `software.amazon.awssdk:secretsmanager` (impl) —
+  per-tenant goAML credentials from Secrets Manager (KMS decryption is transparent on read)
 
 **Security / JWT**
 - `spring-boot-starter-security` (impl)
@@ -52,6 +69,9 @@ Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)
 **XML / JAXB** (Jakarta namespace — `jakarta.xml.bind`, not legacy `javax`)
 - `jakarta.xml.bind:jakarta.xml.bind-api:4.0.2` (impl) — **pinned**
 - `org.glassfish.jaxb:jaxb-runtime:4.0.5` (impl) — **pinned**
+- The **`com.github.bjornvester.xjc` plugin (1.9.0)** generates the domain model from the goAML XSD at
+  build time (`xjcVersion 4.0.5`, `useJakarta`, `-extension`). Output → `build/generated/sources/xjc`,
+  package `com.vyttah.goaml.domain.generated` — **not committed** (see [04 — Domain Model](04-domain-model.md)).
 
 **Test**
 - `spring-boot-starter-test` (test)
@@ -61,9 +81,16 @@ Grouped by purpose. `(impl)` = `implementation`, `(rt)` = `runtimeOnly`, `(test)
 - `org.testcontainers:postgresql` (test)
 - `org.xmlunit:xmlunit-core:2.10.0` (test) — **pinned**
 - `org.xmlunit:xmlunit-assertj3:2.10.0` (test) — **pinned**
+- `org.wiremock:wiremock-standalone:3.9.2` (test) — **pinned**; stubs the goAML B2B REST API
+- Mockito (via `spring-boot-starter-test`) — unit tests mock the AWS SDK / Redis / collaborators
 
-⚠️ **Not present yet** (deferred to later phases, noted as comments in `build.gradle`): AWS SDK,
-Spring AI MCP, picocli (CLI), and the Node/Vite frontend build plugin.
+**Coverage**
+- The **`jacoco`** plugin: `jacocoTestReport` (after `test`) + `jacocoTestCoverageVerification` — a
+  **≥90% instruction / ≥80% branch** gate scoped to the Phase 6 packages (`b2b`, `integration.aws`,
+  `config.aws`); generated domain excluded. Report at `build/reports/jacoco/test/html/index.html`.
+
+⚠️ **Not present yet** (deferred to later phases, noted as comments in `build.gradle`): Spring AI MCP,
+picocli (CLI), the Node/Vite frontend build plugin, and the S3 / SES AWS clients (Phases 8 / 10).
 
 ---
 
@@ -79,11 +106,14 @@ You need:
 ## 4. Build, run, test
 
 ```bash
-# 1. Start Postgres (LocalStack is only needed from Phase 6 onward — skip it for now)
-docker compose up -d postgres
+# 1. Start the dev dependencies. Postgres uses Testcontainers for tests, but the Phase 6
+#    LocalStack + Redis integration tests run against these compose services (they skip cleanly
+#    if absent). Start all three for the complete suite:
+docker compose up -d postgres localstack redis
 
 # 2. Run the full test suite (auto-provisions Java 21; spins Testcontainers Postgres)
 ./gradlew test
+#   With coverage gate: ./gradlew test jacocoTestCoverageVerification
 
 # 3. Run the app
 ./gradlew bootRun
@@ -107,6 +137,71 @@ schema/fixture change, regenerate them:
 
 This overwrites `src/test/resources/golden/*.xml` with current engine output instead of asserting.
 Review the diff before committing. (More in [08 — Testing](08-testing.md).)
+
+### Trying the DPMSR report API locally (Phase 7)
+
+`bootRun`, then exercise the lifecycle over HTTP. **Create + validate + read need no FIU setup**; only
+**submit** needs a tenant's goAML config + credentials.
+
+```bash
+# 1. Log in (seeded admin, or any ANALYST/MLRO you create) → copy the accessToken
+curl -s localhost:8080/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"<email>","password":"<password>"}'
+
+# 2. Create + validate a DPMSR (Bearer <token>) → returns {reportId, status, validationMessages}
+curl -s localhost:8080/api/v1/reports -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' -d '{
+    "entityReference":"PAY-0001","submissionDate":"2026-06-02T12:00:00Z",
+    "reason":"DPMS threshold met","action":"Filed","indicators":["DPMSJ"],
+    "reportingPerson":{"firstName":"Sara","lastName":"Khan"},
+    "parties":[{"reason":"Seller","entity":{"name":"Gold Trading FZE",
+        "incorporationNumber":"123456","incorporationCountryCode":"AE"}}],
+    "goods":[{"itemType":"GOLD","estimatedValue":90000.00,"currencyCode":"AED"}]}'
+
+# 3. List / fetch
+curl -s localhost:8080/api/v1/reports -H "Authorization: Bearer $TOKEN"
+```
+
+**Local seed for submit** (needs the LocalStack + Redis compose services, and a goAML endpoint — point
+`base_url` at a stub/WireMock for a dry run). Seed a `tenant_goaml_config` row + the credentials secret:
+
+```bash
+# the tenant's FIU config (rentity_id, endpoint, secret path, auth mode)
+psql "$SPRING_DATASOURCE_URL" -c "INSERT INTO public.tenant_goaml_config
+  (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
+  VALUES (gen_random_uuid(), '<tenant-uuid>', 'AE', 3177,
+          'http://localhost:8089', 'goaml/<tenant>/creds', 'TOKEN');"
+
+# the goAML B2B credentials in LocalStack Secrets Manager
+aws --endpoint-url http://localhost:4566 secretsmanager create-secret \
+  --name 'goaml/<tenant>/creds' \
+  --secret-string '{"username":"re-3177","password":"secret"}'
+```
+
+Then `POST /api/v1/reports/{id}/submit` (as an **MLRO**) calls the goAML B2B client with that tenant's
+credentials and stores the returned `reportkey`.
+
+**Attachments (Phase 8).** Create the S3 bucket once in LocalStack, then upload a file (multipart) to a
+report; at submit it's pulled from S3 into the ZIP:
+
+```bash
+# create the attachment bucket (matches goaml.aws.s3.bucket; default goaml-attachments)
+aws --endpoint-url http://localhost:4566 s3 mb s3://goaml-attachments
+
+# attach a PDF to a report (ANALYST or MLRO) → 201 {id, filename, sizeBytes, ...}
+curl -s localhost:8080/api/v1/reports/<reportId>/attachments \
+  -H "Authorization: Bearer $TOKEN" -F "file=@invoice.pdf;type=application/pdf"
+
+# list / remove
+curl -s localhost:8080/api/v1/reports/<reportId>/attachments -H "Authorization: Bearer $TOKEN"
+curl -s -X DELETE localhost:8080/api/v1/reports/<reportId>/attachments/<attachmentId> \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+Uploads are validated against `PackagingLimits.UAE_DEFAULT` (≤ 5 MB/file, allowed extensions); add/remove
+are frozen once the report is submitted. **No virus scanning yet** — see the gap noted in
+[09 §5](09-build-order-and-roadmap.md).
 
 ---
 
@@ -217,8 +312,15 @@ There are **no Spring profiles** defined in this file yet (single baseline confi
 ## 9. Coding conventions you'll see
 
 - **Records** for DTOs and value types (`LoginRequest`, `ReportHeader`, `Attachment`, `PackagingLimits`,
-  `JurisdictionConfig`, `ValidationMessage`, etc.).
-- **Constructor injection** everywhere (no field `@Autowired`).
+  `JurisdictionConfig`, `ValidationMessage`, `DpmsrReportInput`, `ValidatedReport`, etc.).
+- **Constructor injection** everywhere (no field `@Autowired`); Lombok `@RequiredArgsConstructor` on the
+  JPA/web side.
+- **Layer-first packages** (`controller/<feature>`, `service/<feature>`, `repository/<feature>`,
+  `model/{entity,dto,mapper}/<feature>`) per [`../docs/CONVENTIONS.md`](CONVENTIONS.md). Services are an
+  **interface + `Default*` impl**; controllers are thin and **never inject repositories directly**.
+- **Lombok** (`@Getter`/`@Setter`/`@RequiredArgsConstructor`) + **MapStruct** mappers on entities/DTOs —
+  **not** on the generated domain or the engine, which stay plain.
+- Entity classes carry **no `Entity` suffix** (`AppUser`, `Tenant`, `Role`, `Jurisdiction`, `AuditLog`).
 - **`BigDecimal`** for all money/amounts/quantities — never `double`/`float`.
 - **`OffsetDateTime`** for all timestamps, normalized to UTC.
 - Status/role values are **plain Strings** in the DB (documented via SQL comments), not DB enums.

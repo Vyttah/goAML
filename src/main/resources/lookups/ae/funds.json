@@ -1,8 +1,9 @@
 [
   { "code": "CASH", "label": "Cash" },
-  { "code": "BANKD", "label": "Bank deposit / draft" },
-  { "code": "WIRE", "label": "Wire / electronic transfer" },
-  { "code": "CHEQUE", "label": "Cheque" },
-  { "code": "CARD", "label": "Card" },
-  { "code": "CRYPTO", "label": "Virtual asset" }
+  { "code": "BANKD", "label": "Bank draft" },
+  { "code": "CHQ", "label": "Cheque" },
+  { "code": "ELCFT", "label": "Electronic funds transfer" },
+  { "code": "CRPTC", "label": "Crypto / virtual asset" },
+  { "code": "POS", "label": "Point-of-sale card" },
+  { "code": "JEWL", "label": "Jewellery / precious metals" }
 ]

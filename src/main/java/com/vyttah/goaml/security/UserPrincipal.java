@@ -1,6 +1,6 @@
 package com.vyttah.goaml.security;
 
-import com.vyttah.goaml.persistence.shared.AppUserEntity;
+import com.vyttah.goaml.model.entity.appuser.AppUser;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -36,7 +36,7 @@ public final class UserPrincipal implements UserDetails {
                 .toList();
     }
 
-    public static UserPrincipal fromEntity(AppUserEntity entity) {
+    public static UserPrincipal fromEntity(AppUser entity) {
         return new UserPrincipal(
                 entity.getId(),
                 entity.getTenantId(),

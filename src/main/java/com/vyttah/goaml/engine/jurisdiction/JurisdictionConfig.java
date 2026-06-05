@@ -1,6 +1,6 @@
 package com.vyttah.goaml.engine.jurisdiction;
 
-import com.vyttah.goaml.domain.enums.ReportCode;
+import com.vyttah.goaml.domain.generated.ReportType;
 
 import java.math.BigDecimal;
 import java.util.Set;
@@ -13,7 +13,7 @@ import java.util.Set;
  * @param code               ISO-style jurisdiction key, e.g. {@code ae}
  * @param name               display name, e.g. {@code United Arab Emirates}
  * @param defaultCurrency    the FIU's local currency for {@code currency_code_local}, e.g. {@code AED}
- * @param allowedReportCodes report types this FIU accepts
+ * @param allowedReportTypes report types this FIU accepts
  * @param dpmsThreshold      cash threshold above which a DPMS report is required (UAE: AED 55,000)
  * @param lookupSet          name of the lookup directory under {@code lookups/} to validate against
  */
@@ -21,11 +21,11 @@ public record JurisdictionConfig(
         String code,
         String name,
         String defaultCurrency,
-        Set<ReportCode> allowedReportCodes,
+        Set<ReportType> allowedReportTypes,
         BigDecimal dpmsThreshold,
         String lookupSet) {
 
-    public boolean allows(ReportCode reportCode) {
-        return allowedReportCodes.contains(reportCode);
+    public boolean allows(ReportType reportCode) {
+        return allowedReportTypes.contains(reportCode);
     }
 }

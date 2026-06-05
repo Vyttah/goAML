@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
-build/
+# Anchor to the repo root so this only ignores Gradle's output dir — an unanchored `build/` also
+# matched the `engine/build/` SOURCE package (it was silently untracked until 2026-06-04).
+/build/
 !gradle/wrapper/gradle-wrapper.jar
 
 # IDE

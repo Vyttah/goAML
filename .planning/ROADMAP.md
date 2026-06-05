@@ -11,10 +11,10 @@
 | 3 | **`domain/`** — JAXB POJOs for the `<report>` tree + round-trip/ordering tests | ✅ done | `8ea6fdf` |
 | 4 | **`engine/` builders + marshaller** + golden-file XML per report type | ✅ done | `220b763` |
 | 5 | **`engine/` validation + UAE jurisdiction + lookups** | ✅ done | `102484d` |
-| 6 | **`integration/aws/` + Secrets Manager (LocalStack) → `b2b/` client (per-tenant creds) vs WireMock** | ⏭️ **next** | — |
-| 7 | **`persistence/` + `service/` + `web/`** reports/submissions REST (Testcontainers Postgres) | ⬜ todo | — |
-| 8 | **S3 attachments** (presigned upload, pull into ZIP) — LocalStack | ⬜ todo | — |
-| 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⬜ todo | — |
+| 6 | **`integration/aws/` Secrets Manager + Redis B2B token cache → `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + JaCoCo ≥90% gate** (Secrets-only; S3/SES → 8/10) | ✅ done | `e6a03d6`…`81f61b0` |
+| 7 | **`persistence/` + `service/` + `web/`** DPMSR reports/submissions REST — wires the engine + b2b to HTTP (Testcontainers + WireMock E2E; JaCoCo gate) | ✅ done | `154a2f5`…`82af99f` |
+| 8 | **S3 attachments** — `S3StorageClient` + `attachment` table; multipart upload (proxied through the API) → S3, pulled into the submission ZIP; attach/list/remove REST; LocalStack IT + E2E (AV scanning deferred) | ✅ done | `07afd21`…`77de56e` |
+| 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⏭️ **next** | — |
 | 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⬜ todo | — |
 | 11 | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | ⬜ todo | — |
 | 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⬜ todo (planned) | — |
@@ -26,10 +26,14 @@
 > standalone core** (it depends on the engine, the b2b client, and submission existing). Deps: RabbitMQ +
 > the screening API + Phase 6/7 submission.
 
-## Phase 6 (next) — quick breakdown
+## Phase 6 (DONE) — what shipped
 
-- **6a `integration/aws/`** — `SecretsManagerClient` (+KMS), `S3StorageClient`, `SesClient`; LocalStack tests. Requires adding **AWS SDK v2** to `build.gradle`.
-- **6b `b2b/`** — `GoamlB2bClient`/`RestGoamlB2bClient` + `TokenManager` (per-tenant creds, 401 re-auth); ops `postReport`/`getReportStatus`/`deleteReport`/`postMessage`/`getLookups`; typed errors; WireMock tests. Requires adding **WireMock** test dep.
+- **6a `integration/aws/`** — `GoamlSecretsClient` reads per-tenant goAML creds from Secrets Manager
+  (no separate KMS client). **Secrets-only**; `S3StorageClient`/`SesClient` deferred to Phases 8/10.
+- **6b `b2b/`** — `GoamlB2bClient`/`RestGoamlB2bClient` (HTTP/1.1) + `TokenManager` (Redis token cache,
+  401 re-auth); ops `postReport`/`getReportStatus`/`deleteReport`/`postMessage`/`getLookups`; typed errors.
+- Tests: LocalStack + Redis integration (tagged/conditional) **and** Mockito/WireMock unit tests; JaCoCo
+  ≥90% gate on the new packages (achieved ~98.7% instr). Per-step docs: `steps/PHASE-6.1..6.5`.
 
 See [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md) for the wire protocol.
 

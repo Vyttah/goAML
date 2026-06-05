@@ -1,5 +1,7 @@
 # Local dev dependencies for the goAML platform.
-# Phase 1: Postgres only. LocalStack (S3/SecretsManager/KMS/SES) is added in Phase 6/8/10.
+# Phase 1: Postgres only. Phase 6 starts using LocalStack (Secrets Manager) and adds Redis
+# (per-tenant goAML B2B token cache). S3/SES come online in Phase 8/10.
+# Run for the full test suite: `docker compose up -d postgres localstack redis`.
 services:
   postgres:
     image: postgres:16-alpine
@@ -29,6 +31,18 @@ services:
       - "4566:4566"
     volumes:
       - goaml-localstack:/var/lib/localstack
+
+  redis:
+    image: redis:7-alpine
+    container_name: goaml-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   goaml-pg:

@@ -1,7 +1,8 @@
 package com.vyttah.goaml.service.tenant;
 
 import com.vyttah.goaml.GoamlApplication;
-import com.vyttah.goaml.persistence.shared.TenantEntity;
+import com.vyttah.goaml.model.entity.tenant.Tenant;
+import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,7 +48,7 @@ class TenantProvisioningServiceTest {
                 "Sup3rS3cret!",
                 "Alpha", "Admin");
 
-        TenantEntity tenant = provisioningService.provision(req);
+        Tenant tenant = provisioningService.provision(req);
 
         assertThat(tenant.getId()).isNotNull();
         assertThat(tenant.getSlug()).isEqualTo("alpha-jewellers");

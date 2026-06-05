@@ -17,11 +17,12 @@ system called **goAML**.
 
 **goAML** is a software platform built by the **United Nations Office on Drugs and Crime (UNODC)**.
 Dozens of countries' FIUs run goAML to collect AML reports. It defines:
-- a strict **XML format** (schema version **4.0**) that every report must conform to, and
+- a strict **XML format** (this platform targets the authoritative **5.0.2** XSD) that every report must
+  conform to, and
 - a **"goAML Web" B2B REST interface** for submitting those XML reports programmatically.
 
-So when a business needs to file a report in the UAE, it must produce a goAML-v4.0 XML document and
-hand it to the UAE FIU's goAML system.
+So when a business needs to file a report in the UAE, it must produce a goAML-schema-compliant XML document
+and hand it to the UAE FIU's goAML system.
 
 ---
 
@@ -51,7 +52,7 @@ data must be strictly isolated from every other RE's data. (How we achieve that 
 
 For each report, the platform:
 
-1. **Builds** a goAML-v4.0 XML document from structured input data.
+1. **Builds** a goAML-schema-compliant XML document from structured input data.
 2. **Validates** it — first that it's structurally correct (schema), then that it satisfies the FIU's
    *business rules* (e.g. a suspicious-transaction report must have a reason; a UAE precious-metals
    report only matters above a cash threshold).
@@ -104,9 +105,11 @@ Notes:
 - **AIF / AIFT / ECDD / ECDDT** are *responses to the FIU* and therefore require an **FIU reference
   number** (`fiu_ref_number`) — the ID of the request you're answering.
 - **STR / SAR** require a free-text **reason** and **action** (why it's suspicious, what you did).
-- **DPMSR** is the UAE's flagship use case for Vyttah's first customers (gold dealers). It only needs
-  to be filed when a cash transaction reaches the **AED 55,000** threshold. (PEP = Politically Exposed
-  Person — someone in/near public office, treated as higher-risk.)
+- **DPMSR** is the UAE's flagship use case for Vyttah's first customers (precious-metals & stones dealers).
+  It is **generic across DPMS dealers and any qualifying invoice** — gold, diamonds, jewellery, any
+  `item_type` — not gold-specific. It only needs to be filed when a cash transaction reaches the
+  **AED 55,000** threshold. (PEP = Politically Exposed Person — someone in/near public office, treated as
+  higher-risk.)
 
 ---
 
@@ -138,10 +141,11 @@ The design is derived from three vendor PDFs (UNODC + UAE):
 2. **goAML B2B Developers Guide** — the submission REST API.
 3. **UAE DPMS Report Submission Guide** — UAE precious-metals specifics.
 
-⚠️ **Important caveat:** the **actual XSD schema file ships from the FIU, not from these PDFs.** So the
-domain model in this repo is a **hand-modeled representative subset** of goAML v4.0. The plan is to swap
-to XSD-generated JAXB and add authoritative XSD validation once the real UAE XSD is obtained (it's an
-open item — see [09 — Build Order & Roadmap](09-build-order-and-roadmap.md)).
+✅ **The authoritative XSD is in the repo.** The real goAML **5.0.2** schema (`goAMLSchema.xsd`) plus two
+real DPMSR samples are vendored under `src/main/resources/xsd/` and `src/test/resources/samples/`. The
+domain model is **generated from that XSD** (xjc) and reports are validated against it at runtime — the
+PDFs are now just background. *(The UAE production schema version, 4.x vs 5.x, should still be confirmed
+before go-live — see [09 — Build Order & Roadmap](09-build-order-and-roadmap.md).)*
 
 ---
 

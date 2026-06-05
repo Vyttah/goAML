@@ -1,4 +1,18 @@
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:goaml="http://www.unodc.org/goaml" xmlns:vc="http://www.w3.org/2007/XMLSchema-versioning" id="report" vc:minVersion="1.1" goaml:schemaVersion="5.0.2">
+  <!-- ===================================================================================
+       LOCAL PATCHES (2026-06-04) — semantics-preserving fixes so strict W3C XSD-1.0 validators
+       (JDK Xerces) accept this schema and the FIU's own portal-exported reports. The goAML schema
+       uses .NET/PCRE regex conventions that strict XSD interprets differently. Pristine FIU
+       original is kept at assets/goAMLSchema.xsd; re-apply these on any future schema re-export.
+         1. email_address pattern: literal '-' moved to end of char classes
+            ([_a-zA-Z0-9-+] -> [_a-zA-Z0-9+-]) — '9-+' was read as an invalid character range.
+         2. name pattern (x26): removed the '^' and '$' — in XSD regex these are LITERAL characters
+            (patterns are already implicitly whole-string anchored), so '^...$' rejected real names
+            like 'Sara'. ("^[a-zA-Z0-9 .'-]*$" -> "[a-zA-Z0-9 .'-]*")
+       Both changes preserve the matched character set / author intent; they only align the strict
+       XSD interpretation with the FIU's lenient one. (The URL pattern was already commented-out
+       by the FIU and is untouched.)
+       ==================================================================================== -->
   <xs:element name="report">
     <xs:complexType>
       <xs:sequence>
@@ -378,7 +392,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="255" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -553,7 +567,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="255" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -669,7 +683,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="255" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -678,7 +692,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="255" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -846,7 +860,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="255" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -855,7 +869,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="255" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1031,7 +1045,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1039,7 +1053,7 @@
         <xs:simpleType>
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1048,7 +1062,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="10" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1057,7 +1071,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1297,7 +1311,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1305,7 +1319,7 @@
         <xs:simpleType>
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1314,7 +1328,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1323,7 +1337,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1563,7 +1577,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1571,7 +1585,7 @@
         <xs:simpleType>
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1580,7 +1594,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1589,7 +1603,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1829,7 +1843,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1837,7 +1851,7 @@
         <xs:simpleType>
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1846,7 +1860,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="10" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -1855,7 +1869,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -4783,7 +4797,11 @@
   <xs:simpleType name="email_address">
     <xs:restriction base="xs:string">
       <xs:maxLength value="255" />
-      <xs:pattern value="[_a-zA-Z0-9-+]+(\.[_a-zA-Z0-9-\+]+)*@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*(\.[a-zA-Z]{2,15})" />
+      <!-- LOCAL PATCH 2026-06-04: the literal '-' was moved to the end of the two character classes
+           ([_a-zA-Z0-9-+] -> [_a-zA-Z0-9+-]) so strict XSD-1.0 validators (JDK Xerces) compile this
+           email pattern; the FIU's lenient validator accepts either. Semantics-preserving — same
+           matched character set. Pristine FIU original kept at assets/goAMLSchema.xsd. -->
+      <xs:pattern value="[_a-zA-Z0-9+-]+(\.[_a-zA-Z0-9+-]+)*@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*(\.[a-zA-Z]{2,15})" />
     </xs:restriction>
   </xs:simpleType>
   <xs:simpleType name="url_address">
@@ -6846,7 +6864,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -6854,7 +6872,7 @@
         <xs:simpleType>
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -6863,7 +6881,7 @@
           <xs:restriction base="xs:string">
             <xs:minLength value="0" />
             <xs:maxLength value="10" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>
@@ -6872,7 +6890,7 @@
           <xs:restriction base="xs:string">
             <xs:maxLength value="100" />
             <xs:minLength value="1" />
-            <xs:pattern value="^[a-zA-Z0-9 .'-]*$" />
+            <xs:pattern value="[a-zA-Z0-9 .'-]*" />
           </xs:restriction>
         </xs:simpleType>
       </xs:element>

@@ -1,7 +1,8 @@
 # 06 — Multi-Tenancy & Security
 
 > How one running app serves many isolated client REs, and how users authenticate & are authorized.
-> Packages: `com.vyttah.goaml.tenant`, `.security`, `.service.tenant`, `.service.audit`, `.web`.
+> Packages: `com.vyttah.goaml.config.tenant`, `.security`, `.service.{auth,tenant,audit}`, `.controller`,
+> `.exception`.
 
 ---
 
@@ -38,7 +39,7 @@ shared connection pool, switched per request.
 
 ---
 
-## 2. The four tenant-plumbing classes (`tenant/`)
+## 2. The four tenant-plumbing classes (`config/tenant/`)
 
 **`TenantContext`** — a `ThreadLocal<String>` holding the current schema name. Static `set/get/clear`.
 Set by the auth filter after JWT validation; **cleared in a `finally`** at request end so pooled Tomcat
@@ -59,9 +60,10 @@ above into Hibernate. Setting `hibernate.multiTenancy=SCHEMA` in YAML alone is *
 needs the actual bean instances, and this customizer is the supported hook.
 
 **How tables resolve:** shared entities are `@Table(schema = "public")` so they always hit `public`
-regardless of search_path. Tenant entities (e.g. `AuditLogEntity`) use `@Table(name = "audit_log")`
-with **no schema**, so they resolve via the current search_path. ⚠️ Querying a tenant entity with **no
-tenant bound** routes to `public.audit_log`, which doesn't exist → it errors *by design*.
+regardless of search_path. Tenant entities (e.g. `AuditLog` — entities carry **no `Entity` suffix**) use
+`@Table(name = "audit_log")` with **no schema**, so they resolve via the current search_path. ⚠️ Querying a
+tenant entity with **no tenant bound** routes to `public.audit_log`, which doesn't exist → it errors
+*by design*.
 
 ---
 
@@ -92,9 +94,10 @@ adminPassword, adminFirstName, adminLastName`.
 ## 4. Authentication (JWT)
 
 ### Login
-`POST /api/v1/auth/login` (`web/auth/AuthController`).
+`POST /api/v1/auth/login` — a **thin** `controller/auth/AuthController` that delegates to
+`service/auth/AuthService` (`DefaultAuthService`); controllers never inject repositories directly.
 - **Request** (`LoginRequest` record): `{ "email": "...", "password": "..." }` (bean-validated).
-- **Flow:** `AuthenticationManager.authenticate(...)` → on any failure, rethrow as a uniform
+- **Flow** (in `DefaultAuthService`): `AuthenticationManager.authenticate(...)` → on any failure, rethrow as a uniform
   `BadCredentialsException("Invalid email or password")` (avoids user enumeration) → load the user →
   resolve their schema (null tenantId → `"public"`; else the tenant's `schema_name`) →
   `jwtService.issueAccessToken(user, schema)` → write a `USER.LOGIN` audit row → return the token.
@@ -136,9 +139,8 @@ adminPassword, adminFirstName, adminLastName`.
 Roles travel in the JWT `roles` claim. `UserPrincipal` maps each role name to a Spring authority
 **`ROLE_<name>`** (e.g. `ROLE_SUPER_ADMIN`). `@EnableMethodSecurity` is on, so `@PreAuthorize` works.
 
-> ⚠️ Today only one endpoint is actually role-gated (`/api/v1/admin/ping` → `hasRole('SUPER_ADMIN')`).
-> The `ANALYST`/`MLRO` distinction (e.g. submit gated to MLRO) is defined in the data model but not yet
-> enforced on any endpoint — those endpoints (report submit) don't exist until Phase 7+.
+> Role-gated endpoints (via `@PreAuthorize`): `/api/v1/admin/ping` → `SUPER_ADMIN`; the **report API**
+> (Phase 7) → create/read for `ANALYST`/`MLRO`(/`TENANT_ADMIN` for read), and **submit is `MLRO`-only**.
 
 ### `SecurityConfig` (`security/SecurityConfig`)
 - CSRF disabled (stateless JWT API). Session policy **STATELESS**.
@@ -161,13 +163,29 @@ Roles travel in the JWT `roles` claim. `UserPrincipal` maps each role name to a 
 | POST | `/api/v1/auth/login` | `LoginRequest{email,password}` | `LoginResponse{accessToken, tokenType, expiresInSeconds}` | public |
 | GET | `/api/v1/me` | — | `{userId, tenantId, tenantSchema, email, roles[]}` | any valid JWT |
 | GET | `/api/v1/admin/ping` | — | `{ok:true, role:"SUPER_ADMIN"}` | `SUPER_ADMIN` |
+| POST | `/api/v1/reports` | `DpmsrCreateRequest` | `201 {reportId, status, validationMessages[]}` | `ANALYST`/`MLRO` |
+| GET | `/api/v1/reports` · `/{id}` | — | report view(s) | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+| POST | `/api/v1/reports/{id}/submit` | — | `{submissionId, reportKey, status}` | **`MLRO`** |
+| GET | `/api/v1/reports/{id}/status` | — | `{reportKey, status, errors}` | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+| POST | `/api/v1/reports/{id}/attachments` | multipart `file` | `201 AttachmentView` | `ANALYST`/`MLRO` |
+| GET | `/api/v1/reports/{id}/attachments` | — | `AttachmentView[]` | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
+| DELETE | `/api/v1/reports/{id}/attachments/{attachmentId}` | — | `204` | `ANALYST`/`MLRO` |
+
+> Attachments (Phase 8) are **proxied through the API** (multipart → validated → stored in S3 under a
+> per-tenant/per-report key prefix); at **submit** the bytes are pulled from S3 into the ZIP (within
+> `PackagingLimits.UAE_DEFAULT`). Add/remove are **frozen once the report is submitted** (→ 409).
+>
+> The report/attachment API maps service exceptions via `GlobalExceptionHandler`: 404 not-found
+> (report/attachment), 409 duplicate-reference / not-submittable / config-missing / report-not-editable,
+> 422 FIU-rejection (+ `fiuError`) / packaging-too-large, 502 auth/transport, 400 bad input / rejected
+> upload (disallowed extension, oversize).
 
 - **`MeController`** uses `@AuthenticationPrincipal UserPrincipal`, strips the `ROLE_` prefix off roles,
   and returns `TenantContext.get()` as `tenantSchema` (proving routing works).
 - **`AdminController.ping`** is a Phase-2 RBAC smoke stub; later phases add real tenant/user/credential
   management here.
 
-### Error mapping (`web/GlobalExceptionHandler`, `@RestControllerAdvice`)
+### Error mapping (`exception/GlobalExceptionHandler`, `@RestControllerAdvice`)
 - `AccessDeniedException` → **403** with body `{status:403, error:"Forbidden", message:...}`.
 - `AuthenticationException` is intentionally **not** handled here — left to Spring Security's 401 entry
   point (a JSON 401 body trips some retry-on-401 HTTP clients). **The nuance:** 403s get a JSON body;

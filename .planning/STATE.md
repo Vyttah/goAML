@@ -19,58 +19,51 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Active focus: XSD-first foundation migration — UNBLOCKED.** Authoritative **goAML 5.0.2** schema +
-  2 real DPMSR samples obtained from the live UAE portal and vendored into the repo
-  (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). This pivots the data layer
-  ahead of continuing Phase 6. Plan: [plans/xsd-first-foundation.md](plans/xsd-first-foundation.md).
-- **Phases 1–5 complete** (Phase 6 = next functional phase after the migration).
-- **Branch:** `main` (uncommitted: docs/, .planning/, assets/, vendored XSDs+samples).
-- **Build/tests:** ✅ green at last full run — `./gradlew test` → `BUILD SUCCESSFUL`.
-- **Last completed:** Phase 5 — engine validation + UAE jurisdiction + lookups (commit `102484d`).
+- **Phases 1–8 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+  gate + DPMSR builder) and the **Vyttah layer-first refactor**.
+- **Active focus: Phase 9 next** — **`scheduler/`**: an async submission-status poller + retry across
+  tenants (replacing the current on-demand `GET …/status`).
+- **Last completed:** **Phase 8 (S3 attachments)** — supporting documents are first-class:
+  `integration/aws/S3StorageClient` (+ `S3Client` bean, LocalStack path-style); `attachment` tenant table
+  (`V3`) + entity/repo (metadata + S3 key only); `AttachmentService` (validate ext/size → S3 → row;
+  status-gated, frozen once submitted); `DefaultSubmissionService` now **pulls attachment bytes from S3
+  into the ZIP** at submit; `AttachmentController` (`POST` multipart / `GET` / `DELETE`, ANALYST+MLRO).
+  Upload is **proxied through the API** (not presigned); **no AV scanning yet** (deferred). LocalStack IT +
+  Testcontainers E2E; JaCoCo gate holds (S3 client + attachment service 100% instr). Commits
+  `07afd21`…`77de56e`. Per-step docs: `steps/PHASE-8.1..8.5`.
+- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phases 6–8).
+- **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
+  `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — XSD-first codegen (steps X.2–X.5)
+## Next Action — Phase 9 (scheduler)
 
-1. Wire **xjc** codegen into `build.gradle` (JAXB Gradle plugin) → generate JAXB types from
-   `goAMLSchema.xsd` into `com.vyttah.goaml.domain.generated`; `.xjb` binding maps `sql_date` →
-   `OffsetDateTime` (reuse `GoamlDateTimeAdapter`).
-2. Build the **XSD validation gate** (`engine/validation/XsdSchemaValidator`) using **standard JDK JAXP**
-   (no asserts in the schema → no Saxon needed). Validate the 2 real sample XMLs as the first test.
-3. Re-point `engine/` (builders, marshaller, validator, samples) to generated types; retire hand-modeled
-   `domain/*`.
-4. Regenerate goldens against 5.0.2; expand report-type coverage toward the 17 real codes.
+Move submission-status tracking from on-demand to **proactive**. Expected scope:
+1. **`scheduler/`** — a periodic poller that finds `SUBMITTED` reports across tenants and refreshes their
+   FIU status (Accepted/Rejected/Errors), updating `report`/`submission` and firing notifications later
+   (Phase 10).
+2. **`RetryService`** — bounded retry/backoff for transient transport/auth failures on submit + poll.
+3. Tenant iteration must bind `TenantContext` per tenant (the poller runs unauthenticated/untenanted).
 
-⚠️ Substantive/destructive step (replaces Phase 3 hand-modeled domain) — confirm approach before the
-big engine re-point. Codegen + validation-gate + sample validation can proceed first (low risk).
+> Follow the gated workflow: write the Phase 9 plan + per-step understanding docs, get approval, then build
+> step-by-step (one green commit per step, JaCoCo gate extended).
+
+**Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
+STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
+(PHASE-7.1..7.4) → report/submission persistence, services, REST API + RBAC + E2E; **Phase 8**
+(PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST.
 
 ## Progress
 
-`[███▌░░░░░░] 5/14 (≈36%)`
+`[██████░░░░] 8/14 (≈57%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups |
-| ⏭️ | **6 integration/aws/ + b2b/ client** |
-| ⬜ | 7 persistence+web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · **8 S3 attachments** |
+| ⏭️ | **9 scheduler** (async poller + retry) |
+| ⬜ | 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
 
-(Full table + Phase 6 detail in [ROADMAP.md](ROADMAP.md) and
+(Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)
-
----
-
-## Next Action — Phase 6
-
-Two independently-testable pieces (build 6a first — the B2B client depends on it for credentials):
-
-- **6a. `integration/aws/`** — `SecretsManagerClient` (+KMS), `S3StorageClient`, `SesClient`, tested
-  against **LocalStack** (`docker compose up -d localstack`). Resolve a tenant's goAML creds from
-  `tenant_goaml_config.secrets_path`.
-- **6b. `b2b/`** — `GoamlB2bClient` + `RestGoamlB2bClient` (Spring `RestClient`) + `TokenManager`
-  (per-tenant creds, cache token, re-auth on 401). Ops: `postReport→reportkey`, `getReportStatus`,
-  `deleteReport`, `postMessage`, `getLookups`. Typed errors. Tested against **WireMock**.
-
-Protocol spec: [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md).
-**Before coding:** add the **AWS SDK v2** dependency and a **WireMock** test dependency to
-`build.gradle` (neither is present yet), and run `superpowers:brainstorming` to lock the design.
 
 ---
 
@@ -112,18 +105,15 @@ Protocol spec: [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-pr
 
 ## Blockers / Concerns
 
-- **🔑 XSD acquisition (now a foundational blocker, not just a correctness gate):** the XSD-first decision
-  needs the authoritative UAE FIU goAML XSD exported from the FIU portal into the repo. Until then,
-  the domain/engine rework (Phases 3–5 migration) is gated — though X.2/X.3 can scaffold against a
-  generic UNODC 5.0.x reference XSD. Also confirm which goAML version UAE production accepts (4.x vs 5.x).
-  **→ When UAT access is granted, follow [field-acquisition-checklist.md](field-acquisition-checklist.md)**
-  to collect the XSD, lookups, B2B URLs/creds, rentity_id, report codes, and the BRRs doc. Minimum to
-  unblock the most work: the **XSD** + **lookup tables**.
-- **SACM registration is gated to a real regulated entity (learned 2026-06-03)** — a solo developer
-  cannot self-register (needs a supervisory body + registration number + authorization PDF). Live UAE
-  access needs a real client-RE relationship. **Unblock for now:** bootstrap the XSD-first build against
-  a **generic UNODC goAML 5.0.x reference XSD**, swap in the authoritative UAE XSD later. (See the
-  "Reality check" in the checklist.)
+- **✅ XSD acquisition — RESOLVED:** the authoritative goAML **5.0.2** XSD + 2 real DPMSR samples are
+  vendored (`src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`). XSD-first codegen is
+  **unblocked**. **Still pending via [field-acquisition-checklist.md](field-acquisition-checklist.md)**
+  (needs UAT access; does NOT block codegen): per-tenant B2B URLs + creds, full UAE lookup exports, the
+  BRRs doc, `rentity_id`. Confirm the UAE *production* goAML version (4.x vs 5.x) before go-live.
+- **SACM registration is gated to a real regulated entity** — a solo developer cannot self-register
+  (needs a supervisory body + registration number + authorization PDF). This gates **live UAT/B2B access**
+  (creds, submission), **not** the XSD-first codegen (the XSD is already in hand). Live access needs a real
+  client-RE relationship. (See the "Reality check" in the checklist.)
 - **External inputs gate live correctness** (not the build): UAE XSD, per-tenant B2B URLs + credentials,
   UAE Business Rejection Rules, real lookup exports, CSV template, AWS account specifics. See
   [docs/09 §4 Open Items](../docs/09-build-order-and-roadmap.md).

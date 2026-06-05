@@ -1,7 +1,7 @@
 package com.vyttah.goaml.security;
 
-import com.vyttah.goaml.persistence.shared.AppUserEntity;
-import com.vyttah.goaml.persistence.shared.RoleEntity;
+import com.vyttah.goaml.model.entity.appuser.AppUser;
+import com.vyttah.goaml.model.entity.role.Role;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jws;
 import io.jsonwebtoken.Jwts;
@@ -25,7 +25,7 @@ import java.util.Set;
  *   <li>{@code email}    — user email (convenience)</li>
  *   <li>{@code tenant}   — tenant UUID (null for SUPER_ADMIN platform users)</li>
  *   <li>{@code schema}   — Postgres schema name; {@code JwtAuthFilter} pushes this into
- *                          {@link com.vyttah.goaml.tenant.TenantContext}</li>
+ *                          {@link com.vyttah.goaml.config.tenant.TenantContext}</li>
  *   <li>{@code roles}    — list of role names (e.g. {@code ["TENANT_ADMIN","MLRO"]})</li>
  * </ul>
  */
@@ -47,10 +47,10 @@ public class JwtService {
         this.accessTokenTtl = Duration.ofMinutes(props.accessTokenTtlMinutes());
     }
 
-    public IssuedToken issueAccessToken(AppUserEntity user, String tenantSchema) {
+    public IssuedToken issueAccessToken(AppUser user, String tenantSchema) {
         Instant now = Instant.now();
         Instant expiry = now.plus(accessTokenTtl);
-        List<String> roleNames = user.getRoles().stream().map(RoleEntity::getName).toList();
+        List<String> roleNames = user.getRoles().stream().map(Role::getName).toList();
 
         String token = Jwts.builder()
                 .issuer(issuer)

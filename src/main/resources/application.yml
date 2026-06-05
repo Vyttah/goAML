@@ -5,8 +5,8 @@ spring:
     name: goaml
   datasource:
     url:      ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/goaml}
-    username: ${SPRING_DATASOURCE_USERNAME:goaml}
-    password: ${SPRING_DATASOURCE_PASSWORD:goaml}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:password}
   jpa:
     hibernate:
       # Flyway is the source of truth for both shared and per-tenant schemas;
@@ -24,6 +24,11 @@ spring:
     enabled: true
     locations: classpath:db/migration/shared
     schemas: public
+  data:
+    redis:
+      # Caches per-tenant goAML B2B session tokens (Phase 6.2). docker-compose `redis` on :6379.
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
 
 server:
   port: 8080
@@ -50,6 +55,19 @@ goaml:
     secret: ${GOAML_JWT_SECRET:dev-secret-please-replace-with-a-long-random-value-min-256-bits}
     issuer: goaml
     access-token-ttl-minutes: 15
+  aws:
+    # AWS region for Secrets Manager (per-tenant goAML B2B credentials). me-central-1 = UAE.
+    region: ${GOAML_AWS_REGION:me-central-1}
+    # Endpoint override for LocalStack (docker-compose, :4566). Leave EMPTY for real AWS — the SDK
+    # then resolves the regional endpoint and uses IRSA / the default credentials chain on EKS.
+    endpoint: ${GOAML_AWS_ENDPOINT:}
+    s3:
+      # Bucket holding report attachments (Phase 8); per-tenant key prefixes. Create it once locally:
+      # `aws --endpoint-url http://localhost:4566 s3 mb s3://goaml-attachments`.
+      bucket: ${GOAML_S3_BUCKET:goaml-attachments}
+  b2b:
+    # Lifetime of a cached goAML B2B session token in Redis. Re-auth happens on expiry or a 401.
+    token-ttl: ${GOAML_B2B_TOKEN_TTL:20m}
 
 logging:
   pattern:

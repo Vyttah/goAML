@@ -1,13 +1,12 @@
 package com.vyttah.goaml.engine.validation;
 
-import com.vyttah.goaml.domain.Report;
-import com.vyttah.goaml.domain.activity.Activity;
-import com.vyttah.goaml.domain.activity.ReportParty;
-import com.vyttah.goaml.domain.common.GoodsServices;
-import com.vyttah.goaml.domain.common.ReportingPerson;
-import com.vyttah.goaml.domain.enums.ReportCode;
-import com.vyttah.goaml.domain.transaction.TParty;
-import com.vyttah.goaml.domain.transaction.Transaction;
+import com.vyttah.goaml.domain.generated.ActivityType;
+import com.vyttah.goaml.domain.generated.Report;
+import com.vyttah.goaml.domain.generated.ReportPartyType;
+import com.vyttah.goaml.domain.generated.ReportType;
+import com.vyttah.goaml.domain.generated.TParty;
+import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
+import com.vyttah.goaml.domain.generated.TTransItem;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionConfig;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.engine.lookup.LookupService;
@@ -29,13 +28,13 @@ import java.util.Set;
 public class ReportValidator {
 
     /** Transaction-based report shapes (carry {@code <transaction>}). */
-    private static final Set<ReportCode> TRANSACTION_CODES = Set.of(ReportCode.STR, ReportCode.AIFT, ReportCode.ECDDT);
+    private static final Set<ReportType> TRANSACTION_CODES = Set.of(ReportType.STR, ReportType.AIFT, ReportType.ECDDT);
     /** Activity-based report shapes (carry {@code <activity>}). */
-    private static final Set<ReportCode> ACTIVITY_CODES = Set.of(ReportCode.SAR, ReportCode.AIF, ReportCode.ECDD, ReportCode.DPMSR);
+    private static final Set<ReportType> ACTIVITY_CODES = Set.of(ReportType.SAR, ReportType.AIF, ReportType.ECDD, ReportType.DPMSR);
     /** Codes that must reference an originating FIU request. */
-    private static final Set<ReportCode> FIU_REF_REQUIRED = Set.of(ReportCode.AIF, ReportCode.AIFT, ReportCode.ECDD, ReportCode.ECDDT);
+    private static final Set<ReportType> FIU_REF_REQUIRED = Set.of(ReportType.AIF, ReportType.AIFT, ReportType.ECDD, ReportType.ECDDT);
     /** Codes that require location / reason / action on the report header. */
-    private static final Set<ReportCode> LOCATION_REASON_ACTION_REQUIRED = Set.of(ReportCode.STR, ReportCode.SAR);
+    private static final Set<ReportType> LOCATION_REASON_ACTION_REQUIRED = Set.of(ReportType.STR, ReportType.SAR);
 
     private static final int MAX_ENTITY_REFERENCE = 255;
     private static final int MAX_FIU_REF = 255;
@@ -60,7 +59,7 @@ public class ReportValidator {
             return result;
         }
 
-        ReportCode code = report.getReportCode();
+        ReportType code = report.getReportCode();
         validateHeader(report, jurisdiction, result);
         if (code == null) {
             // Shape rules below all key off the report code; nothing more to check.
@@ -80,12 +79,12 @@ public class ReportValidator {
     // ---------- header ----------
 
     private void validateHeader(Report report, JurisdictionConfig jurisdiction, ValidationResult result) {
-        ReportCode code = report.getReportCode();
+        ReportType code = report.getReportCode();
 
-        if (report.getRentityId() == null || report.getRentityId() <= 0) {
+        if (report.getRentityId() <= 0) {
             result.error("report.rentity_id", "MANDATORY", "rentity_id is mandatory and must be positive");
         }
-        if (report.getSubmissionCode() == null) {
+        if (isBlank(report.getSubmissionCode())) {
             result.error("report.submission_code", "MANDATORY", "submission_code is mandatory");
         }
         if (code == null) {
@@ -107,9 +106,9 @@ public class ReportValidator {
             result.error("report.submission_date", "MANDATORY", "submission_date is mandatory");
         }
 
-        if (isBlank(report.getCurrencyCodeLocal())) {
+        if (report.getCurrencyCodeLocal() == null) {
             result.error("report.currency_code_local", "MANDATORY", "currency_code_local is mandatory");
-        } else if (!report.getCurrencyCodeLocal().equals(jurisdiction.defaultCurrency())) {
+        } else if (!report.getCurrencyCodeLocal().value().equals(jurisdiction.defaultCurrency())) {
             result.error("report.currency_code_local", "CURRENCY_MISMATCH",
                     "currency_code_local must be " + jurisdiction.defaultCurrency()
                             + " for jurisdiction " + jurisdiction.code());
@@ -150,7 +149,7 @@ public class ReportValidator {
         }
     }
 
-    private void validateReportingPerson(ReportingPerson person, ValidationResult result) {
+    private void validateReportingPerson(TPersonRegistrationInReport person, ValidationResult result) {
         if (person == null) {
             result.error("report.reporting_person", "MANDATORY", "reporting_person is mandatory");
             return;
@@ -167,9 +166,9 @@ public class ReportValidator {
 
     // ---------- shape (transaction XOR activity) ----------
 
-    private void validateShape(Report report, ReportCode code, ValidationResult result) {
-        boolean hasTransactions = report.getTransactions() != null && !report.getTransactions().isEmpty();
-        boolean hasActivity = report.getActivity() != null;
+    private void validateShape(Report report, ReportType code, ValidationResult result) {
+        boolean hasTransactions = !report.getTransaction().isEmpty();
+        boolean hasActivity = report.getReportActivity() != null;
 
         if (TRANSACTION_CODES.contains(code)) {
             if (!hasTransactions) {
@@ -193,7 +192,7 @@ public class ReportValidator {
     }
 
     private void validateIndicators(Report report, ValidationResult result) {
-        if (report.getReportIndicators() == null || report.getReportIndicators().isEmpty()) {
+        if (report.getReportIndicators() == null || report.getReportIndicators().getIndicator().isEmpty()) {
             result.error("report.report_indicators", "MANDATORY",
                     "at least one report indicator is mandatory");
         }
@@ -202,14 +201,14 @@ public class ReportValidator {
     // ---------- transactions ----------
 
     private void validateTransactions(Report report, JurisdictionConfig jurisdiction, ValidationResult result) {
-        List<Transaction> transactions = report.getTransactions();
+        List<Report.Transaction> transactions = report.getTransaction();
         for (int i = 0; i < transactions.size(); i++) {
-            Transaction tx = transactions.get(i);
+            Report.Transaction tx = transactions.get(i);
             String path = "report.transaction[" + i + "]";
 
-            if (isBlank(tx.getTransactionNumber())) {
+            if (isBlank(tx.getTransactionnumber())) {
                 result.error(path + ".transactionnumber", "MANDATORY", "transactionnumber is mandatory");
-            } else if (tx.getTransactionNumber().length() > MAX_TXN_NUMBER) {
+            } else if (tx.getTransactionnumber().length() > MAX_TXN_NUMBER) {
                 result.error(path + ".transactionnumber", "MAX_LENGTH",
                         "transactionnumber exceeds " + MAX_TXN_NUMBER + " characters");
             }
@@ -227,7 +226,7 @@ public class ReportValidator {
         }
     }
 
-    private void validateTransModeLookup(Transaction tx, JurisdictionConfig jurisdiction, String path,
+    private void validateTransModeLookup(Report.Transaction tx, JurisdictionConfig jurisdiction, String path,
                                          ValidationResult result) {
         String transmode = tx.getTransmodeCode();
         if (isBlank(transmode)) {
@@ -247,11 +246,12 @@ public class ReportValidator {
      * t_party) or <strong>multi-party</strong> (one or more t_party, each with exactly one subject,
      * and no from/to sides).
      */
-    private void validateTransactionParties(Transaction tx, String path, ValidationResult result) {
+    private void validateTransactionParties(Report.Transaction tx, String path, ValidationResult result) {
         int fromSides = (tx.getTFrom() != null ? 1 : 0) + (tx.getTFromMyClient() != null ? 1 : 0);
         int toSides = (tx.getTTo() != null ? 1 : 0) + (tx.getTToMyClient() != null ? 1 : 0);
         boolean hasBiParty = fromSides > 0 || toSides > 0;
-        boolean hasMultiParty = tx.getTParties() != null && !tx.getTParties().isEmpty();
+        boolean hasMultiParty = tx.getInvolvedParties() != null
+                && !tx.getInvolvedParties().getParty().isEmpty();
 
         if (hasBiParty && hasMultiParty) {
             result.error(path, "PARTY_SHAPE_CONFLICT",
@@ -274,7 +274,7 @@ public class ReportValidator {
                         "bi-party transaction must have exactly one to-side (t_to or t_to_my_client)");
             }
         } else {
-            List<TParty> parties = tx.getTParties();
+            List<TParty> parties = tx.getInvolvedParties().getParty();
             for (int j = 0; j < parties.size(); j++) {
                 validateTPartySubject(parties.get(j), path + ".t_party[" + j + "]", result);
             }
@@ -297,13 +297,14 @@ public class ReportValidator {
 
     // ---------- activity ----------
 
-    private void validateActivity(Report report, ReportCode code, JurisdictionConfig jurisdiction,
+    private void validateActivity(Report report, ReportType code, JurisdictionConfig jurisdiction,
                                   ValidationResult result) {
-        Activity activity = report.getActivity();
+        ActivityType activity = report.getReportActivity();
         if (activity == null) {
             return; // already reported by validateShape
         }
-        List<ReportParty> parties = activity.getReportParties();
+        List<ReportPartyType> parties = activity.getReportParties() == null
+                ? null : activity.getReportParties().getReportParty();
         if (parties == null || parties.isEmpty()) {
             result.error("report.activity.report_parties", "MANDATORY",
                     "activity requires at least one report_party");
@@ -313,16 +314,19 @@ public class ReportValidator {
             }
         }
 
-        if (code == ReportCode.DPMSR) {
+        if (code == ReportType.DPMSR) {
             validateDpms(activity, jurisdiction, result);
         }
     }
 
-    private void validateReportPartySubject(ReportParty party, String path, ValidationResult result) {
-        int subjects = count(party.getPerson(), party.getPersonMyClient());
+    private void validateReportPartySubject(ReportPartyType party, String path, ValidationResult result) {
+        int subjects = count(party.getPerson(), party.getPersonMyClient(),
+                party.getAccount(), party.getAccountMyClient(),
+                party.getEntity(), party.getEntityMyClient());
         if (subjects != 1) {
             result.error(path, "PARTY_SUBJECT",
-                    "report_party must have exactly one subject (person or person_my_client), found " + subjects);
+                    "report_party must have exactly one subject (person/account/entity, plain or my_client), found "
+                            + subjects);
         }
     }
 
@@ -331,8 +335,9 @@ public class ReportValidator {
      * meet the reporting threshold (AED 55,000). goods_services priced in a non-default currency are
      * not summed (we cannot convert without an FX rate) and instead raise a warning.
      */
-    private void validateDpms(Activity activity, JurisdictionConfig jurisdiction, ValidationResult result) {
-        List<GoodsServices> goods = activity.getGoodsServices();
+    private void validateDpms(ActivityType activity, JurisdictionConfig jurisdiction, ValidationResult result) {
+        List<TTransItem> goods = activity.getGoodsServices() == null
+                ? null : activity.getGoodsServices().getItem();
         if (goods == null || goods.isEmpty()) {
             result.error("report.activity.goods_services", "DPMS_GOODS_REQUIRED",
                     "DPMSR requires at least one goods_services line");
@@ -344,7 +349,7 @@ public class ReportValidator {
         boolean sawNonLocalCurrency = false;
 
         for (int i = 0; i < goods.size(); i++) {
-            GoodsServices g = goods.get(i);
+            TTransItem g = goods.get(i);
             String path = "report.activity.goods_services[" + i + "]";
             if (isBlank(g.getItemType())) {
                 result.error(path + ".item_type", "MANDATORY", "goods_services.item_type is mandatory");
@@ -354,13 +359,14 @@ public class ReportValidator {
                         "goods_services.estimated_value is mandatory for DPMSR");
                 continue;
             }
-            if (!isBlank(g.getCurrencyCode())
+            String currency = g.getCurrencyCode() == null ? null : g.getCurrencyCode().value();
+            if (!isBlank(currency)
                     && lookupService.hasSet(jurisdiction.lookupSet(), "currencies")
-                    && !lookupService.isValid(jurisdiction.lookupSet(), "currencies", g.getCurrencyCode())) {
+                    && !lookupService.isValid(jurisdiction.lookupSet(), "currencies", currency)) {
                 result.error(path + ".currency_code", "LOOKUP",
-                        "currency_code '" + g.getCurrencyCode() + "' is not in the currencies lookup");
+                        "currency_code '" + currency + "' is not in the currencies lookup");
             }
-            if (g.getCurrencyCode() == null || g.getCurrencyCode().equals(jurisdiction.defaultCurrency())) {
+            if (currency == null || currency.equals(jurisdiction.defaultCurrency())) {
                 localTotal = localTotal.add(g.getEstimatedValue());
             } else {
                 sawNonLocalCurrency = true;

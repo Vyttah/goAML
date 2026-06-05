@@ -3,9 +3,12 @@
 > How reports are actually submitted to the FIU over goAML's REST interface. This is the target of the
 > `b2b/` client (Phase 6) and the `scheduler/` poller (Phase 9).
 >
-> ⚠️ **None of this is implemented yet** — this doc describes the protocol the upcoming code must speak,
-> drawn from the goAML *B2B Developers Guide* (one of the three source PDFs). Treat it as the spec to
-> build against, and verify against the real guide + UAE test environment before going live.
+> ✅ **The client is built (Phase 6)** — `b2b/GoamlB2bClient` + `RestGoamlB2bClient` + `TokenManager`,
+> tested against WireMock (and the Secrets Manager seam against LocalStack). It is **not yet wired to an
+> HTTP endpoint** (Phase 7) and makes **no real FIU calls yet** (needs per-tenant base URLs + credentials —
+> an external input). The protocol below is drawn from the goAML *B2B Developers Guide*; the exact
+> paths/part-names/response shapes should still be verified against the real UAE test environment — the
+> `RestGoamlB2bClient` URI constants + parse methods are the single place to adjust.
 
 ---
 
@@ -32,8 +35,10 @@ POST {base}/api/Authenticate/GetToken
    → returns a session token; the client attaches it as a "SqlAuthCookie" on subsequent calls
 ```
 - Alternative: **HTTP Basic** auth on each request (the `auth_mode` column is `TOKEN` or `BASIC`).
-- The token is **cached per tenant** by `TokenManager`; on a **401**, the client re-authenticates and
-  retries.
+- The token is **cached per tenant in Redis** (`goaml:b2b:token:<tenantId>`, TTL) by `TokenManager`; on a
+  **401**, the client `refresh()`es and retries once.
+- The HTTP client is pinned to **HTTP/1.1** (goAML Web is legacy ASP.NET; the JDK client's default
+  HTTP/2 h2c negotiation otherwise fails with `RST_STREAM`).
 
 ---
 
@@ -110,14 +115,16 @@ back off and retry."
 
 ---
 
-## 8. The mapping to upcoming code (Phase 6)
+## 8. The mapping to code (Phase 6 — built)
 
-| Protocol piece | Class (planned) |
-|----------------|-----------------|
-| Auth + token cache + 401 re-auth | `b2b/auth/TokenManager` |
-| `PostReport`, `getReportStatus`, `deleteReport`, `postMessage`, `getLookups` | `b2b/GoamlB2bClient` + `RestGoamlB2bClient` (Spring `RestClient`) |
-| Per-tenant creds | resolved from `tenant_goaml_config.secrets_path` via `integration/aws/SecretsManagerClient` |
-| Tests | **WireMock** stubs for 200/400/401, reportkey + OData parsing |
+| Protocol piece | Class |
+|----------------|-------|
+| Auth + Redis token cache + 401 re-auth | `b2b/auth/TokenManager` + `DefaultTokenManager` |
+| `PostReport`, `getReportStatus`, `deleteReport`, `postMessage`, `getLookups` | `b2b/GoamlB2bClient` + `RestGoamlB2bClient` (Spring `RestClient`, HTTP/1.1) |
+| Per-tenant config the caller supplies | `b2b/B2bTenantConfig` (tenantId, baseUrl, secretsPath, authMode) |
+| Per-tenant creds | resolved from `tenant_goaml_config.secrets_path` via `integration/aws/GoamlSecretsClient` |
+| Typed errors | `b2b/error/{B2bAuthException, B2bValidationException, B2bTransportException}` |
+| Tests | **WireMock** (200/400/401, reportkey + OData parse) + **LocalStack**/**Redis** integration tests; JaCoCo ≥90% gate |
 
 > When you implement this, the per-tenant credential resolution (`tenant_goaml_config` → Secrets Manager
 > → `TokenManager`) is the critical seam. Get it right and isolated, because every submission and every

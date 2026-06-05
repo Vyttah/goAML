@@ -25,7 +25,13 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–5 committed; next functional phase = **Phase 6 (AWS + B2B client)**.
+- **Status:** Phases 1–8 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 9
+  (`scheduler/` — async status poller + retry)**. Phase 7 wired the engine + b2b to HTTP (the **DPMSR
+  report lifecycle REST API**: `/api/v1/reports` create/validate/submit/status, MLRO-gated submit over
+  `report`/`submission` tenant tables); Phase 8 added **S3 attachments** — multipart upload (proxied
+  through the API) → S3, pulled into the submission ZIP at submit; `attachment` tenant table +
+  `S3StorageClient`; attach/list/remove REST (AV scanning deferred). Flow is manually testable via the
+  API (live submit needs per-tenant FIU config + the `goaml-attachments` bucket).
 - **First report type = `DPMSR`** (precious-metals dealers; cash ≥ AED 55,000). All 17 schema codes later.
 - **DPMSR is activity-shaped** (goods + parties, no `<transaction>` block).
 - **Auth:** self-managed HS256 JWT, RBAC roles SUPER_ADMIN/TENANT_ADMIN/MLRO/ANALYST; tenant routing via
@@ -35,6 +41,7 @@ suite (accounting/ERP + AML screening).
 
 ## Conventions
 - Money = `BigDecimal`; timestamps = `OffsetDateTime` (UTC). Flyway owns the schema (`ddl-auto: none`).
-- Build/test: `docker compose up -d postgres` then `./gradlew test`.
+- Build/test: `docker compose up -d postgres localstack redis` then `./gradlew test` (Postgres uses
+  Testcontainers; the Phase 6 LocalStack/Redis integration tests run against compose and skip if absent).
 - Update `.planning/STATE.md` + `ROADMAP.md` when a phase starts/finishes; append `discussion-log.md` for
   decisions. **Commit `.planning/` + `docs/`** — they're the durable project memory.

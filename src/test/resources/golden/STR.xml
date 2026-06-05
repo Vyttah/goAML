@@ -12,9 +12,12 @@
         <first_name>Sara</first_name>
         <last_name>Khan</last_name>
         <id_number>784199012345678</id_number>
+        <nationality1>AE</nationality1>
+        <residence>AE</residence>
         <phones>
             <phone>
                 <tph_contact_type>BU</tph_contact_type>
+                <tph_communication_type>L</tph_communication_type>
                 <tph_country_prefix>971</tph_country_prefix>
                 <tph_number>44441234</tph_number>
             </phone>
@@ -28,9 +31,7 @@
                 <state>Dubai</state>
             </address>
         </addresses>
-        <nationality1>AE</nationality1>
-        <residence>AE</residence>
-        <email>mlro@alpha-jewellers.ae</email>
+        <occupation>MLRO</occupation>
     </reporting_person>
     <location>
         <address_type>BU</address_type>
@@ -47,7 +48,8 @@
         <transaction_location>Dubai Main Branch</transaction_location>
         <transaction_description>International wire transfer following large cash deposit</transaction_description>
         <date_transaction>2026-05-24T14:30:00</date_transaction>
-        <transmode_code>CASH</transmode_code>
+        <transmode_code>ELCFT</transmode_code>
+        <transmode_comment>E</transmode_comment>
         <amount_local>120000.00</amount_local>
         <t_from_my_client>
             <from_funds_code>CASH</from_funds_code>
@@ -55,11 +57,28 @@
                 <gender>F</gender>
                 <first_name>Layla</first_name>
                 <last_name>Hassan</last_name>
+                <birthdate>1989-07-02T00:00:00</birthdate>
                 <id_number>784198512345671</id_number>
-                <phones/>
-                <addresses/>
                 <nationality1>AE</nationality1>
                 <residence>AE</residence>
+                <phones>
+                    <phone>
+                        <tph_contact_type>PRIVT</tph_contact_type>
+                        <tph_communication_type>L</tph_communication_type>
+                        <tph_country_prefix>971</tph_country_prefix>
+                        <tph_number>509998877</tph_number>
+                    </phone>
+                </phones>
+                <identifications>
+                    <identification>
+                        <type>EID</type>
+                        <number>784198512345671</number>
+                        <issue_date>2020-01-15T00:00:00</issue_date>
+                        <expiry_date>2030-01-14T00:00:00</expiry_date>
+                        <issue_country>AE</issue_country>
+                    </identification>
+                </identifications>
+                <tax_reg_number>Y</tax_reg_number>
             </from_person>
             <from_country>AE</from_country>
         </t_from_my_client>
@@ -69,8 +88,6 @@
                 <gender>M</gender>
                 <first_name>John</first_name>
                 <last_name>Smith</last_name>
-                <phones/>
-                <addresses/>
                 <nationality1>GB</nationality1>
                 <residence>GB</residence>
             </to_person>
@@ -78,6 +95,6 @@
         </t_to>
     </transaction>
     <report_indicators>
-        <indicator>STRUCTURING_SUSPECTED</indicator>
+        <indicator>STRUC</indicator>
     </report_indicators>
 </report>

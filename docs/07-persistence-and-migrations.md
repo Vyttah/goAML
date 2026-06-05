@@ -1,8 +1,9 @@
 # 07 — Persistence & Migrations
 
 > Every database table, how Flyway manages them, and the JPA entities that map to them.
-> Packages: `com.vyttah.goaml.persistence.shared`, `.persistence.tenant`; migrations under
-> `src/main/resources/db/migration/`.
+> Entities live in `com.vyttah.goaml.model.entity.<feature>/` and repositories in
+> `com.vyttah.goaml.repository.<feature>/` (split per feature, **no `Entity` suffix** — see
+> [`CONVENTIONS.md`](CONVENTIONS.md)); migrations under `src/main/resources/db/migration/`.
 
 ---
 
@@ -126,41 +127,103 @@ Index `idx_refresh_token_user`.
 
 Indexes `idx_audit_log_action`, `idx_audit_log_occurred_at`.
 
-> Later phases add the rest of the per-tenant tables here: `report`, `submission`, `attachment`,
-> `report_party`, `notification`, `import_job` (Phases 7–11).
+### `V2__reports.sql` (Phase 7) — `report` + `submission`
+
+**`report`** — a stored DPMSR report. Content is the structured **`input` (JSONB)** + the marshalled goAML
+**`report_xml`** snapshot + metadata — the XSD-generated model is the structure authority, so there is no
+normalized report tree.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID` PK | |
+| `entity_reference` | `VARCHAR(255)` NOT NULL **UNIQUE** | per-tenant idempotency key |
+| `report_code` | `VARCHAR(16)` NOT NULL | `DPMSR` (others later) |
+| `rentity_id` | `INTEGER` NOT NULL | from `tenant_goaml_config` |
+| `status` | `VARCHAR(16)` NOT NULL DEFAULT `'DRAFT'` | DRAFT/VALID/INVALID/SUBMITTED/ACCEPTED/REJECTED/FAILED |
+| `input` | `JSONB` NOT NULL | the create request, persisted verbatim |
+| `report_xml` | `TEXT` NULL | marshalled goAML XML snapshot |
+| `validation_errors` | `JSONB` NULL | `[{severity,path,code,message}]` |
+| `created_by` | `UUID` NULL | author `app_user.id` |
+| `created_at`, `updated_at` | `TIMESTAMPTZ` | |
+
+Indexes `idx_report_status`, `idx_report_created_at`.
+
+**`submission`** — one row per submission attempt to the FIU.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID` PK | |
+| `report_id` | `UUID` NOT NULL → `report(id)` CASCADE | |
+| `reportkey` | `VARCHAR(128)` NULL | the FIU's handle (poll status with it) |
+| `status` | `VARCHAR(16)` NOT NULL DEFAULT `'SUBMITTED'` | SUBMITTED/ACCEPTED/REJECTED/FAILED |
+| `errors` | `TEXT` NULL | FIU error body on rejection/failure |
+| `submitted_at`, `updated_at` | `TIMESTAMPTZ` | |
+
+Index `idx_submission_report`.
+
+### `V3__attachments.sql` (Phase 8) — `attachment`
+
+**`attachment`** — one supporting document on a report. **Metadata only** — the bytes live in S3
+(`goaml.aws.s3.bucket`) under a per-tenant/per-report key prefix; this row records where + what.
+| Column | Type | Notes |
+|--------|------|-------|
+| `id` | `UUID` PK | also the `{id}` segment of the S3 key |
+| `report_id` | `UUID` NOT NULL → `report(id)` **CASCADE** | delete a report → its attachments go too |
+| `filename` | `VARCHAR(255)` NOT NULL | original upload name (also the ZIP entry name) |
+| `content_type` | `VARCHAR(255)` NULL | declared MIME type |
+| `size_bytes` | `BIGINT` NOT NULL | ≤ 5 MB/file (`PackagingLimits.UAE_DEFAULT`) |
+| `s3_key` | `VARCHAR(1024)` NOT NULL | `tenants/{tenantId}/reports/{reportId}/{id}-{filename}` |
+| `uploaded_by` | `UUID` NULL | uploader `app_user.id` |
+| `created_at` | `TIMESTAMPTZ` | |
+
+Index `idx_attachment_report`.
+
+> Later phases add `notification` (10), `import_job` (11).
 
 ---
 
 ## 4. JPA entities
 
-All in `persistence/`. Key mapping facts:
+Entities live in `model/entity/<feature>/` and carry **no `Entity` suffix**; Lombok `@Getter` (etc.)
+replaces hand-written accessors. Key mapping facts:
 
-| Entity | `@Table` | Id | Notable |
-|--------|----------|-----|---------|
-| `AppUserEntity` | `app_user`, **schema=public** | `UUID` (assigned) | `@ManyToMany(EAGER)` to `RoleEntity` via `user_role`; `@PrePersist/@PreUpdate` timestamps; `addRole(...)` helper |
-| `JurisdictionEntity` | `jurisdiction`, schema=public | `String code` | read-only |
-| `RoleEntity` | `role`, schema=public | `Short id` | read-only; `findByName` |
-| `TenantEntity` | `tenant`, schema=public | `UUID` | `schemaName` is the routing key |
-| `AuditLogEntity` | `audit_log`, **no schema** | `UUID` | resolves via search_path (tenant-scoped) |
+| Entity (class) | Package | `@Table` | Id | Notable |
+|--------|---------|----------|-----|---------|
+| `AppUser` | `model/entity/appuser/` | `app_user`, **schema=public** | `UUID` (assigned) | `@ManyToMany(EAGER)` to `Role` via `user_role`; `@PrePersist/@PreUpdate` timestamps; `addRole(...)` helper |
+| `Jurisdiction` | `model/entity/jurisdiction/` | `jurisdiction`, schema=public | `String code` | read-only |
+| `Role` | `model/entity/role/` | `role`, schema=public | `Short id` | read-only; `findByName` |
+| `Tenant` | `model/entity/tenant/` | `tenant`, schema=public | `UUID` | `schemaName` is the routing key |
+| `AuditLog` | `model/entity/audit/` | `audit_log`, **no schema** | `UUID` | resolves via search_path (tenant-scoped) |
+| `TenantGoamlConfig` | `model/entity/goamlconfig/` | `tenant_goaml_config`, schema=public | `UUID` | read-mostly; `findByTenantId`; resolves the tenant's B2B config |
+| `Report` | `model/entity/report/` | `report`, **no schema** | `UUID` | tenant-scoped; JSONB `input`/`validation_errors` via `@JdbcTypeCode(SqlTypes.JSON)`; **distinct from the JAXB `domain.generated.Report`** |
+| `Submission` | `model/entity/submission/` | `submission`, **no schema** | `UUID` | tenant-scoped; FK → `report` |
+| `Attachment` | `model/entity/attachment/` | `attachment`, **no schema** | `UUID` | tenant-scoped; metadata + `s3_key` only (bytes in S3); **distinct from the engine value record `engine.packaging.Attachment`** |
 
 **No JPA enums** — `status`, role names, `auth_mode` are all plain `String`s (allowed values documented
 in SQL comments only). Money/dates follow the project convention (`BigDecimal` / `OffsetDateTime`) where
 they appear.
 
-### Repositories (Spring Data JPA)
+### Repositories (Spring Data JPA, in `repository/<feature>/`)
 - `AppUserRepository` — `findByEmail`, `existsByEmail`.
 - `JurisdictionRepository` — (no custom methods).
 - `RoleRepository` — `findByName`.
 - `TenantRepository` — `findBySlug`, `existsBySlug`.
 - `AuditLogRepository` — (no custom methods). ⚠️ Every call needs a tenant bound to `TenantContext` or
   it routes to `public` and fails.
+- `ReportRepository` — `findByEntityReference`, `existsByEntityReference` (tenant-scoped).
+- `SubmissionRepository` — `findByReportIdOrderBySubmittedAtDesc` (tenant-scoped).
+- `AttachmentRepository` — `findByReportIdOrderByCreatedAt`, `findByIdAndReportId` (scopes a lookup to its
+  parent report); tenant-scoped.
+- `TenantGoamlConfigRepository` — `findByTenantId` (shared `public` schema).
+
+> Repositories are accessed only through services (`service/<feature>/`), never injected straight into
+> controllers. Entity↔DTO conversion uses MapStruct mappers in `model/mapper/<feature>/` (today:
+> `TenantMapper`).
 
 ---
 
 ## 5. Why `ddl-auto: none`
 
 Hibernate schema validation is **off** on purpose. A startup `validate` would check entities against the
-`public` schema — but tenant entities (`AuditLogEntity`) have **no** table in `public` (they live in
+`public` schema — but tenant entities (`AuditLog`) have **no** table in `public` (they live in
 `tenant_<id>` schemas), so validation would fail. Flyway is the single source of truth for schema; JPA
 never creates or validates it.
 
