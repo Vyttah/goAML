@@ -19,48 +19,49 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–8 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+- **Phases 1–9 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
   gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 9 next** — **`scheduler/`**: an async submission-status poller + retry across
-  tenants (replacing the current on-demand `GET …/status`).
-- **Last completed:** **Phase 8 (S3 attachments)** — supporting documents are first-class:
-  `integration/aws/S3StorageClient` (+ `S3Client` bean, LocalStack path-style); `attachment` tenant table
-  (`V3`) + entity/repo (metadata + S3 key only); `AttachmentService` (validate ext/size → S3 → row;
-  status-gated, frozen once submitted); `DefaultSubmissionService` now **pulls attachment bytes from S3
-  into the ZIP** at submit; `AttachmentController` (`POST` multipart / `GET` / `DELETE`, ANALYST+MLRO).
-  Upload is **proxied through the API** (not presigned); **no AV scanning yet** (deferred). LocalStack IT +
-  Testcontainers E2E; JaCoCo gate holds (S3 client + attachment service 100% instr). Commits
-  `07afd21`…`77de56e`. Per-step docs: `steps/PHASE-8.1..8.5`.
-- **Branch:** `xsd-first/step-1-validation-gate` (work has continued here through the migration + Phases 6–8).
+- **Active focus: Phase 10 next** — **`notification/`**: in-app + SES email notifications (LocalStack SES),
+  fired off the status transitions the Phase 9 poller now produces.
+- **Last completed:** **Phase 9 (`scheduler/`)** — proactive submission-status tracking:
+  `SubmissionStatusPoller` (`@Scheduled`) enumerates ACTIVE tenants, finds each tenant's `SUBMITTED`
+  reports, and refreshes FIU status via the existing `SubmissionService.refreshStatus` (→ ACCEPTED/REJECTED)
+  — wrapped in a bounded transient `RetryService` (`B2bTransport`/`B2bAuth` only). **Poll-only** (no
+  auto-resubmit — re-submit stays manual MLRO), **plain `@Scheduled`** (no distributed lock; idempotent
+  GETs). Per-tenant/per-report failures logged + skipped; the scheduled method never throws (would suppress
+  future runs); `TenantContext` cleared per tenant. Testcontainers IT (two tenants transition + isolation).
+  Commits `015ea61`…`9530bf3` (+ 9.4). Per-step docs: `steps/PHASE-9.1..9.4`.
+- **Branch:** `phase-9/scheduler` (off `main`, which now holds Phases 6–8 + XSD-first via merge `deafe68`).
 - **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
   `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — Phase 9 (scheduler)
+## Next Action — Phase 10 (notifications)
 
-Move submission-status tracking from on-demand to **proactive**. Expected scope:
-1. **`scheduler/`** — a periodic poller that finds `SUBMITTED` reports across tenants and refreshes their
-   FIU status (Accepted/Rejected/Errors), updating `report`/`submission` and firing notifications later
-   (Phase 10).
-2. **`RetryService`** — bounded retry/backoff for transient transport/auth failures on submit + poll.
-3. Tenant iteration must bind `TenantContext` per tenant (the poller runs unauthenticated/untenanted).
+Turn status transitions into user-visible signals. Expected scope:
+1. **`notification/`** — an in-app notification store (tenant table + entity/repo) + a `NotificationService`.
+2. **SES email** — an `integration/aws/SesClient` (the AWS client deferred from Phase 6/8), tested vs
+   LocalStack SES.
+3. **Fire on transitions** — the Phase 9 poller (and submit) leave a clean seam: ACCEPTED/REJECTED →
+   notify the relevant tenant users (MLRO/author).
 
-> Follow the gated workflow: write the Phase 9 plan + per-step understanding docs, get approval, then build
+> Follow the gated workflow: write the Phase 10 plan + per-step understanding docs, get approval, then build
 > step-by-step (one green commit per step, JaCoCo gate extended).
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
 (PHASE-7.1..7.4) → report/submission persistence, services, REST API + RBAC + E2E; **Phase 8**
-(PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST.
+(PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST;
+**Phase 9** (PHASE-9.1..9.4) → scheduler queries + config, RetryService, SubmissionStatusPoller, IT.
 
 ## Progress
 
-`[██████░░░░] 8/14 (≈57%)` + XSD-first foundation + layer-first refactor
+`[███████░░░] 9/14 (≈64%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · **8 S3 attachments** |
-| ⏭️ | **9 scheduler** (async poller + retry) |
-| ⬜ | 10 notifications · 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · **9 scheduler** |
+| ⏭️ | **10 notifications** (in-app + SES) |
+| ⬜ | 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)

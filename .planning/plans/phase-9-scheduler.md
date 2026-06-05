@@ -107,5 +107,34 @@ throws out of its scheduled method; `git status` scoped to Phase 9 dirs + the 9.
 
 ---
 
-## Outcome
-_(filled at phase close)_
+## Outcome — ✅ COMPLETE (2026-06-05)
+
+Delivered across `015ea61` (9.1) · `61c305c` (9.2) · `9530bf3` (9.3) · this commit (9.4):
+
+- **9.1 groundwork** — `ReportRepository.findByStatus` (tenant) + `TenantRepository.findByStatus` (shared);
+  `config/scheduler/SchedulerConfig` (`@EnableScheduling`) + `SchedulerProperties`; `goaml.scheduler.*`
+  config; a test `application.properties` keeping the poller off the timer in `@SpringBootTest`s.
+- **9.2 RetryService** — bounded retry of **transient only** (`B2bTransportException`/`B2bAuthException`)
+  with an injectable `Sleeper` (no real sleeps in tests).
+- **9.3 SubmissionStatusPoller** — `@Scheduled` loop: ACTIVE tenants → per-tenant `TenantContext` →
+  `findByStatus("SUBMITTED")` → `retryTransient(refreshStatus)`; never throws out; per-tenant/per-report
+  isolation; `PollSummary`.
+- **9.4 integration + docs** — Testcontainers IT (two tenants → ACCEPTED/REJECTED, isolation) + this sync.
+
+**Decisions realised:** **poll-only** (D7 — no auto-resubmit; re-submit stays manual MLRO, zero
+double-filing risk); **plain `@Scheduled`, no distributed lock** (idempotent GETs make concurrent pods
+harmless; ShedLock noted for Phase 14); the poller **reuses `refreshStatus`** rather than duplicating the
+FIU/persistence logic.
+
+**Bug caught by the full-suite gate:** `@Scheduled(fixedDelayString)` rejects the `"5m"` suffix
+(NumberFormatException → bean fails → all `@SpringBootTest` contexts fail). Fixed by using ISO-8601 `PT5M`
+for the interval (Boot `Duration` binding accepts it too). The isolated poller test couldn't have caught
+this — only loading the real context did.
+
+**Coverage:** `scheduler/**` (RetryService + poller + Sleeper) held to the ≥90%/≥80% bar; full
+`./gradlew test jacocoTestCoverageVerification` green. Status now lands proactively — no manual `GET …/status`
+needed.
+
+**Not done (later phases):** auto-resubmit of FAILED reports (deliberate non-goal); distributed locking
+(Phase 14); notifications on transition (Phase 10 — the poller leaves a clean seam); status-history table;
+real FIU calls in tests (b2b mocked).

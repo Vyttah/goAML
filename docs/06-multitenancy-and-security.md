@@ -171,6 +171,10 @@ Roles travel in the JWT `roles` claim. `UserPrincipal` maps each role name to a 
 | GET | `/api/v1/reports/{id}/attachments` | — | `AttachmentView[]` | `ANALYST`/`MLRO`/`TENANT_ADMIN` |
 | DELETE | `/api/v1/reports/{id}/attachments/{attachmentId}` | — | `204` | `ANALYST`/`MLRO` |
 
+> `GET …/status` refreshes on demand; **Phase 9** also refreshes proactively — a `@Scheduled`
+> `SubmissionStatusPoller` (`scheduler/`) sweeps every `SUBMITTED` report across ACTIVE tenants and applies
+> the same `refreshStatus` transition (ACCEPTED/REJECTED), so a report's outcome lands without a manual poll.
+>
 > Attachments (Phase 8) are **proxied through the API** (multipart → validated → stored in S3 under a
 > per-tenant/per-report key prefix); at **submit** the bytes are pulled from S3 into the ZIP (within
 > `PackagingLimits.UAE_DEFAULT`). Add/remove are **frozen once the report is submitted** (→ 409).
