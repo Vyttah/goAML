@@ -72,10 +72,11 @@ goaml:
     # Phase 9: the background poller that refreshes FIU submission status across tenants.
     status-poll:
       enabled: ${GOAML_SCHEDULER_STATUS_POLL_ENABLED:true}
-      interval: ${GOAML_SCHEDULER_STATUS_POLL_INTERVAL:5m}   # delay between poll cycles
+      # ISO-8601 duration — @Scheduled(fixedDelayString) accepts ISO-8601 or millis, NOT the "5m" suffix.
+      interval: ${GOAML_SCHEDULER_STATUS_POLL_INTERVAL:PT5M}  # delay between poll cycles (PT5M = 5 min)
     retry:
-      max-attempts: ${GOAML_SCHEDULER_RETRY_MAX_ATTEMPTS:3}  # attempts per FIU call (transient only)
-      backoff: ${GOAML_SCHEDULER_RETRY_BACKOFF:2s}           # fixed delay between attempts
+      max-attempts: ${GOAML_SCHEDULER_RETRY_MAX_ATTEMPTS:3}   # attempts per FIU call (transient only)
+      backoff: ${GOAML_SCHEDULER_RETRY_BACKOFF:2s}            # fixed delay between attempts (bound only)
 
 logging:
   pattern:
