@@ -61,6 +61,10 @@ goaml:
     # Endpoint override for LocalStack (docker-compose, :4566). Leave EMPTY for real AWS — the SDK
     # then resolves the regional endpoint and uses IRSA / the default credentials chain on EKS.
     endpoint: ${GOAML_AWS_ENDPOINT:}
+    s3:
+      # Bucket holding report attachments (Phase 8); per-tenant key prefixes. Create it once locally:
+      # `aws --endpoint-url http://localhost:4566 s3 mb s3://goaml-attachments`.
+      bucket: ${GOAML_S3_BUCKET:goaml-attachments}
   b2b:
     # Lifetime of a cached goAML B2B session token in Redis. Re-auth happens on expiry or a 401.
     token-ttl: ${GOAML_B2B_TOKEN_TTL:20m}
