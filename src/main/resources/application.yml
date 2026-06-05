@@ -68,6 +68,15 @@ goaml:
   b2b:
     # Lifetime of a cached goAML B2B session token in Redis. Re-auth happens on expiry or a 401.
     token-ttl: ${GOAML_B2B_TOKEN_TTL:20m}
+  scheduler:
+    # Phase 9: the background poller that refreshes FIU submission status across tenants.
+    status-poll:
+      enabled: ${GOAML_SCHEDULER_STATUS_POLL_ENABLED:true}
+      # ISO-8601 duration — @Scheduled(fixedDelayString) accepts ISO-8601 or millis, NOT the "5m" suffix.
+      interval: ${GOAML_SCHEDULER_STATUS_POLL_INTERVAL:PT5M}  # delay between poll cycles (PT5M = 5 min)
+    retry:
+      max-attempts: ${GOAML_SCHEDULER_RETRY_MAX_ATTEMPTS:3}   # attempts per FIU call (transient only)
+      backoff: ${GOAML_SCHEDULER_RETRY_BACKOFF:2s}            # fixed delay between attempts (bound only)
 
 logging:
   pattern:

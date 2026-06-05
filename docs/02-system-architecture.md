@@ -77,7 +77,7 @@ layout is **layer-first** (controllers / services / repositories / model split b
 | `integration/aws/` | AWS clients. **`GoamlSecretsClient` (Secrets Manager, Phase 6) + `S3StorageClient` (S3 attachments, Phase 8) built**; `SesClient` (Phase 10) planned. | ✅ (partial) | — |
 | `ingestion/` | Generic inbound REST + file import (goAML XML / CSV). | ⚠️ Phase 11 | — |
 | `notification/` | In-app + SES email notifications. | ⚠️ Phase 10 | — |
-| `scheduler/` | Async submission poller + retry. | ⚠️ Phase 9 | — |
+| `scheduler/` | `@Scheduled` submission-status poller (`SubmissionStatusPoller`) across tenants + bounded transient `RetryService`. **Built** (Phase 9). | ✅ | — |
 | `mcp/`, `cli/` | MCP tools + picocli commands. | ⚠️ Phase 12 | — |
 
 ---

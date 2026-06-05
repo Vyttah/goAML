@@ -14,8 +14,8 @@
 | 6 | **`integration/aws/` Secrets Manager + Redis B2B token cache → `b2b/` goAML REST client; LocalStack/Redis/WireMock tests + JaCoCo ≥90% gate** (Secrets-only; S3/SES → 8/10) | ✅ done | `e6a03d6`…`81f61b0` |
 | 7 | **`persistence/` + `service/` + `web/`** DPMSR reports/submissions REST — wires the engine + b2b to HTTP (Testcontainers + WireMock E2E; JaCoCo gate) | ✅ done | `154a2f5`…`82af99f` |
 | 8 | **S3 attachments** — `S3StorageClient` + `attachment` table; multipart upload (proxied through the API) → S3, pulled into the submission ZIP; attach/list/remove REST; LocalStack IT + E2E (AV scanning deferred) | ✅ done | `07afd21`…`77de56e` |
-| 9 | **`scheduler/`** async poller + `RetryService` across tenants; status transitions | ⏭️ **next** | — |
-| 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⬜ todo | — |
+| 9 | **`scheduler/`** — `@Scheduled` `SubmissionStatusPoller` across ACTIVE tenants (reuses `refreshStatus`) + bounded transient `RetryService`; poll-only (no auto-resubmit), plain `@Scheduled`; Testcontainers IT | ✅ done | `015ea61`…`9530bf3` |
+| 10 | **`notification/`** in-app + SES email (LocalStack SES) | ⏭️ **next** | — |
 | 11 | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | ⬜ todo | — |
 | 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⬜ todo (planned) | — |
 | 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ todo | — |

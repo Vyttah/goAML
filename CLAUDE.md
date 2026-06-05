@@ -25,13 +25,15 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–8 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 9
-  (`scheduler/` — async status poller + retry)**. Phase 7 wired the engine + b2b to HTTP (the **DPMSR
-  report lifecycle REST API**: `/api/v1/reports` create/validate/submit/status, MLRO-gated submit over
+- **Status:** Phases 1–9 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 10
+  (`notification/` — in-app + SES email)**. Phase 7 wired the engine + b2b to HTTP (the **DPMSR report
+  lifecycle REST API**: `/api/v1/reports` create/validate/submit/status, MLRO-gated submit over
   `report`/`submission` tenant tables); Phase 8 added **S3 attachments** — multipart upload (proxied
   through the API) → S3, pulled into the submission ZIP at submit; `attachment` tenant table +
-  `S3StorageClient`; attach/list/remove REST (AV scanning deferred). Flow is manually testable via the
-  API (live submit needs per-tenant FIU config + the `goaml-attachments` bucket).
+  `S3StorageClient`; attach/list/remove REST (AV scanning deferred). Phase 9 added **`scheduler/`** — a
+  `@Scheduled` `SubmissionStatusPoller` that refreshes FIU status across ACTIVE tenants (poll-only, no
+  auto-resubmit; plain `@Scheduled`, no distributed lock) + a bounded transient `RetryService`. Flow is
+  manually testable via the API (live submit needs per-tenant FIU config + the `goaml-attachments` bucket).
 - **First report type = `DPMSR`** (precious-metals dealers; cash ≥ AED 55,000). All 17 schema codes later.
 - **DPMSR is activity-shaped** (goods + parties, no `<transaction>` block).
 - **Auth:** self-managed HS256 JWT, RBAC roles SUPER_ADMIN/TENANT_ADMIN/MLRO/ANALYST; tenant routing via
