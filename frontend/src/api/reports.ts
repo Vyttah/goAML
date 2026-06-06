@@ -1,6 +1,7 @@
 import { apiClient } from './client';
 import { API_PREFIX } from '../lib/config';
-import type { ReportView, StatusView, SubmissionView } from '../types';
+import type { CreateReportResponse, ReportView, StatusView, SubmissionView } from '../types';
+import type { DpmsrCreateRequest } from '../types/dpmsr';
 
 const BASE = `${API_PREFIX}/reports`;
 
@@ -16,7 +17,11 @@ export async function getReport(id: string): Promise<ReportView> {
   return data;
 }
 
-// createReport (DPMSR builder) lands in 13.6 alongside the DpmsrCreateRequest type.
+/** Create + validate a DPMSR report. Returns the validation outcome (status + messages). */
+export async function createReport(body: DpmsrCreateRequest): Promise<CreateReportResponse> {
+  const { data } = await apiClient.post<CreateReportResponse>(BASE, body);
+  return data;
+}
 
 /** Submit a report to the FIU (MLRO only — backend enforces). */
 export async function submitReport(id: string): Promise<SubmissionView> {

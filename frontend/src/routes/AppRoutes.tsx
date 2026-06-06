@@ -5,6 +5,7 @@ import { AppShell } from '../components/AppShell';
 import { ROLES } from '../auth/roles';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
+import { DpmsrBuilderPage } from '../features/reports/DpmsrBuilderPage';
 import { AdminPage } from '../features/admin/AdminPage';
 import { ForbiddenPage, NotFoundPage } from '../features/misc/StatusPages';
 
@@ -23,6 +24,10 @@ export function AppRoutes() {
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
+
+          <Route element={<RequireRole allowed={[ROLES.ANALYST, ROLES.MLRO]} />}>
+            <Route path="reports/new" element={<DpmsrBuilderPage />} />
+          </Route>
 
           <Route element={<RequireRole allowed={[ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN]} />}>
             <Route path="admin" element={<AdminPage />} />
