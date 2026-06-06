@@ -77,6 +77,12 @@ goaml:
     retry:
       max-attempts: ${GOAML_SCHEDULER_RETRY_MAX_ATTEMPTS:3}   # attempts per FIU call (transient only)
       backoff: ${GOAML_SCHEDULER_RETRY_BACKOFF:2s}            # fixed delay between attempts (bound only)
+  notifications:
+    # Phase 10: report-transition notifications (in-app + SES email). In-app is always written;
+    # email is gated OFF by default and stays off until a verified SES sender identity exists.
+    email:
+      enabled: ${GOAML_NOTIFICATIONS_EMAIL_ENABLED:false}
+      from: ${GOAML_NOTIFICATIONS_EMAIL_FROM:no-reply@goaml.vyttah.com}  # must be an SES-verified sender
 
 logging:
   pattern:
