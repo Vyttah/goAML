@@ -138,8 +138,11 @@ def coveredPackages = [
         'com/vyttah/goaml/service/attachment/**',
         'com/vyttah/goaml/service/notification/**',
         'com/vyttah/goaml/service/ingestion/**',
+        'com/vyttah/goaml/service/admin/**',
+        'com/vyttah/goaml/controller/admin/**',
         'com/vyttah/goaml/model/mapper/report/**',
         'com/vyttah/goaml/controller/report/**',
+        'com/vyttah/goaml/controller/lookup/**',
         'com/vyttah/goaml/scheduler/**'
 ]
 

@@ -1,5 +1,7 @@
 package com.vyttah.goaml.exception;
 
+import com.vyttah.goaml.controller.lookup.LookupExceptions;
+import com.vyttah.goaml.service.admin.AdminExceptions;
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.ingestion.IngestionExceptions;
 import com.vyttah.goaml.service.notification.NotificationExceptions;
@@ -39,7 +41,9 @@ public class GlobalExceptionHandler {
             ReportExceptions.ReportNotFoundException.class,
             AttachmentExceptions.AttachmentNotFoundException.class,
             NotificationExceptions.NotificationNotFoundException.class,
-            IngestionExceptions.ImportJobNotFoundException.class
+            IngestionExceptions.ImportJobNotFoundException.class,
+            LookupExceptions.LookupNotFoundException.class,
+            AdminExceptions.GoamlConfigNotFoundException.class
     })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -49,7 +53,8 @@ public class GlobalExceptionHandler {
             ReportExceptions.DuplicateEntityReferenceException.class,
             SubmissionExceptions.ReportNotSubmittableException.class,
             SubmissionExceptions.TenantConfigMissingException.class,
-            AttachmentExceptions.ReportNotEditableException.class
+            AttachmentExceptions.ReportNotEditableException.class,
+            AdminExceptions.UserEmailExistsException.class
     })
     public ResponseEntity<Map<String, Object>> handleConflict(RuntimeException ex) {
         return body(HttpStatus.CONFLICT, ex.getMessage());

@@ -17,4 +17,7 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
      * so this is independent of the bound tenant {@code search_path}.
      */
     List<AppUser> findByTenantIdAndStatusAndRoles_Name(UUID tenantId, String status, String roleName);
+
+    /** All users of a tenant — used by the admin user-management UI (Phase 13.2). */
+    List<AppUser> findByTenantId(UUID tenantId);
 }

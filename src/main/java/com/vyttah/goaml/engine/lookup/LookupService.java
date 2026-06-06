@@ -124,4 +124,13 @@ public class LookupService {
         }
         return byJur.get(setName.toLowerCase(Locale.ROOT));
     }
+
+    /** Names of the lookup sets loaded for a jurisdiction (e.g. countries, currencies). Empty if none. */
+    public Set<String> setNames(String jurisdiction) {
+        if (jurisdiction == null) {
+            return Set.of();
+        }
+        Map<String, Set<String>> byJur = sets.get(jurisdiction.toLowerCase(Locale.ROOT));
+        return byJur == null ? Set.of() : Set.copyOf(byJur.keySet());
+    }
 }

@@ -38,6 +38,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> {})
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
@@ -46,7 +47,12 @@ public class SecurityConfig {
                                 "/actuator/prometheus",
                                 "/api/v1/auth/**"
                         ).permitAll()
-                        .anyRequest().authenticated())
+                        // The REST API requires authentication; method-level @PreAuthorize enforces RBAC.
+                        .requestMatchers("/api/**").authenticated()
+                        // Everything else — the React SPA shell + its static assets (served from
+                        // classpath:/static/ via SpaWebConfig) — is public: the app bootstraps, then
+                        // authenticates against /api/v1/auth/login.
+                        .anyRequest().permitAll())
                 // For a JSON API, missing/invalid credentials → 401, not 403 (Spring's default).
                 // AccessDeniedException (authenticated but insufficient role) still yields 403.
                 .exceptionHandling(eh -> eh.authenticationEntryPoint(

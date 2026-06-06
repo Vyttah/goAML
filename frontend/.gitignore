@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# build output (wired into ../src/main/resources/static by the Phase 14 packaging step)
+dist/
+
+# test / coverage
+coverage/
+
+# logs & local env
+*.log
+.env.local
+.env.*.local
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/

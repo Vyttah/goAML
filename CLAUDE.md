@@ -25,11 +25,16 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–11 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 13
-  (React frontend)**. **Build order reordered (2026-06-06): 13 → 14 → 12** — the **Claude plugin & MCP
+- **Status:** Phases 1–11 **+ 13** committed (+ XSD-first foundation + layer-first refactor); next =
+  **Phase 14 (infra)**. **Build order 13 → 14 → 12** — the **Claude plugin & MCP
   harness + `cli/` (Phase 12) is deferred to LAST** (dependency-safe; the frontend uses the REST API, infra
   packages the jar regardless, and 12 only needs the done Phases 6–11). **Phase 1.5** (suite integration +
-  federated auth) deferred — decide later. Phase 7 wired the engine + b2b to HTTP (the
+  federated auth) deferred — decide later. **Phase 13** added the **`frontend/` SPA** (Vite+React+TS+Ant
+  Design over the REST API: auth → dashboard → full DPMSR builder → detail/submit/track/attachments →
+  import → notifications + reference browser → admin; 58 Vitest specs) plus its REST enablers
+  (`controller/lookup/`, `controller/admin/` + `service/admin/`, CORS + SPA-serving) and a gated
+  `config/dev/DevDataSeeder` (`goaml.dev.seed.enabled`) for local review. Surfaced (not faked) backend gaps:
+  report XML preview, validation re-fetch, attachment download. Phase 7 wired the engine + b2b to HTTP (the
   **DPMSR report lifecycle REST API**: `/api/v1/reports` create/validate/submit/status, MLRO-gated submit
   over `report`/`submission` tenant tables); Phase 8 added **S3 attachments** — multipart upload (proxied
   through the API) → S3, pulled into the submission ZIP at submit; `attachment` tenant table +
