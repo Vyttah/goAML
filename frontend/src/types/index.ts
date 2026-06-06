@@ -70,3 +70,13 @@ export interface StatusView {
   status: string;
   errors: string | null;
 }
+
+/** Report attachment metadata — mirrors `model.dto.attachment.AttachmentView`. */
+export interface AttachmentView {
+  id: string;
+  reportId: string;
+  filename: string;
+  contentType: string | null;
+  sizeBytes: number;
+  createdAt: string;
+}
