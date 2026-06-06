@@ -117,3 +117,67 @@ export interface NotificationView {
   readAt: string | null;
   createdAt: string;
 }
+
+// ---- Admin -----------------------------------------------------------------------------------
+
+/** Tenant summary — mirrors `AdminViews.TenantView`. */
+export interface TenantView {
+  id: string;
+  slug: string;
+  name: string;
+  jurisdictionCode: string;
+  schemaName: string;
+  status: string;
+  createdAt: string;
+}
+
+/** Provision a tenant — mirrors `model.dto.tenant.TenantProvisioningRequest`. */
+export interface TenantProvisioningRequest {
+  slug: string;
+  name: string;
+  jurisdictionCode: string;
+  adminEmail: string;
+  adminPassword: string;
+  adminFirstName: string;
+  adminLastName: string;
+}
+
+/** Create a user in the caller's tenant — mirrors `AdminViews.CreateUserRequest`. */
+export interface CreateUserRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  role: string; // ANALYST | MLRO | TENANT_ADMIN
+}
+
+/** User summary — mirrors `AdminViews.UserView`. */
+export interface UserView {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  status: string;
+  roles: string[];
+  createdAt: string;
+}
+
+/** goAML B2B config upsert — mirrors `AdminViews.GoamlConfigRequest`. */
+export interface GoamlConfigRequest {
+  jurisdictionCode: string;
+  rentityId: number;
+  baseUrl: string;
+  secretsPath: string;
+  authMode: string; // TOKEN | BASIC
+}
+
+/** goAML B2B config view — mirrors `AdminViews.GoamlConfigView`. */
+export interface GoamlConfigView {
+  tenantId: string;
+  jurisdictionCode: string;
+  rentityId: number;
+  baseUrl: string;
+  secretsPath: string;
+  authMode: string;
+  updatedAt: string;
+}
