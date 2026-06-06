@@ -76,7 +76,7 @@ layout is **layer-first** (controllers / services / repositories / model split b
 | `b2b/` | goAML B2B REST client (`GoamlB2bClient`/`RestGoamlB2bClient` + `TokenManager` Redis token cache): PostReport, OData status, delete, MessageBoard, lookups; typed errors. **Built, tested (not yet wired to an endpoint — Phase 7).** | ✅ | [10](10-b2b-submission-protocol.md) |
 | `integration/aws/` | AWS clients. **`GoamlSecretsClient` (Secrets Manager, Phase 6) + `S3StorageClient` (S3 attachments, Phase 8) built**; `SesClient` (Phase 10) planned. | ✅ (partial) | — |
 | `ingestion/` | Generic inbound REST + file import (goAML XML / CSV). | ⚠️ Phase 11 | — |
-| `notification/` | In-app + SES email notifications. | ⚠️ Phase 10 | — |
+| `notification/` | Per-tenant in-app store (`service/notification/` + `model/entity/notification/`) + SES email (`integration/aws/SesClient`), fired off report transitions at the `SubmissionService` seam to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`. **Built** (Phase 10). | ✅ | — |
 | `scheduler/` | `@Scheduled` submission-status poller (`SubmissionStatusPoller`) across tenants + bounded transient `RetryService`. **Built** (Phase 9). | ✅ | — |
 | `mcp/`, `cli/` | MCP tools + picocli commands. | ⚠️ Phase 12 | — |
 

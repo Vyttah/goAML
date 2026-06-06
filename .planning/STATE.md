@@ -19,11 +19,18 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–9 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+- **Phases 1–10 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
   gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 10 next** — **`notification/`**: in-app + SES email notifications (LocalStack SES),
-  fired off the status transitions the Phase 9 poller now produces.
-- **Last completed:** **Phase 9 (`scheduler/`)** — proactive submission-status tracking:
+- **Active focus: Phase 11 next** — **`ingestion/`**: generic inbound REST + file import (goAML XML + CSV).
+- **Last completed:** **Phase 10 (`notification/`)** — report transitions now reach users. A per-tenant
+  `notification` in-app store + an `integration/aws/SesClient` (SES email, gated off by default) are fired
+  from the **`SubmissionService` seam** (`submit()` + `refreshStatus()`, so the poller, the on-demand
+  `GET …/status`, and submit-time rejections all flow through one place), notifying the report **author +
+  the tenant's active MLROs**. Best-effort + isolated (`safeNotify` try/catch, after the saves — a
+  notification/email failure never rolls back a status change or aborts a poll). `GET/POST
+  /api/v1/notifications` for the in-app list/read. Testcontainers ITs prove the in-app fan-out + the
+  email-enabled gate. Commits `99e3c75`…(10.4). Per-step docs: `steps/PHASE-10.1..10.4`.
+- **Previously:** **Phase 9 (`scheduler/`)** — proactive submission-status tracking:
   `SubmissionStatusPoller` (`@Scheduled`) enumerates ACTIVE tenants, finds each tenant's `SUBMITTED`
   reports, and refreshes FIU status via the existing `SubmissionService.refreshStatus` (→ ACCEPTED/REJECTED)
   — wrapped in a bounded transient `RetryService` (`B2bTransport`/`B2bAuth` only). **Poll-only** (no
@@ -31,37 +38,36 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   GETs). Per-tenant/per-report failures logged + skipped; the scheduled method never throws (would suppress
   future runs); `TenantContext` cleared per tenant. Testcontainers IT (two tenants transition + isolation).
   Commits `015ea61`…`9530bf3` (+ 9.4). Per-step docs: `steps/PHASE-9.1..9.4`.
-- **Branch:** `phase-9/scheduler` (off `main`, which now holds Phases 6–8 + XSD-first via merge `deafe68`).
+- **Branch:** `phase-10/notifications` (off `main`, which holds Phases 6–9 + XSD-first via merge `70b4f08`).
 - **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
   `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — Phase 10 (notifications)
+## Next Action — Phase 11 (ingestion)
 
-Turn status transitions into user-visible signals. Expected scope:
-1. **`notification/`** — an in-app notification store (tenant table + entity/repo) + a `NotificationService`.
-2. **SES email** — an `integration/aws/SesClient` (the AWS client deferred from Phase 6/8), tested vs
-   LocalStack SES.
-3. **Fire on transitions** — the Phase 9 poller (and submit) leave a clean seam: ACCEPTED/REJECTED →
-   notify the relevant tenant users (MLRO/author).
+Generic inbound report intake. Expected scope:
+1. **`ingestion/`** — a generic inbound REST endpoint + file import (goAML XML + CSV) to create/enrich
+   reports from external data (the standalone counterpart to the Phase 1.5 accounting/screening intake).
+2. Reuses the `engine/` builders + validator + marshaller; idempotent on `entity_reference`.
 
-> Follow the gated workflow: write the Phase 10 plan + per-step understanding docs, get approval, then build
+> Follow the gated workflow: write the Phase 11 plan + per-step understanding docs, get approval, then build
 > step-by-step (one green commit per step, JaCoCo gate extended).
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
 (PHASE-7.1..7.4) → report/submission persistence, services, REST API + RBAC + E2E; **Phase 8**
 (PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST;
-**Phase 9** (PHASE-9.1..9.4) → scheduler queries + config, RetryService, SubmissionStatusPoller, IT.
+**Phase 9** (PHASE-9.1..9.4) → scheduler queries + config, RetryService, SubmissionStatusPoller, IT;
+**Phase 10** (PHASE-10.1..10.4) → notification store + config, SesClient, NotificationService, seam+REST+IT.
 
 ## Progress
 
-`[███████░░░] 9/14 (≈64%)` + XSD-first foundation + layer-first refactor
+`[████████░░] 10/14 (≈71%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · **9 scheduler** |
-| ⏭️ | **10 notifications** (in-app + SES) |
-| ⬜ | 11 ingestion · 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · **10 notifications** |
+| ⏭️ | **11 ingestion** (inbound REST + XML/CSV import) |
+| ⬜ | 12 mcp+cli · 13 frontend · 14 infra |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)

@@ -1,6 +1,7 @@
 package com.vyttah.goaml.exception;
 
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
+import com.vyttah.goaml.service.notification.NotificationExceptions;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.submission.SubmissionExceptions;
 import org.springframework.http.HttpStatus;
@@ -35,7 +36,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             ReportExceptions.ReportNotFoundException.class,
-            AttachmentExceptions.AttachmentNotFoundException.class
+            AttachmentExceptions.AttachmentNotFoundException.class,
+            NotificationExceptions.NotificationNotFoundException.class
     })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());

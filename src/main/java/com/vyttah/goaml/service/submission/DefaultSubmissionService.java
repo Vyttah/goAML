@@ -22,8 +22,11 @@ import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.submission.SubmissionRepository;
 import com.vyttah.goaml.service.audit.AuditService;
+import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -39,6 +42,8 @@ import java.util.UUID;
 @Service
 public class DefaultSubmissionService implements SubmissionService {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultSubmissionService.class);
+
     private final ReportRepository reportRepository;
     private final SubmissionRepository submissionRepository;
     private final TenantGoamlConfigRepository configRepository;
@@ -47,6 +52,7 @@ public class DefaultSubmissionService implements SubmissionService {
     private final ReportZipPackager packager;
     private final S3StorageClient s3StorageClient;
     private final AuditService auditService;
+    private final NotificationService notificationService;
 
     @Override
     public SubmissionResult submit(UUID reportId, UUID tenantId, UUID actorUserId) {
@@ -82,10 +88,12 @@ public class DefaultSubmissionService implements SubmissionService {
             return new SubmissionResult(submission.getId(), reportKey, "SUBMITTED");
         } catch (B2bValidationException e) {
             saveFailed(submission, e.responseBody());
+            safeNotify(report, "REJECTED", tenantId);
             throw new SubmissionExceptions.SubmissionRejectedException(
                     "FIU rejected report " + reportId, e.responseBody());
         } catch (B2bAuthException | B2bTransportException e) {
             saveFailed(submission, e.getMessage());
+            safeNotify(report, "FAILED", tenantId);
             throw new SubmissionExceptions.SubmissionTransportException(
                     "Submission transport/auth failure for report " + reportId, e);
         }
@@ -93,8 +101,9 @@ public class DefaultSubmissionService implements SubmissionService {
 
     @Override
     public ReportStatus refreshStatus(UUID reportId, UUID tenantId) {
-        reportRepository.findById(reportId)
+        Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ReportExceptions.ReportNotFoundException("Report not found: " + reportId));
+        String oldStatus = report.getStatus();
 
         Submission latest = submissionRepository.findByReportIdOrderBySubmittedAtDesc(reportId).stream()
                 .filter(s -> s.getReportkey() != null)
@@ -109,11 +118,28 @@ public class DefaultSubmissionService implements SubmissionService {
         latest.setErrors(status.errors());
         submissionRepository.save(latest);
 
-        reportRepository.findById(reportId).ifPresent(r -> {
-            r.setStatus(mapped);
-            reportRepository.save(r);
-        });
+        report.setStatus(mapped);
+        reportRepository.save(report);
+
+        // Notify only on a genuine transition to a terminal FIU outcome (no-op poll → no notification).
+        if (!mapped.equals(oldStatus)) {
+            safeNotify(report, mapped, tenantId);
+        }
         return status;
+    }
+
+    /**
+     * Fan a transition out to notifications — best-effort. A notification/email failure must never roll
+     * back the (already-persisted) status change or abort the caller (a poll cycle or a request), so any
+     * error is logged and swallowed. Mirrors the poller's "never throw out" discipline.
+     */
+    private void safeNotify(Report report, String status, UUID tenantId) {
+        try {
+            notificationService.notifyReportTransition(report, status, tenantId);
+        } catch (RuntimeException e) {
+            log.warn("Notification for report {} ({}) failed: {}",
+                    report.getEntityReference(), status, e.getMessage());
+        }
     }
 
     /** Pull each stored attachment's bytes from S3 into a packaging {@link Attachment}. */

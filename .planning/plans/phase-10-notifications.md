@@ -142,4 +142,36 @@ status` scoped to Phase 10 dirs + the 10.4 docs.
 
 ---
 
-## Outcome — 🔲 (fill on completion)
+## Outcome — ✅ COMPLETE (2026-06-06)
+
+Delivered across `99e3c75` (10.1) · `6da1a5f` (10.2) · `050e564` (10.3) · this commit (10.4):
+
+- **10.1 in-app store** — per-tenant `notification` table (V4, resolved via `search_path` like
+  `audit_log`) + `Notification` entity + repo (recipient/unread/owner-scoped queries); `NotificationProperties`
+  (`goaml.notifications.email.{enabled:false, from}`) gating email off by default.
+- **10.2 SES seam** — `integration/aws/SesClient` + `DefaultSesClient` over AWS SDK v2 `SesV2Client`
+  (sender from config, eager resolve), failures → `SesAccessException`; `SesV2Client` bean in `AwsConfig`
+  (LocalStack pattern); `sesv2` dep.
+- **10.3 service** — `NotificationService` resolves recipients (author + tenant MLROs, de-duped via a new
+  `AppUserRepository.findByTenantIdAndStatusAndRoles_Name`), writes in-app rows under the caller's bound
+  `TenantContext`, then sends **gated, best-effort** email.
+- **10.4 seam + REST + IT** — `DefaultSubmissionService` notifies from `submit()` + `refreshStatus()`
+  (transition-detected, best-effort `safeNotify`); `GET/POST /api/v1/notifications`; Testcontainers ITs for
+  in-app fan-out (author + MLRO) and the email-enabled path.
+
+**Decisions realised:** **service-layer seam** (D1 — one place covers poller + on-demand + submit);
+**SES wired but gated off by default** (D6 — in-app always on; email needs a verified sender);
+**author + tenant MLROs** (D3). **Best-effort isolation** (D7) is load-bearing: a notification/email
+failure never rolls back a status change or aborts a poll cycle (`safeNotify` try/catch, after the saves) —
+the in-app row is the durable record; SES is a side channel.
+
+**Environmental note:** `sesv2` is a LocalStack **Pro** feature — `SesClientIT` detects "not implemented"
+and skips cleanly, so the suite stays green on community LocalStack while `DefaultSesClientTest` carries the
+deterministic branch coverage and `NotificationEmailIntegrationTest` proves the flag wires through
+(mocked `SesClient`).
+
+**Coverage:** `service/notification/**` held to the ≥90%/≥80% bar (`DefaultNotificationService` 100%
+instruction); full `./gradlew test jacocoTestCoverageVerification` green.
+
+**Not done (later phases):** preferences/digests, HTML/templated email, SMS/push, failed-email retry,
+real SES sends in prod (gated until a verified identity exists), the React notification bell (Phase 13).

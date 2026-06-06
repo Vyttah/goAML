@@ -15,6 +15,7 @@ import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.submission.SubmissionRepository;
 import com.vyttah.goaml.service.audit.AuditService;
+import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,10 +50,11 @@ class DefaultSubmissionServiceTest {
     private final GoamlB2bClient b2bClient = mock(GoamlB2bClient.class);
     private final S3StorageClient s3StorageClient = mock(S3StorageClient.class);
     private final AuditService auditService = mock(AuditService.class);
+    private final NotificationService notificationService = mock(NotificationService.class);
 
     private final DefaultSubmissionService service = new DefaultSubmissionService(
             reportRepository, submissionRepository, configRepository, attachmentRepository, b2bClient,
-            new ReportZipPackager(), s3StorageClient, auditService);
+            new ReportZipPackager(), s3StorageClient, auditService, notificationService);
 
     private final UUID tenantId = UUID.randomUUID();
     private final UUID actor = UUID.randomUUID();
@@ -136,6 +138,7 @@ class DefaultSubmissionServiceTest {
         verify(submissionRepository).save(sub.capture());
         assertThat(sub.getValue().getStatus()).isEqualTo("FAILED");
         assertThat(report.getStatus()).isEqualTo("VALID"); // unchanged — fixable
+        verify(notificationService).notifyReportTransition(report, "REJECTED", tenantId);
     }
 
     @Test
@@ -147,6 +150,7 @@ class DefaultSubmissionServiceTest {
 
         assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
                 .isInstanceOf(SubmissionExceptions.SubmissionTransportException.class);
+        verify(notificationService).notifyReportTransition(report, "FAILED", tenantId);
     }
 
     @Test
@@ -166,6 +170,7 @@ class DefaultSubmissionServiceTest {
 
         assertThat(submission.getStatus()).isEqualTo("REJECTED");
         assertThat(report.getStatus()).isEqualTo("REJECTED");
+        verify(notificationService).notifyReportTransition(report, "REJECTED", tenantId);
     }
 
     @Test
@@ -183,6 +188,8 @@ class DefaultSubmissionServiceTest {
         service.refreshStatus(report.getId(), tenantId);
 
         assertThat(submission.getStatus()).isEqualTo("SUBMITTED");
+        // no transition (SUBMITTED → SUBMITTED) → no notification
+        verify(notificationService, never()).notifyReportTransition(any(), any(), any());
     }
 
     @Test
