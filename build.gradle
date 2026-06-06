@@ -79,6 +79,9 @@ dependencies {
     // S3 (Phase 8) — stores per-report supporting-document attachments (per-tenant key prefixes); pulled
     // into the submission ZIP at submit time. Version pinned by the BOM above.
     implementation 'software.amazon.awssdk:s3'
+    // SES v2 (Phase 10) — outbound notification email on report transitions. Gated off by default
+    // (goaml.notifications.email.enabled); needs a verified sender identity in prod. Pinned by the BOM.
+    implementation 'software.amazon.awssdk:sesv2'
 
     // Redis (Phase 6.2) — caches each tenant's goAML B2B session token (SqlAuthCookie) across app instances.
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
@@ -130,6 +133,7 @@ def coveredPackages = [
         'com/vyttah/goaml/service/report/**',
         'com/vyttah/goaml/service/submission/**',
         'com/vyttah/goaml/service/attachment/**',
+        'com/vyttah/goaml/service/notification/**',
         'com/vyttah/goaml/model/mapper/report/**',
         'com/vyttah/goaml/controller/report/**',
         'com/vyttah/goaml/scheduler/**'

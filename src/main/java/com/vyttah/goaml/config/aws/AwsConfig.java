@@ -9,14 +9,15 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
+import software.amazon.awssdk.services.sesv2.SesV2Client;
 
 import java.net.URI;
 
 /**
- * AWS SDK v2 beans (Phase 6 + 8). Produces a {@link SecretsManagerClient} (Phase 6) and an
- * {@link S3Client} (Phase 8) that talk to real AWS in production (regional endpoint + the default
- * credentials chain — IRSA on EKS) and to LocalStack when {@code goaml.aws.endpoint} is set
- * (docker-compose, {@code :4566}).
+ * AWS SDK v2 beans (Phase 6 + 8 + 10). Produces a {@link SecretsManagerClient} (Phase 6), an
+ * {@link S3Client} (Phase 8), and a {@link SesV2Client} (Phase 10) that talk to real AWS in production
+ * (regional endpoint + the default credentials chain — IRSA on EKS) and to LocalStack when
+ * {@code goaml.aws.endpoint} is set (docker-compose, {@code :4566}).
  *
  * <p>When an endpoint override is present we also supply static dummy credentials, because LocalStack
  * accepts any access key and the default chain may not be configured on a developer machine. The S3
@@ -52,6 +53,21 @@ public class AwsConfig {
                     .credentialsProvider(StaticCredentialsProvider.create(
                             AwsBasicCredentials.create("test", "test")))
                     .forcePathStyle(true);
+        } else {
+            builder.credentialsProvider(DefaultCredentialsProvider.create());
+        }
+        return builder.build();
+    }
+
+    @Bean
+    public SesV2Client sesV2Client(AwsProperties props) {
+        var builder = SesV2Client.builder()
+                .region(Region.of(props.region()));
+
+        if (props.hasEndpointOverride()) {
+            builder.endpointOverride(URI.create(props.endpoint()))
+                    .credentialsProvider(StaticCredentialsProvider.create(
+                            AwsBasicCredentials.create("test", "test")));
         } else {
             builder.credentialsProvider(DefaultCredentialsProvider.create());
         }

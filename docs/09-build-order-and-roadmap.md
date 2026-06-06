@@ -38,8 +38,8 @@ machine-local state — so anyone on any machine can resume.
 | 7 | **`persistence/` + `service/` + `web/`** DPMSR reports/submissions REST — wires the engine + b2b to HTTP (Testcontainers + WireMock E2E) | ✅ | `154a2f5`…`82af99f` |
 | 8 | **S3 attachments** — `integration/aws/S3StorageClient` + `attachment` tenant table; multipart upload (proxied through the API) → S3, pulled into the submission ZIP; attach/list/remove REST; LocalStack IT + E2E | ✅ | `07afd21`…`77de56e` |
 | 9 | **`scheduler/`** — `@Scheduled` `SubmissionStatusPoller` across ACTIVE tenants (reuses `refreshStatus`) + bounded transient `RetryService`; poll-only (no auto-resubmit), plain `@Scheduled` (no distributed lock); Testcontainers IT | ✅ | `015ea61`…(9.4) |
-| **10** | **`notification/`** in-app + SES email (LocalStack SES) | **⏭️ NEXT** | — |
-| 11 | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | ⬜ | — |
+| 10 | **`notification/`** — per-tenant in-app store + SES email (`integration/aws/SesClient`), fired off report transitions at the `SubmissionService` seam (poller + on-demand + submit) to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`; Testcontainers ITs | ✅ | `99e3c75`…(10.4) |
+| **11** | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | **⏭️ NEXT** | — |
 | 12 | **`mcp/` tools + `cli/`** (picocli) | ⬜ | — |
 | 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ | — |
 | 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ | — |
