@@ -16,6 +16,9 @@ export function AppShell() {
 
   const items = [
     { key: '/dashboard', label: <Link to="/dashboard">Dashboard</Link> },
+    ...(can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN)
+      ? [{ key: '/imports', label: <Link to="/imports">Import</Link> }]
+      : []),
     ...(can(ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN)
       ? [{ key: '/admin', label: <Link to="/admin">Admin</Link> }]
       : []),

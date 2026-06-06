@@ -80,3 +80,27 @@ export interface AttachmentView {
   sizeBytes: number;
   createdAt: string;
 }
+
+// ---- Imports ---------------------------------------------------------------------------------
+
+/** One row's outcome within an import job — mirrors `service.ingestion.ImportRowResult`. */
+export interface ImportRowResult {
+  row: number;
+  entityReference: string | null;
+  status: string; // VALID | INVALID | FAILED
+  reportId: string | null;
+  errors: string[];
+}
+
+/** An import job + its per-row results — mirrors `model.dto.ingestion.ImportJobView`. */
+export interface ImportJobView {
+  id: string;
+  sourceType: string; // GOAML_XML | DPMSR_CSV
+  filename: string;
+  status: string; // COMPLETED | PARTIAL | FAILED
+  totalRows: number;
+  succeeded: number;
+  failed: number;
+  results: ImportRowResult[];
+  createdAt: string;
+}
