@@ -17,4 +17,11 @@ public final class IngestionExceptions {
             super(message);
         }
     }
+
+    /** An import job does not exist in the current tenant. → {@code 404}. */
+    public static class ImportJobNotFoundException extends RuntimeException {
+        public ImportJobNotFoundException(String message) {
+            super(message);
+        }
+    }
 }

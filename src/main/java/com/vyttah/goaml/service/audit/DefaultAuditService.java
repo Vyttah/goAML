@@ -42,6 +42,10 @@ public class DefaultAuditService implements AuditService {
         if (tenantSchema == null || TenantIdentifierResolver.DEFAULT_TENANT.equals(tenantSchema)) {
             return;
         }
+        // Preserve (not clobber) any context the caller already bound: a request-scoped flow may audit
+        // mid-stream (e.g. ReportService.create inside a CSV import) and then keep doing tenant-scoped work
+        // on the same thread. Restore the previous tenant in finally rather than clearing unconditionally.
+        String previous = TenantContext.get();
         TenantContext.set(tenantSchema);
         try {
             transactionTemplate.execute(status -> {
@@ -51,7 +55,11 @@ public class DefaultAuditService implements AuditService {
                 return auditLogRepository.save(row);
             });
         } finally {
-            TenantContext.clear();
+            if (previous != null) {
+                TenantContext.set(previous);
+            } else {
+                TenantContext.clear();
+            }
         }
     }
 }

@@ -139,4 +139,36 @@ reports are submittable through the existing lifecycle; `git status` scoped to P
 
 ---
 
-## Outcome — 🔲 (fill on completion)
+## Outcome — ✅ COMPLETE (2026-06-06)
+
+Delivered across `dd9b54a` (11.1) · `b5bff6b` (11.2) · `28dc157` (11.3) · this commit (11.4):
+
+- **11.1 store** — per-tenant `import_job` table (V5) + `ImportJob` entity (results JSONB as `String`) +
+  repo; `IngestionProperties` (`max-rows`) + explicit `spring.servlet.multipart.*` limits; `commons-csv`.
+- **11.2 XML** — `GoamlXmlImporter`: unmarshal → re-marshal canonical → XSD + rules validate → persist a
+  report exactly like `DefaultReportService`; never throws for bad input. Round-trip IT on the golden DPMSR.
+- **11.3 CSV** — `CsvImporter`: flat one-row-per-report template → `DpmsrCreateRequest` →
+  `ReportService.create` (reuse, no fork); per-row isolation; fail-fast whole-file rejection.
+- **11.4 service+REST** — `IngestionService` (tally → persist `import_job` → audit) + `ImportController`
+  (`POST/GET /api/v1/imports`) + `ImportJobView`; MockMvc E2E.
+
+**Decisions realised:** **synchronous + persisted `import_job`** (D1 — row-level results in a JSONB array,
+no async infra); **goAML XML + a flat DPMSR CSV** (D2/D3, template §3 flagged for sign-off); **per-row
+isolation** (D4) + **reuse `ReportService.create`** (no parallel persist).
+
+**Two findings worth keeping:**
+- **MockMvc over `TestRestTemplate` for the E2E.** The socket-based template flaked non-deterministically
+  (JJWT "type tag" parse errors = token corrupted under embedded-server load — the Phase 9.2 class of
+  flake). MockMvc (in-process, full filter chain) made it deterministic and exposed a real bug ↓.
+- **Latent audit `TenantContext` clobber, fixed.** `DefaultAuditService.record` cleared the thread's
+  tenant in `finally`; harmless when `create` ended a request, but the CSV importer calls `create`
+  (→ audit → clear) per row and then persists the job → the `import_job` write hit `public`. Fix: audit
+  now **restores** the caller's prior tenant. Protects every create-then-more-tenant-work flow.
+
+**Coverage:** `service/ingestion/**` held to the ≥90%/≥80% bar; full `./gradlew test
+jacocoTestCoverageVerification` green.
+
+**Not done (later phases / by design):** the Phase 1.5 RabbitMQ-accounting + screening-REST intake;
+non-DPMSR CSV; true async/queued processing; multi-party/multi-good CSV; upload virus scanning; an
+update/upsert mode (duplicates are row errors); the React import UI (Phase 13). **CSV template is
+provisional pending FIU/stakeholder sign-off** (docs/09 open item #5).
