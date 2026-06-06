@@ -72,6 +72,9 @@ dependencies {
     implementation 'jakarta.xml.bind:jakarta.xml.bind-api:4.0.2'
     implementation 'org.glassfish.jaxb:jaxb-runtime:4.0.5'
 
+    // Apache Commons CSV (Phase 11) — parses the DPMSR CSV import (header-addressed columns, RFC 4180).
+    implementation 'org.apache.commons:commons-csv:1.11.0'
+
     // AWS SDK v2 (Phase 6) — Secrets Manager holds each tenant's goAML B2B credentials. KMS decryption is
     // transparent on GetSecretValue, so no separate KMS client is needed for reads. SES lands in 10.
     implementation platform('software.amazon.awssdk:bom:2.28.16')
@@ -134,6 +137,7 @@ def coveredPackages = [
         'com/vyttah/goaml/service/submission/**',
         'com/vyttah/goaml/service/attachment/**',
         'com/vyttah/goaml/service/notification/**',
+        'com/vyttah/goaml/service/ingestion/**',
         'com/vyttah/goaml/model/mapper/report/**',
         'com/vyttah/goaml/controller/report/**',
         'com/vyttah/goaml/scheduler/**'
