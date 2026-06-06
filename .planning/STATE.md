@@ -19,10 +19,21 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–10 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
+- **Phases 1–11 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
   gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 11 next** — **`ingestion/`**: generic inbound REST + file import (goAML XML + CSV).
-- **Last completed:** **Phase 10 (`notification/`)** — report transitions now reach users. A per-tenant
+- **Active focus: Phase 12 next** — **Claude plugin & MCP harness + `cli/`** (plan exists;
+  [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md)).
+- **Last completed:** **Phase 11 (`ingestion/`)** — file import as a persisted `import_job` with row-level
+  results: **goAML XML** (`GoamlXmlImporter` reuses unmarshal + XSD/rules validators → persisted,
+  re-submittable) + a flat **DPMSR CSV** (`CsvImporter` maps each row → `DpmsrCreateRequest` → the existing
+  `ReportService.create`, no parallel persist). Synchronous; per-row isolation (a bad row → `FAILED`
+  result, the batch continues); whole-file rejection (unreadable / missing required headers / over
+  `goaml.ingestion.max-rows`) → 400 with no job. `POST/GET /api/v1/imports`. Also **fixed a latent audit
+  bug**: `DefaultAuditService` cleared `TenantContext` in `finally`, clobbering a request that audits
+  mid-stream then keeps doing tenant work (the CSV path) — now it **restores** the prior tenant. The E2E
+  uses **MockMvc** (in-process) which made a `TestRestTemplate` socket flake deterministic and exposed that
+  bug. Commits `dd9b54a`…(11.4). Per-step docs: `steps/PHASE-11.1..11.4`.
+- **Previously:** **Phase 10 (`notification/`)** — report transitions now reach users. A per-tenant
   `notification` in-app store + an `integration/aws/SesClient` (SES email, gated off by default) are fired
   from the **`SubmissionService` seam** (`submit()` + `refreshStatus()`, so the poller, the on-demand
   `GET …/status`, and submit-time rejections all flow through one place), notifying the report **author +
@@ -38,36 +49,38 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   GETs). Per-tenant/per-report failures logged + skipped; the scheduled method never throws (would suppress
   future runs); `TenantContext` cleared per tenant. Testcontainers IT (two tenants transition + isolation).
   Commits `015ea61`…`9530bf3` (+ 9.4). Per-step docs: `steps/PHASE-9.1..9.4`.
-- **Branch:** `phase-10/notifications` (off `main`, which holds Phases 6–9 + XSD-first via merge `70b4f08`).
+- **Branch:** `phase-11/ingestion` (off `main`, which holds Phases 6–10 + XSD-first via merge `335c0d6`).
 - **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
   `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — Phase 11 (ingestion)
+## Next Action — Phase 12 (Claude plugin & MCP harness + `cli/`)
 
-Generic inbound report intake. Expected scope:
-1. **`ingestion/`** — a generic inbound REST endpoint + file import (goAML XML + CSV) to create/enrich
-   reports from external data (the standalone counterpart to the Phase 1.5 accounting/screening intake).
-2. Reuses the `engine/` builders + validator + marshaller; idempotent on `entity_reference`.
+A plan already exists: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md).
+It has **4 open decisions to confirm** (auth model, submission autonomy, plugin target, transport) and
+notes steps 12.1–12.3 (read/build/validate/preview tools + plugin skill/commands) are buildable now on the
+existing `engine/`. Re-confirm/refresh that plan before building (some of its dependencies — submit/track/
+import — are now done, Phases 7/9/11).
 
-> Follow the gated workflow: write the Phase 11 plan + per-step understanding docs, get approval, then build
-> step-by-step (one green commit per step, JaCoCo gate extended).
+> Follow the gated workflow: refresh the Phase 12 plan + per-step docs, get approval, then build
+> step-by-step (one green commit per step, JaCoCo gate extended where logic lands).
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
 (PHASE-7.1..7.4) → report/submission persistence, services, REST API + RBAC + E2E; **Phase 8**
 (PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST;
 **Phase 9** (PHASE-9.1..9.4) → scheduler queries + config, RetryService, SubmissionStatusPoller, IT;
-**Phase 10** (PHASE-10.1..10.4) → notification store + config, SesClient, NotificationService, seam+REST+IT.
+**Phase 10** (PHASE-10.1..10.4) → notification store + config, SesClient, NotificationService, seam+REST+IT;
+**Phase 11** (PHASE-11.1..11.4) → import_job store, GoamlXmlImporter, CsvImporter, ingestion service+REST+E2E.
 
 ## Progress
 
-`[████████░░] 10/14 (≈71%)` + XSD-first foundation + layer-first refactor
+`[█████████░] 11/14 (≈79%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · **10 notifications** |
-| ⏭️ | **11 ingestion** (inbound REST + XML/CSV import) |
-| ⬜ | 12 mcp+cli · 13 frontend · 14 infra |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · **11 ingestion** |
+| ⏭️ | **12 mcp+cli** (Claude plugin & MCP harness) |
+| ⬜ | 13 frontend · 14 infra |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)

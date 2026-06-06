@@ -25,8 +25,8 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–10 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 11
-  (`ingestion/` — inbound REST + goAML XML/CSV import)**. Phase 7 wired the engine + b2b to HTTP (the
+- **Status:** Phases 1–11 committed (+ XSD-first foundation + layer-first refactor); next = **Phase 12
+  (Claude plugin & MCP harness + `cli/`)**. Phase 7 wired the engine + b2b to HTTP (the
   **DPMSR report lifecycle REST API**: `/api/v1/reports` create/validate/submit/status, MLRO-gated submit
   over `report`/`submission` tenant tables); Phase 8 added **S3 attachments** — multipart upload (proxied
   through the API) → S3, pulled into the submission ZIP at submit; `attachment` tenant table +
@@ -36,9 +36,14 @@ suite (accounting/ERP + AML screening).
   added **`notification/`** — a per-tenant in-app `notification` store + an `integration/aws/SesClient`
   (SES email, **gated off by default**), fired from the **`SubmissionService` seam** (`submit()` +
   `refreshStatus()` — covers the poller, on-demand status, and submit) to the report **author + tenant
-  MLROs**; best-effort + isolated (`safeNotify` never throws out); `GET/POST /api/v1/notifications`. Flow is
+  MLROs**; best-effort + isolated (`safeNotify` never throws out); `GET/POST /api/v1/notifications`. Phase 11
+  added **`ingestion/`** — file import as a persisted `import_job` with row-level results: **goAML XML**
+  (`GoamlXmlImporter` reuses unmarshal + validators) + a flat **DPMSR CSV** (`CsvImporter` → row →
+  `DpmsrCreateRequest` → the existing `ReportService.create`, no parallel persist); synchronous, per-row
+  isolation, fail-fast whole-file rejection; `POST/GET /api/v1/imports`. (Also fixed a latent audit bug:
+  `DefaultAuditService` now **restores** the caller's `TenantContext` instead of clearing it.) Flow is
   manually testable via the API (live submit needs per-tenant FIU config + the `goaml-attachments` bucket;
-  live email needs a verified SES sender).
+  live email needs a verified SES sender). The CSV template is provisional pending FIU sign-off.
 - **First report type = `DPMSR`** (precious-metals dealers; cash ≥ AED 55,000). All 17 schema codes later.
 - **DPMSR is activity-shaped** (goods + parties, no `<transaction>` block).
 - **Auth:** self-managed HS256 JWT, RBAC roles SUPER_ADMIN/TENANT_ADMIN/MLRO/ANALYST; tenant routing via

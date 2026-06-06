@@ -1,6 +1,7 @@
 package com.vyttah.goaml.exception;
 
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
+import com.vyttah.goaml.service.ingestion.IngestionExceptions;
 import com.vyttah.goaml.service.notification.NotificationExceptions;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.submission.SubmissionExceptions;
@@ -37,7 +38,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             ReportExceptions.ReportNotFoundException.class,
             AttachmentExceptions.AttachmentNotFoundException.class,
-            NotificationExceptions.NotificationNotFoundException.class
+            NotificationExceptions.NotificationNotFoundException.class,
+            IngestionExceptions.ImportJobNotFoundException.class
     })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());
@@ -73,7 +75,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             MethodArgumentNotValidException.class,
             IllegalArgumentException.class,
-            AttachmentExceptions.AttachmentRejectedException.class
+            AttachmentExceptions.AttachmentRejectedException.class,
+            IngestionExceptions.ImportRejectedException.class
     })
     public ResponseEntity<Map<String, Object>> handleBadRequest(Exception ex) {
         return body(HttpStatus.BAD_REQUEST, ex.getMessage());

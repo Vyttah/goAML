@@ -39,8 +39,8 @@ machine-local state — so anyone on any machine can resume.
 | 8 | **S3 attachments** — `integration/aws/S3StorageClient` + `attachment` tenant table; multipart upload (proxied through the API) → S3, pulled into the submission ZIP; attach/list/remove REST; LocalStack IT + E2E | ✅ | `07afd21`…`77de56e` |
 | 9 | **`scheduler/`** — `@Scheduled` `SubmissionStatusPoller` across ACTIVE tenants (reuses `refreshStatus`) + bounded transient `RetryService`; poll-only (no auto-resubmit), plain `@Scheduled` (no distributed lock); Testcontainers IT | ✅ | `015ea61`…(9.4) |
 | 10 | **`notification/`** — per-tenant in-app store + SES email (`integration/aws/SesClient`), fired off report transitions at the `SubmissionService` seam (poller + on-demand + submit) to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`; Testcontainers ITs | ✅ | `99e3c75`…(10.4) |
-| **11** | **`ingestion/`** generic inbound REST + file import (goAML XML + CSV) | **⏭️ NEXT** | — |
-| 12 | **`mcp/` tools + `cli/`** (picocli) | ⬜ | — |
+| 11 | **`ingestion/`** — file import as a persisted `import_job` (row-level results): goAML XML (`GoamlXmlImporter`) + flat DPMSR CSV (`CsvImporter` → `ReportService.create`); `POST/GET /api/v1/imports`; sync + per-row isolation; MockMvc E2E | ✅ | `dd9b54a`…(11.4) |
+| **12** | **`mcp/` tools + `cli/`** (picocli) | **⏭️ NEXT** | — |
 | 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ | — |
 | 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ | — |
 
@@ -93,7 +93,9 @@ plumbing; they block going live.
    [validation gap](05-engine.md#3-validation-engine-validation--the-core-of-correctness)).
 4. **Initial UAE lookup exports** (or confirmed `OdataLookups` access) — to seed/refresh `lookups/ae/*`
    (current files are placeholders).
-5. **CSV import template** — confirm the column layout per report type (Phase 11).
+5. **CSV import template** — a **provisional flat DPMSR template is proposed** (Phase 11, one row = one
+   report; single counterparty + one good — see `plans/phase-11-ingestion.md` §3). **Still needs FIU/
+   stakeholder sign-off**; the importer is column-name-driven so a layout change is a mapping tweak.
 6. **AWS account specifics** — ECR registry, EKS cluster/region, RDS endpoint, IRSA role ARNs, SES
    verified sender, KMS key — for Helm values + CD (Phases 6/14).
 

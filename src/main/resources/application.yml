@@ -29,6 +29,13 @@ spring:
       # Caches per-tenant goAML B2B session tokens (Phase 6.2). docker-compose `redis` on :6379.
       host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
+  servlet:
+    multipart:
+      # Phase 11 imports (goAML XML / DPMSR CSV) + Phase 8 attachments. Raise the 1 MB default so valid
+      # uploads aren't rejected; the per-file/total caps still apply (PackagingLimits at submit, max-rows
+      # for CSV). Keep generous but bounded.
+      max-file-size: ${GOAML_MULTIPART_MAX_FILE_SIZE:10MB}
+      max-request-size: ${GOAML_MULTIPART_MAX_REQUEST_SIZE:15MB}
 
 server:
   port: 8080
@@ -83,6 +90,9 @@ goaml:
     email:
       enabled: ${GOAML_NOTIFICATIONS_EMAIL_ENABLED:false}
       from: ${GOAML_NOTIFICATIONS_EMAIL_FROM:no-reply@goaml.vyttah.com}  # must be an SES-verified sender
+  ingestion:
+    # Phase 11: file import (goAML XML + DPMSR CSV). Synchronous, so the row cap bounds in-request work.
+    max-rows: ${GOAML_INGESTION_MAX_ROWS:500}   # max CSV data rows per upload; larger files are rejected
 
 logging:
   pattern:
