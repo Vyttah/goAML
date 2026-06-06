@@ -1,4 +1,4 @@
-import { Layout, Menu, Typography, Button, Space } from 'antd';
+import { Layout, Menu, Typography, Button, Space, Tag } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLES } from '../auth/roles';
@@ -42,6 +42,7 @@ export function AppShell() {
           style={{ flex: 1, minWidth: 0 }}
         />
         <Space>
+          {identity?.roles[0] && <Tag color="blue">{identity.roles[0]}</Tag>}
           <Typography.Text style={{ color: 'rgba(255,255,255,0.85)' }}>
             {identity?.email}
           </Typography.Text>

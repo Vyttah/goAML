@@ -50,6 +50,11 @@ export interface ApiErrorBody {
   [key: string]: unknown;
 }
 
+/** HTTP status of an axios error, or undefined if it isn't one / had no response. */
+export function httpStatus(err: unknown): number | undefined {
+  return axios.isAxiosError(err) ? err.response?.status : undefined;
+}
+
 /** Extract a human-readable message from an unknown thrown value (axios error or otherwise). */
 export function errorMessage(err: unknown, fallback = 'Something went wrong'): string {
   if (axios.isAxiosError(err)) {
