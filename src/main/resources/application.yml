@@ -98,6 +98,11 @@ goaml:
     # same-origin from the jar → no CORS). Set to the SPA dev-server origin only when it calls a remote
     # backend, e.g. http://localhost:5173.
     allowed-origins: ${GOAML_ALLOWED_ORIGINS:}
+  dev:
+    # LOCAL ONLY — on startup, seed a demo tenant + ready login users so the SPA is reviewable without
+    # the provisioning chicken-and-egg. NEVER enable in a deployed environment. See config/dev/DevDataSeeder.
+    seed:
+      enabled: ${GOAML_DEV_SEED:false}
 
 logging:
   pattern:
