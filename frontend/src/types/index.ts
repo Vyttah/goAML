@@ -16,3 +16,57 @@ export interface LoginResponse {
   tokenType: string;
   expiresInSeconds: number;
 }
+
+// ---- Reports ---------------------------------------------------------------------------------
+
+/** Report lifecycle statuses (backend `Report.status` / submission outcomes). */
+export const REPORT_STATUSES = [
+  'DRAFT',
+  'VALID',
+  'INVALID',
+  'SUBMITTED',
+  'ACCEPTED',
+  'REJECTED',
+  'FAILED',
+] as const;
+
+export type ReportStatus = (typeof REPORT_STATUSES)[number];
+
+/** A single validation finding — mirrors `engine.validation.ValidationMessage`. */
+export interface ValidationMessage {
+  severity: 'ERROR' | 'WARNING';
+  path: string;
+  code: string;
+  message: string;
+}
+
+/** Report summary for list/get — mirrors `ReportResponses.ReportView`. */
+export interface ReportView {
+  id: string;
+  entityReference: string;
+  reportCode: string;
+  status: string;
+  rentityId: number | null;
+  createdAt: string;
+}
+
+/** Create/validate result — mirrors `ReportResponses.CreateReportResponse`. */
+export interface CreateReportResponse {
+  reportId: string;
+  status: string;
+  validationMessages: ValidationMessage[];
+}
+
+/** FIU submission result — mirrors `ReportResponses.SubmissionView`. */
+export interface SubmissionView {
+  submissionId: string;
+  reportKey: string | null;
+  status: string;
+}
+
+/** Latest FIU status for a report — mirrors `ReportResponses.StatusView`. */
+export interface StatusView {
+  reportKey: string | null;
+  status: string;
+  errors: string | null;
+}
