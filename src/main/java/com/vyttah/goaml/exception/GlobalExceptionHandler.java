@@ -1,5 +1,6 @@
 package com.vyttah.goaml.exception;
 
+import com.vyttah.goaml.controller.lookup.LookupExceptions;
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.ingestion.IngestionExceptions;
 import com.vyttah.goaml.service.notification.NotificationExceptions;
@@ -39,7 +40,8 @@ public class GlobalExceptionHandler {
             ReportExceptions.ReportNotFoundException.class,
             AttachmentExceptions.AttachmentNotFoundException.class,
             NotificationExceptions.NotificationNotFoundException.class,
-            IngestionExceptions.ImportJobNotFoundException.class
+            IngestionExceptions.ImportJobNotFoundException.class,
+            LookupExceptions.LookupNotFoundException.class
     })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());
