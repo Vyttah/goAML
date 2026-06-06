@@ -127,4 +127,26 @@ Design defaults; mobile-first design (desktop-first compliance tool).
 
 ---
 
-## Outcome — 🔲 (fill on completion)
+## Outcome — ✅ DONE (2026-06-07)
+
+Shipped on branch `phase-13/frontend` in 11 gated steps (`8e76a40`…13.11), each with a per-step doc
+(`steps/PHASE-13.1..13.11`) and all gates green (`tsc` + ESLint + `vite build`; backend JaCoCo on the new
+controllers/services). **58 Vitest specs.**
+
+- **Backend enablers (13.1–13.2):** lookup API + CORS + SPA-serving; admin API (tenants / users /
+  goAML-config) over `TenantProvisioningService` + repos.
+- **SPA (13.3–13.10):** scaffold + api/auth core → login + role-aware shell → dashboard → **full nested
+  DPMSR builder** (Zod mirror + lookup dropdowns + inline server validation; D1 = full structure, chosen
+  this session) → report detail (MLRO submit + FIU status + attachments) → import (XML/CSV + per-row
+  results) → notifications (bell + center) + reference browser → admin.
+- **Docs/merge (13.11):** `frontend/README.md`, `docs/12-frontend.md`, ROADMAP/STATE/CLAUDE/discussion-log
+  synced; merge to `main`.
+- **Plus** a gated `config/dev/DevDataSeeder` (`goaml.dev.seed.enabled`) so the SPA is reviewable locally.
+
+**Deviations from the plan, recorded:** three panels the plan listed (report **XML preview**, a **validation
+panel** for an existing report, **attachment download**) have **no backend endpoint** — surfaced in the UI
+as future backend adds rather than faked. Lookups are placeholder **code-only** seeds, so only
+country/currency are dropdowns. The **Gradle node task** (dist → static) is deferred to **Phase 14**
+(packaging), per the plan's §9 note about not breaking `./gradlew test` on a Node-less machine.
+
+**Next:** Phase 14 (infra) — bundle `frontend/dist` into the jar, Dockerfile, Helm, CI/CD.

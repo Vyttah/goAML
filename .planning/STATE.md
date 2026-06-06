@@ -19,12 +19,21 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–11 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
-  gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 13 next** — **React frontend**. Build order **reordered (2026-06-06): 13 → 14 →
-  12**; Phase 12 (plugin/MCP/CLI) is **deferred to last**, Phase 1.5 **deferred — decide later** (see
-  Recent Decisions).
-- **Last completed:** **Phase 11 (`ingestion/`)** — file import as a persisted `import_job` with row-level
+- **Phases 1–11 + 13 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 +
+  XSD gate + DPMSR builder) and the **Vyttah layer-first refactor**.
+- **Active focus: Phase 14 (infra) next** — Dockerfile finalize, Helm chart, observability, CI/CD. Build
+  order **13 → 14 → 12**; Phase 12 (plugin/MCP/CLI) **deferred to last**, Phase 1.5 **deferred — decide
+  later** (see Recent Decisions).
+- **Last completed:** **Phase 13 (`frontend/`)** — the React + TypeScript + Vite + Ant Design SPA over the
+  REST API: auth (JWT-claims identity, 401→login) → dashboard → **full DPMSR builder** (Zod mirror, lookup
+  dropdowns, inline server validation) → report detail (MLRO submit + FIU status + attachments) → file
+  import (XML/CSV + per-row results) → notifications (bell + center) → reference browser → admin (tenant /
+  user / goAML-config). Plus the **REST enablers** it needed: `controller/lookup/`, `controller/admin/` +
+  `service/admin/`, env-gated CORS + SPA-serving. A gated **dev seeder** (`config/dev/DevDataSeeder`,
+  `goaml.dev.seed.enabled`) seeds a demo tenant + logins for local review. **58 Vitest specs**;
+  `tsc`+ESLint+`vite build` gated per step; backend JaCoCo gate held on the new controllers/services.
+  Commits `8e76a40`…(13.11). Per-step docs: `steps/PHASE-13.1..13.11`.
+- **Previously:** **Phase 11 (`ingestion/`)** — file import as a persisted `import_job` with row-level
   results: **goAML XML** (`GoamlXmlImporter` reuses unmarshal + XSD/rules validators → persisted,
   re-submittable) + a flat **DPMSR CSV** (`CsvImporter` maps each row → `DpmsrCreateRequest` → the existing
   `ReportService.create`, no parallel persist). Synchronous; per-row isolation (a bad row → `FAILED`
@@ -50,22 +59,25 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   GETs). Per-tenant/per-report failures logged + skipped; the scheduled method never throws (would suppress
   future runs); `TenantContext` cleared per tenant. Testcontainers IT (two tenants transition + isolation).
   Commits `015ea61`…`9530bf3` (+ 9.4). Per-step docs: `steps/PHASE-9.1..9.4`.
-- **Branch:** `phase-11/ingestion` (off `main`, which holds Phases 6–10 + XSD-first via merge `335c0d6`).
-- **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
-  `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
+- **Branch:** `phase-13/frontend` (off `main`; Phases 6–11 + XSD-first are on `main`). Merge to `main` on
+  Phase 13 close.
+- **Build/tests:** ✅ green — backend `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`;
+  frontend `cd frontend && npm test` (58) / `npm run typecheck` / `npm run lint` / `npm run build`.
+- **Local review:** `GOAML_DEV_SEED=true ./gradlew bootRun` (seeds a demo tenant + logins, all password
+  `Passw0rd!`: `mlro@demo.local`, `analyst@demo.local`, `admin@demo.local`, `superadmin@goaml.local`) +
+  `cd frontend && npm run dev` → http://localhost:5173 (proxies `/api` → :8080).
 
-## Next Action — Phase 13 (React frontend)
+## Next Action — Phase 14 (infra)
 
-The standalone product's UI: auth → dashboard → report builder (DPMSR first) → detail/track → import →
-lookups → admin → notifications. It **consumes the REST API only** (every endpoint it needs already exists:
-auth, `/api/v1/reports`, attachments, status, `/api/v1/imports`, lookups, admin, `/api/v1/notifications`),
-so it is **fully buildable now**. Stack per docs/00: **React + TypeScript + Vite + Ant Design** under
-`frontend/`, wired into `static/` via a Gradle node task for the prod jar.
+Package + deploy: finalize the Dockerfile (multi-stage: build the `frontend/` SPA → into the jar's
+`static/` → run), Helm chart, observability baseline (the actuator/prometheus endpoints already exist), and
+GitHub Actions CI/CD. The **Gradle node task** to build `frontend/` into `static/` for the prod jar belongs
+here (gate it so backend-only contributors aren't forced to build the SPA). Per docs/00.
 
-> Follow the gated workflow: write the Phase 13 plan + per-step docs, get approval, then build
-> step-by-step. (Front-end test/coverage conventions to be set in the plan.)
+> Caveat carried forward: when Phase 12 (plugin/MCP/CLI) ships *after* infra, expect a minor infra touch-up
+> (expose the MCP HTTP route in Helm/ingress + the `--cli` run-mode).
 
-**Then:** Phase 14 (infra), then Phase 12 (plugin/MCP/CLI) **last** — see the build-order decision below.
+**Then:** Phase 12 (plugin/MCP/CLI) **last** — see the build-order decision below.
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
@@ -77,13 +89,13 @@ STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, go
 
 ## Progress
 
-`[█████████░] 11/14 (≈79%)` + XSD-first foundation + layer-first refactor
+`[██████████] 12/14 (≈86%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · **11 ingestion** |
-| ⏭️ | **13 frontend** (React + Ant Design; REST-only) |
-| ⬜ | 14 infra · then **12 mcp+cli last** (deferred); 1.5 suite-integration deferred |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · **13 frontend** |
+| ⏭️ | **14 infra** (Dockerfile + Helm + observability + CI/CD) |
+| ⬜ | then **12 mcp+cli last** (deferred); 1.5 suite-integration deferred |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)
@@ -166,5 +178,12 @@ STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, go
   preserved snapshot); a follow-up commit merged Ultraplan's refinements into the auth plan and removed the
   redundant `goamlplanningkb/` duplicate. ⚠️ Real-PII sample XMLs remain committed (local-only, unpushed) —
   **anonymize before any push/share.**
+- **2026-06-06/07 session:** built **Phase 13 (React frontend)** end-to-end on branch `phase-13/frontend`
+  — backend enablers (lookup API, admin API, CORS/SPA-serving) then the full Vite+React+TS+AntD SPA
+  (steps 13.1–13.11), 58 Vitest specs, all gates green; added a gated dev seeder for local review. Decision
+  this session: the DPMSR builder is the **full nested form** (per plan D1). Surfaced (not faked) three
+  small backend gaps for later: report XML preview, validation re-fetch for an existing report, attachment
+  download. **Next: merge `phase-13/frontend` → `main`, then Phase 14 (infra).**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
-  `./gradlew test` (confirm green) → continue (XSD-first foundation, then Phase 6).
+  `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
+  `cd frontend && npm install && npm run dev` → continue with Phase 14 (infra).

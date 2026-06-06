@@ -3,10 +3,11 @@
 > **Audience:** a developer joining this project who knows nothing about AML, goAML, the
 > business, or this codebase. These docs are written to take you from zero to productive.
 >
-> **Status (as of this writing):** Phases 1–5 of 14 complete, **plus** the XSD-first foundation migration
-> (domain now xjc-generated from the real goAML **5.0.2** XSD + an XSD validation gate + a DPMSR builder)
-> and the Vyttah layer-first refactor. Full test suite green (`./gradlew test` → `BUILD SUCCESSFUL`).
-> Next up: **Phase 6 — AWS integration + B2B client.** Live status: [`.planning/STATE.md`](../.planning/STATE.md).
+> **Status (as of this writing):** Phases 1–11 **+ 13** of 14 complete, **plus** the XSD-first foundation
+> (domain xjc-generated from the real goAML **5.0.2** XSD + an XSD validation gate + a DPMSR builder) and the
+> Vyttah layer-first refactor. Backend suite green (`./gradlew test`); the **`frontend/` React SPA** (Phase
+> 13) is built with 58 Vitest specs green. Next up: **Phase 14 — infra (Dockerfile + Helm + CI/CD)**, then
+> Phase 12 (plugin/MCP/CLI) last. Live status: [`.planning/STATE.md`](../.planning/STATE.md).
 
 ---
 
@@ -26,6 +27,7 @@
 | 9 | [09 — Build Order & Roadmap](09-build-order-and-roadmap.md) | The 14-phase plan, what's done, **what Phase 6 entails in detail**, and what's left. |
 | 10 | [10 — B2B Submission Protocol](10-b2b-submission-protocol.md) | How reports are actually submitted to the FIU over goAML's REST API (the target of Phase 6/9). |
 | 11 | [11 — Glossary](11-glossary.md) | Every acronym and term in one place. Keep this open in a tab. |
+| 12 | [12 — Frontend (SPA)](12-frontend.md) | The Phase 13 React + Ant Design SPA: stack, layout, how it talks to the API (JWT-claims identity, 401→login), local run, and testing. |
 | — | [CONVENTIONS.md](CONVENTIONS.md) | The repo's **layer-first folder structure & coding conventions** (Vyttah standard, adapted). The authoritative structure reference. |
 
 ---

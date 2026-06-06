@@ -17,8 +17,8 @@
 | 9 | **`scheduler/`** — `@Scheduled` `SubmissionStatusPoller` across ACTIVE tenants (reuses `refreshStatus`) + bounded transient `RetryService`; poll-only (no auto-resubmit), plain `@Scheduled`; Testcontainers IT | ✅ done | `015ea61`…`9530bf3` |
 | 10 | **`notification/`** — per-tenant in-app store + SES email (`SesClient`), fired off report transitions at the `SubmissionService` seam (poller + on-demand + submit) to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`; Testcontainers ITs. Plan: [plans/phase-10-notifications.md](plans/phase-10-notifications.md) | ✅ done | `99e3c75`…`6da1a5f` |
 | 11 | **`ingestion/`** — file import as a persisted `import_job` with row-level results: goAML **XML** (`GoamlXmlImporter` reuses unmarshal+validators) + flat **DPMSR CSV** (`CsvImporter` → `DpmsrCreateRequest` → `ReportService.create`); `POST/GET /api/v1/imports`; sync + per-row isolation; MockMvc E2E. Plan: [plans/phase-11-ingestion.md](plans/phase-11-ingestion.md) | ✅ done | `dd9b54a`…(11.4) |
-| 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications (consumes the REST API only; fully buildable now) | ⏭️ **next** | — |
-| 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ todo (after 13) | — |
+| 13 | **React frontend** (`frontend/`) — Vite+React+TS+AntD SPA: auth → dashboard → DPMSR builder → detail/submit/track → import → notifications + lookups browser → admin; + REST enablers (lookup API, admin API, CORS/SPA-serving). 58 Vitest specs; typecheck+lint+build gated. Plan: [plans/phase-13-react-frontend.md](plans/phase-13-react-frontend.md) | ✅ done | `8e76a40`…(13.11) |
+| 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⏭️ **next** | — |
 | 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⬜ todo (**deferred — built LAST**) | — |
 
 > **Build order (decided 2026-06-06):** remaining phases run **13 → 14 → 12**. Phase 12 (plugin/MCP/CLI)
@@ -42,6 +42,21 @@
   ≥90% gate on the new packages (achieved ~98.7% instr). Per-step docs: `steps/PHASE-6.1..6.5`.
 
 See [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md) for the wire protocol.
+
+## Phase 13 (DONE) — what shipped
+
+- **Backend enablers:** `controller/lookup/` (jurisdictions + lookup sets, authenticated) · `controller/admin/`
+  + `service/admin/` (tenant provision/list = SUPER_ADMIN; user + goAML-config = TENANT_ADMIN) · env-gated
+  CORS bean + SPA-serving `WebMvcConfigurer` + `SecurityConfig` permits. Held to the existing JaCoCo gate.
+- **`frontend/` SPA** (Vite 5 · React 18 · TS · Ant Design 5 · TanStack Query · Zod · React Router · MSW ·
+  Vitest+RTL): auth (JWT-claims identity, 401→login) → dashboard → **full DPMSR builder** (Zod mirror,
+  lookup dropdowns, inline server validation) → report detail (MLRO submit + FIU status + attachments) →
+  import (XML/CSV + per-row results) → notifications (bell + center) → reference browser → admin.
+- **Dev seeder** (`config/dev/DevDataSeeder`, gated `goaml.dev.seed.enabled`) seeds a demo tenant + logins
+  for local review. **58 Vitest specs**; `tsc`+ESLint+`vite build` gated per step. Per-step docs:
+  `steps/PHASE-13.1..13.11`.
+- **Known UI-surfaced backend gaps** (small future adds): report XML preview, re-fetching an existing
+  report's validation result, and attachment download — no endpoints yet, flagged in-UI rather than faked.
 
 ## Detailed phase plans
 

@@ -174,3 +174,26 @@ and a form/API from screening — but keep that as Phase 1.5."**
   - Remaining build order = **13 (frontend) → 14 (infra) → 12 (plugin/MCP/CLI, LAST)**.
   - **Phase 1.5** (Vyttah-suite integration + federated auth) = **deferred — decide later** (separate track).
 - **Next action:** Phase 13 (React frontend) — write the plan, get approval, build per the gated workflow.
+
+---
+
+## 2026-06-06/07 — Phase 13: React frontend (built end-to-end)
+
+- **Built the full `frontend/` SPA** (Vite + React + TS + Ant Design) over the REST API, on branch
+  `phase-13/frontend`, in 11 gated steps (per-step docs `steps/PHASE-13.1..13.11`), 58 Vitest specs green.
+  Backend enablers first (lookup API, admin API, CORS + SPA-serving), then the SPA area-by-area: auth/shell
+  → dashboard → DPMSR builder → report detail/lifecycle → import → notifications + reference browser → admin.
+- **Decisions (confirmed via AskUserQuestion):**
+  - **DPMSR builder scope = the full nested form** (plan D1): header + reportingPerson (phone/address/
+    identifications) + parties[] (person XOR entity, entities with directors[]) + goods[], with Zod mirror,
+    lookup-driven country/currency dropdowns, and inline server `ValidationResult`.
+  - **Local-review credentials = a gated dev seeder** (`config/dev/DevDataSeeder`, `goaml.dev.seed.enabled`,
+    off by default) — there are **no seeded users** and provisioning needs a SUPER_ADMIN token
+    (chicken-and-egg); the seeder creates a demo tenant + SUPER_ADMIN/TENANT_ADMIN/MLRO/ANALYST logins
+    (password `Passw0rd!`). Never enable in a deployed environment.
+- **Honest gaps surfaced (not faked)** — no backend endpoint exists for report **XML preview**, for
+  **re-fetching an existing report's validation result** (messages return only at create time), or for
+  **attachment download**. Flagged in the UI as small future backend adds. Lookups are placeholder
+  code-only seeds (only country/currency are dropdowns). The **Gradle node task** (dist → static) is
+  deferred to **Phase 14** packaging.
+- **Next action:** merge `phase-13/frontend` → `main`, then **Phase 14 (infra)**.
