@@ -145,3 +145,32 @@ and a form/API from screening — but keep that as Phase 1.5."**
 - `.planning/plans/xsd-first-foundation.md`
 - `.planning/field-acquisition-checklist.md`
 - Vendored: `src/main/resources/xsd/goaml/5.0.2/`, `src/test/resources/samples/`
+
+---
+
+## Session 2026-06-06 — Phases 10 & 11 built; remaining build order reordered
+
+### Built + merged to `main`
+- **Phase 10 (`notification/`)** — in-app store + SES email, fired at the `SubmissionService` seam to
+  author + tenant MLROs; merge `335c0d6`.
+- **Phase 11 (`ingestion/`)** — goAML XML + flat DPMSR CSV import as a persisted `import_job` with row-level
+  results; reuses `ReportService.create`; merge `c533e70`. Also fixed a latent audit `TenantContext` clobber.
+
+### Decision — defer Phase 12 to last; remaining order 13 → 14 → 12; Phase 1.5 deferred
+- **Ask:** "hold the Claude plugin & MCP harness + CLI for now; finish the product and its every phase
+  first, then take Phase 12 last — but answer only after proper research."
+- **Research findings (not assumptions):**
+  - **Nothing depends on Phase 12.** The **React frontend (13) talks to the REST API** (docs/00:
+    "React talks to the REST API"), not MCP/CLI; every REST surface it needs already exists (Phases
+    2/5/7/8/9/10/11). **Infra (14)** packages the jar/SPA regardless. **Phase 1.5** is independent.
+  - **Phase 12 depends only on Phases 6–11** (its own plan §0/§9) — all complete — so it can run any time
+    after 11, including last. It's now *more* buildable than when planned (all tool tiers unblocked).
+  - **Both remaining product phases are buildable now:** 13 (frontend, REST-only) and 14 (infra; best after
+    13 so the built SPA wires into `static/`).
+  - **Caveat:** docs/00 defines the deployable as "REST API + MCP server + static SPA + CLI mode of one
+    jar." With 14 before 12, infra needs a minor revisit when 12 ships (MCP HTTP route in Helm/ingress +
+    `--cli` run-mode). Known touch-up, not a blocker.
+- **Decisions (confirmed via AskUserQuestion):**
+  - Remaining build order = **13 (frontend) → 14 (infra) → 12 (plugin/MCP/CLI, LAST)**.
+  - **Phase 1.5** (Vyttah-suite integration + federated auth) = **deferred — decide later** (separate track).
+- **Next action:** Phase 13 (React frontend) — write the plan, get approval, build per the gated workflow.

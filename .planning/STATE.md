@@ -21,8 +21,9 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 - **Phases 1–11 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD
   gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 12 next** — **Claude plugin & MCP harness + `cli/`** (plan exists;
-  [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md)).
+- **Active focus: Phase 13 next** — **React frontend**. Build order **reordered (2026-06-06): 13 → 14 →
+  12**; Phase 12 (plugin/MCP/CLI) is **deferred to last**, Phase 1.5 **deferred — decide later** (see
+  Recent Decisions).
 - **Last completed:** **Phase 11 (`ingestion/`)** — file import as a persisted `import_job` with row-level
   results: **goAML XML** (`GoamlXmlImporter` reuses unmarshal + XSD/rules validators → persisted,
   re-submittable) + a flat **DPMSR CSV** (`CsvImporter` maps each row → `DpmsrCreateRequest` → the existing
@@ -53,16 +54,18 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 - **Build/tests:** ✅ green — `docker compose up -d postgres localstack redis` then
   `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`.
 
-## Next Action — Phase 12 (Claude plugin & MCP harness + `cli/`)
+## Next Action — Phase 13 (React frontend)
 
-A plan already exists: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md).
-It has **4 open decisions to confirm** (auth model, submission autonomy, plugin target, transport) and
-notes steps 12.1–12.3 (read/build/validate/preview tools + plugin skill/commands) are buildable now on the
-existing `engine/`. Re-confirm/refresh that plan before building (some of its dependencies — submit/track/
-import — are now done, Phases 7/9/11).
+The standalone product's UI: auth → dashboard → report builder (DPMSR first) → detail/track → import →
+lookups → admin → notifications. It **consumes the REST API only** (every endpoint it needs already exists:
+auth, `/api/v1/reports`, attachments, status, `/api/v1/imports`, lookups, admin, `/api/v1/notifications`),
+so it is **fully buildable now**. Stack per docs/00: **React + TypeScript + Vite + Ant Design** under
+`frontend/`, wired into `static/` via a Gradle node task for the prod jar.
 
-> Follow the gated workflow: refresh the Phase 12 plan + per-step docs, get approval, then build
-> step-by-step (one green commit per step, JaCoCo gate extended where logic lands).
+> Follow the gated workflow: write the Phase 13 plan + per-step docs, get approval, then build
+> step-by-step. (Front-end test/coverage conventions to be set in the plan.)
+
+**Then:** Phase 14 (infra), then Phase 12 (plugin/MCP/CLI) **last** — see the build-order decision below.
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
@@ -79,8 +82,8 @@ STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, go
 | Done | Phase |
 |------|-------|
 | ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · **11 ingestion** |
-| ⏭️ | **12 mcp+cli** (Claude plugin & MCP harness) |
-| ⬜ | 13 frontend · 14 infra |
+| ⏭️ | **13 frontend** (React + Ant Design; REST-only) |
+| ⬜ | 14 infra · then **12 mcp+cli last** (deferred); 1.5 suite-integration deferred |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)
@@ -89,6 +92,13 @@ STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, go
 
 ## Recent Decisions
 
+- **Remaining build order — 13 → 14 → 12; 12 deferred to last; 1.5 deferred (2026-06-06):** after research
+  (nothing depends on Phase 12 — the frontend consumes the **REST API**, infra packages the jar regardless,
+  and Phase 12 only needs the now-complete Phases 6–11), the **Claude plugin & MCP harness + `cli/`** is
+  moved to **last**. Order: **Phase 13 (frontend) → Phase 14 (infra) → Phase 12 (plugin/MCP/CLI)**.
+  **Caveat:** infra (14) lands before 12, so expect a minor infra touch-up when 12 ships (MCP HTTP route in
+  Helm/ingress + `--cli` run-mode). **Phase 1.5** (Vyttah-suite integration + federated auth) is a separate
+  track, **deferred — decide later**. Full Q&A in [discussion-log.md](discussion-log.md).
 - **Suite positioning + unified auth + Phase 1.5 (2026-06-04):** goAML is sold **standalone AND** runs in
   Vyttah's suite (accounting/ERP + AML screening) as its own microservice. **Unified auth:** goAML keeps
   its own JWT as identity authority; accounting/screening exchange their authenticated user for a goAML

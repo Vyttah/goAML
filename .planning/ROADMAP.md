@@ -17,9 +17,15 @@
 | 9 | **`scheduler/`** — `@Scheduled` `SubmissionStatusPoller` across ACTIVE tenants (reuses `refreshStatus`) + bounded transient `RetryService`; poll-only (no auto-resubmit), plain `@Scheduled`; Testcontainers IT | ✅ done | `015ea61`…`9530bf3` |
 | 10 | **`notification/`** — per-tenant in-app store + SES email (`SesClient`), fired off report transitions at the `SubmissionService` seam (poller + on-demand + submit) to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`; Testcontainers ITs. Plan: [plans/phase-10-notifications.md](plans/phase-10-notifications.md) | ✅ done | `99e3c75`…`6da1a5f` |
 | 11 | **`ingestion/`** — file import as a persisted `import_job` with row-level results: goAML **XML** (`GoamlXmlImporter` reuses unmarshal+validators) + flat **DPMSR CSV** (`CsvImporter` → `DpmsrCreateRequest` → `ReportService.create`); `POST/GET /api/v1/imports`; sync + per-row isolation; MockMvc E2E. Plan: [plans/phase-11-ingestion.md](plans/phase-11-ingestion.md) | ✅ done | `dd9b54a`…(11.4) |
-| 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⏭️ **next** (planned) | — |
-| 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications | ⬜ todo | — |
-| 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ todo | — |
+| 13 | **React frontend** — auth → dashboard → report builder → detail/track → import → lookups → admin → notifications (consumes the REST API only; fully buildable now) | ⏭️ **next** | — |
+| 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⬜ todo (after 13) | — |
+| 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⬜ todo (**deferred — built LAST**) | — |
+
+> **Build order (decided 2026-06-06):** remaining phases run **13 → 14 → 12**. Phase 12 (plugin/MCP/CLI)
+> is deferred to last — it's dependency-safe (nothing depends on it; the frontend uses the REST API, and it
+> only needs the now-complete Phases 6–11). Caveat: since infra (14) lands before 12, expect a minor infra
+> touch-up when 12 ships (expose the MCP HTTP route in Helm/ingress + confirm the `--cli` run-mode).
+> **Phase 1.5** (suite integration + federated auth) is **deferred — decide later** (separate track).
 | **1.5** | **Suite integration + federated auth** — RabbitMQ accounting consumer (txn → reportability → auto-create DPMSR draft → MLRO 1-click), screening REST/form push, `/api/v1/auth/federated/token` token-exchange + `external_identity`. Plan: [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md) | ⬜ todo (planned) | — |
 
 > **Note on Phase 1.5:** the "1.5" label reflects its product priority, but it is **sequenced after the
