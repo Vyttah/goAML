@@ -1,11 +1,18 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
+import { server } from '../test/msw/server';
 import { renderWithProviders } from '../test/render';
 import { makeToken } from '../test/util';
 import { getToken, setToken } from '../auth/tokenStore';
 import { AppShell } from './AppShell';
+
+// The shell mounts the notification bell, which polls the notifications endpoint.
+beforeEach(() => {
+  server.use(http.get('*/api/v1/notifications', () => HttpResponse.json([])));
+});
 
 function shellRoutes() {
   return (

@@ -11,6 +11,7 @@ export function useLookupCodes(set: string, jurisdiction = DEFAULT_JURISDICTION)
   return useQuery({
     queryKey: ['lookups', jurisdiction, set],
     queryFn: () => getLookupSet(set, jurisdiction).then((r) => r.codes),
+    enabled: Boolean(set) && Boolean(jurisdiction),
     staleTime: 5 * 60_000,
   });
 }
@@ -25,5 +26,6 @@ export function useLookupSets(jurisdiction = DEFAULT_JURISDICTION) {
   return useQuery({
     queryKey: ['lookups', jurisdiction, '__sets__'],
     queryFn: () => listLookupSets(jurisdiction),
+    enabled: Boolean(jurisdiction),
   });
 }

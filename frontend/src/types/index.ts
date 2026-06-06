@@ -104,3 +104,16 @@ export interface ImportJobView {
   results: ImportRowResult[];
   createdAt: string;
 }
+
+// ---- Notifications ---------------------------------------------------------------------------
+
+/** In-app notification — mirrors `model.dto.notification.NotificationView`. `readAt == null` = unread. */
+export interface NotificationView {
+  id: string;
+  type: string;
+  reportId: string | null;
+  title: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+}

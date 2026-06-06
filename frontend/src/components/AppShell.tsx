@@ -2,6 +2,7 @@ import { Layout, Menu, Typography, Button, Space, Tag } from 'antd';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 import { ROLES } from '../auth/roles';
+import { NotificationBell } from './notifications/NotificationBell';
 
 const { Header, Content } = Layout;
 
@@ -19,6 +20,7 @@ export function AppShell() {
     ...(can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN)
       ? [{ key: '/imports', label: <Link to="/imports">Import</Link> }]
       : []),
+    { key: '/reference', label: <Link to="/reference">Reference</Link> },
     ...(can(ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN)
       ? [{ key: '/admin', label: <Link to="/admin">Admin</Link> }]
       : []),
@@ -45,6 +47,7 @@ export function AppShell() {
           style={{ flex: 1, minWidth: 0 }}
         />
         <Space>
+          <NotificationBell />
           {identity?.roles[0] && <Tag color="blue">{identity.roles[0]}</Tag>}
           <Typography.Text style={{ color: 'rgba(255,255,255,0.85)' }}>
             {identity?.email}
