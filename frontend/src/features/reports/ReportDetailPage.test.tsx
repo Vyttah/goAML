@@ -116,6 +116,24 @@ describe('ReportDetailPage', () => {
     expect(screen.getByText('ACCEPTED')).toBeInTheDocument();
   });
 
+  it('views the generated goAML XML in a modal', async () => {
+    stubReport('VALID');
+    stubAttachments();
+    server.use(
+      http.get(`*/api/v1/reports/${ID}/xml`, () =>
+        HttpResponse.text('<report><report_code>DPMSR</report_code></report>', {
+          headers: { 'Content-Type': 'application/xml' },
+        }),
+      ),
+    );
+    renderDetail('ANALYST');
+
+    await userEvent.click(await screen.findByRole('button', { name: /view xml/i }));
+
+    expect(await screen.findByLabelText('report-xml')).toHaveTextContent('<report_code>DPMSR</report_code>');
+    expect(screen.getByRole('button', { name: /download/i })).toBeEnabled();
+  });
+
   it('lists attachments and removes one', async () => {
     let items: AttachmentView[] = [
       {

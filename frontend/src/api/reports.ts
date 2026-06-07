@@ -23,6 +23,12 @@ export async function createReport(body: DpmsrCreateRequest): Promise<CreateRepo
   return data;
 }
 
+/** Fetch the marshalled goAML XML for a report (served as application/xml, read as text). */
+export async function getReportXml(id: string): Promise<string> {
+  const { data } = await apiClient.get(`${BASE}/${id}/xml`, { responseType: 'text' });
+  return data as string;
+}
+
 /** Submit a report to the FIU (MLRO only — backend enforces). */
 export async function submitReport(id: string): Promise<SubmissionView> {
   const { data } = await apiClient.post<SubmissionView>(`${BASE}/${id}/submit`, {});
