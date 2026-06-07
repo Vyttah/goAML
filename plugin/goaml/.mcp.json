@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "goaml": {
+      "type": "sse",
+      "url": "${GOAML_MCP_URL}",
+      "headers": {
+        "Authorization": "Bearer ${GOAML_MCP_TOKEN}"
+      }
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "goaml",
+  "version": "0.1.0",
+  "description": "Build, validate, preview and (guarded) submit UAE FIU goAML AML reports through the goAML platform's MCP server — tenant-scoped and role-aware.",
+  "author": {
+    "name": "Vyttah",
+    "url": "https://vyttah.com"
+  },
+  "keywords": ["goaml", "aml", "regtech", "compliance", "dpmsr", "uae", "fiu"],
+  "mcpServers": "./.mcp.json"
+}
