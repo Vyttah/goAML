@@ -10,6 +10,7 @@ import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.security.JwtService;
 import com.vyttah.goaml.service.audit.AuditService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
  */
 @RequiredArgsConstructor
 @Service
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class DefaultAuthService implements AuthService {
 
     private final AuthenticationManager authenticationManager;

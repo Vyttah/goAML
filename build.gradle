@@ -107,6 +107,10 @@ dependencies {
     implementation 'io.projectreactor:reactor-core'
     implementation 'io.micrometer:context-propagation'
 
+    // picocli (Phase 12.6) — the `--cli` run-mode of the same jar: a terminal surface (validate / preview /
+    // submit / status / import / lookups) that delegates to the SAME services as REST + MCP (parity).
+    implementation 'info.picocli:picocli:4.7.6'
+
     runtimeOnly    'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
