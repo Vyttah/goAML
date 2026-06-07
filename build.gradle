@@ -57,6 +57,10 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    // Observability (Phase 14): Prometheus scrape endpoint (/actuator/prometheus) + JSON log encoder
+    // (used only under the `prod` Spring profile via logback-spring.xml; dev stays human-readable).
+    runtimeOnly    'io.micrometer:micrometer-registry-prometheus'
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
@@ -143,6 +147,7 @@ def coveredPackages = [
         'com/vyttah/goaml/model/mapper/report/**',
         'com/vyttah/goaml/controller/report/**',
         'com/vyttah/goaml/controller/lookup/**',
+        'com/vyttah/goaml/config/observability/**',
         'com/vyttah/goaml/scheduler/**'
 ]
 
