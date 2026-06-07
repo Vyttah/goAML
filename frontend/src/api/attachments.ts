@@ -4,10 +4,18 @@ import type { AttachmentView } from '../types';
 
 const base = (reportId: string) => `${API_PREFIX}/reports/${reportId}/attachments`;
 
-/** List a report's attachments (metadata only — bytes stay in S3; no download endpoint exists). */
+/** List a report's attachments (metadata only — bytes stay in S3, fetched on demand by downloadAttachment). */
 export async function listAttachments(reportId: string): Promise<AttachmentView[]> {
   const { data } = await apiClient.get<AttachmentView[]>(base(reportId));
   return data;
+}
+
+/** Fetch an attachment's bytes (proxied from S3 through the API) as a Blob for download. */
+export async function downloadAttachment(reportId: string, attachmentId: string): Promise<Blob> {
+  const { data } = await apiClient.get(`${base(reportId)}/${attachmentId}/content`, {
+    responseType: 'blob',
+  });
+  return data as Blob;
 }
 
 /** Upload an attachment (multipart, proxied through the API to S3). */

@@ -26,7 +26,8 @@ import {
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { StatusTag } from '../../components/StatusTag';
 import { getReportXml } from '../../api/reports';
-import { downloadText } from '../../lib/download';
+import { downloadAttachment } from '../../api/attachments';
+import { downloadBlob, downloadText } from '../../lib/download';
 import { errorMessage } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLES } from '../../auth/roles';
@@ -137,6 +138,15 @@ export function ReportDetailPage() {
     }
   };
 
+  const onDownloadAttachment = async (row: AttachmentView) => {
+    setActionError(null);
+    try {
+      downloadBlob(await downloadAttachment(id, row.id), row.filename);
+    } catch (err) {
+      setActionError(errorMessage(err, 'Could not download attachment'));
+    }
+  };
+
   const uploadProps: UploadProps = {
     showUploadList: false,
     multiple: false,
@@ -162,24 +172,30 @@ export function ReportDetailPage() {
       render: formatBytes,
     },
     { title: 'Added', dataIndex: 'createdAt', key: 'createdAt', width: 200, render: formatTimestamp },
-    ...(canEditAttachments
-      ? [
-          {
-            title: '',
-            key: 'actions',
-            width: 100,
-            render: (_: unknown, row: AttachmentView) => (
-              <Popconfirm
-                title="Remove this attachment?"
-                okText="Remove"
-                onConfirm={() => removeAttachment.mutate(row.id)}
-              >
-                <Button type="text" danger icon={<DeleteOutlined />} aria-label="Remove attachment" />
-              </Popconfirm>
-            ),
-          },
-        ]
-      : []),
+    {
+      title: '',
+      key: 'actions',
+      width: 130,
+      render: (_: unknown, row: AttachmentView) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<DownloadOutlined />}
+            aria-label="Download attachment"
+            onClick={() => onDownloadAttachment(row)}
+          />
+          {canEditAttachments && (
+            <Popconfirm
+              title="Remove this attachment?"
+              okText="Remove"
+              onConfirm={() => removeAttachment.mutate(row.id)}
+            >
+              <Button type="text" danger icon={<DeleteOutlined />} aria-label="Remove attachment" />
+            </Popconfirm>
+          )}
+        </Space>
+      ),
+    },
   ];
 
   return (

@@ -63,6 +63,16 @@ public class DefaultAttachmentService implements AttachmentService {
     }
 
     @Override
+    public AttachmentDownload download(UUID reportId, UUID attachmentId) {
+        requireReport(reportId);
+        Attachment attachment = attachmentRepository.findByIdAndReportId(attachmentId, reportId)
+                .orElseThrow(() -> new AttachmentExceptions.AttachmentNotFoundException(
+                        "Attachment " + attachmentId + " not found on report " + reportId));
+        byte[] bytes = s3StorageClient.fetch(attachment.getS3Key());
+        return new AttachmentDownload(attachment.getFilename(), attachment.getContentType(), bytes);
+    }
+
+    @Override
     public void remove(UUID reportId, UUID attachmentId, UUID actorUserId) {
         Report report = requireReport(reportId);
         requireEditable(report);
