@@ -1,0 +1,20 @@
+# Keep the build context small + reproducible, and keep test fixtures (incl. real-PII sample XMLs in
+# src/test/resources/samples) OUT of the image.
+.git
+.github
+.gradle
+# Root Gradle output only — anchored so it does NOT match the engine/build/ Java package.
+/build/
+**/node_modules/
+frontend/dist/
+frontend/coverage/
+src/test/
+.planning/
+docs/
+*.md
+.idea/
+.vscode/
+.DS_Store
+*.log
+.env
+.env.*
