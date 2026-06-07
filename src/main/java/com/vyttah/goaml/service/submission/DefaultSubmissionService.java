@@ -128,6 +128,21 @@ public class DefaultSubmissionService implements SubmissionService {
         return status;
     }
 
+    @Override
+    public String postMessage(String message, UUID tenantId, UUID actorUserId) {
+        B2bTenantConfig cfg = b2bConfig(tenantId);
+        try {
+            String response = b2bClient.postMessage(cfg, message);
+            // Record the action but not the message body (it may carry sensitive case detail).
+            auditService.record("FIU.MESSAGE", actorUserId, null, TenantContext.get(),
+                    "posted FIU MessageBoard message (" + message.length() + " chars)");
+            return response;
+        } catch (B2bAuthException | B2bTransportException e) {
+            throw new SubmissionExceptions.SubmissionTransportException(
+                    "Failed to post FIU message for tenant " + tenantId, e);
+        }
+    }
+
     /**
      * Fan a transition out to notifications — best-effort. A notification/email failure must never roll
      * back the (already-persisted) status change or abort the caller (a poll cycle or a request), so any

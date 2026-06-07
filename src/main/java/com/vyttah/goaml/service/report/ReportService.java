@@ -20,6 +20,18 @@ public interface ReportService {
      */
     ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId);
 
+    /**
+     * Build + validate a DPMSR from the request and return the verdict + messages, <strong>without</strong>
+     * persisting (no duplicate check). Same engine path as {@link #create} — lets a caller check a draft first.
+     */
+    ReportValidationResult validate(DpmsrCreateRequest request, UUID tenantId);
+
+    /**
+     * Build a DPMSR from the request to its marshalled goAML XML (the bytes that would be submitted) plus the
+     * validation verdict, <strong>without</strong> persisting. Same engine path as {@link #create}.
+     */
+    ReportPreview previewXml(DpmsrCreateRequest request, UUID tenantId);
+
     /** @throws ReportExceptions.ReportNotFoundException if absent in this tenant */
     Report get(UUID reportId);
 

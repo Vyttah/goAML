@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__goaml__goaml_submit_report",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'goAML SAFETY: a submit tool was invoked. Filing to the UAE FIU is IRREVERSIBLE and requires dryRun=false + confirm=true + the MLRO role; the goAML server enforces this. Always dry-run and review the XML with a human before a real submission.' >&2"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__goaml__goaml_post_message",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'goAML SAFETY: posting to the FIU MessageBoard sends to the regulator and requires confirm=true + the MLRO role.' >&2"
+          }
+        ]
+      }
+    ]
+  }
+}

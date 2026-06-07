@@ -1,6 +1,6 @@
 package com.vyttah.goaml.security;
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,8 +28,8 @@ import lombok.RequiredArgsConstructor;
  */
 @RequiredArgsConstructor
 @Configuration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @EnableMethodSecurity
-@EnableConfigurationProperties(JwtProperties.class)
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -47,6 +47,13 @@ public class SecurityConfig {
                                 "/actuator/prometheus",
                                 "/api/v1/auth/**"
                         ).permitAll()
+                        // Phase 12: the MCP transport (SSE stream + JSON-RPC message endpoint) is
+                        // authenticated like the REST API. With base-url=/api/v1 the endpoints land at
+                        // /api/v1/sse + /api/v1/mcp/message (already covered by /api/** below); these
+                        // explicit matchers are a safety net so the transport is never accidentally public
+                        // if the base-url prefix is removed/changed. JwtAuthFilter sets TenantContext + the
+                        // principal on the same servlet thread that runs the tool → MCP inherits tenant+RBAC.
+                        .requestMatchers("/sse", "/mcp/**").authenticated()
                         // The REST API requires authentication; method-level @PreAuthorize enforces RBAC.
                         .requestMatchers("/api/**").authenticated()
                         // Everything else — the React SPA shell + its static assets (served from

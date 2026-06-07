@@ -25,9 +25,13 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–11 **+ 13 + 14** committed (+ XSD-first foundation + layer-first refactor); next =
-  **Phase 12 (plugin/MCP/CLI) — the LAST phase**. **Build order 13 → 14 → 12.** **Phase 1.5** (suite
-  integration + federated auth) deferred — decide later. **Phase 14** added the deployable infra: a
+- **Status: ALL 14 phases committed** (+ XSD-first foundation + layer-first refactor) — the standalone product
+  is complete. Built order was 13 → 14 → 12; **Phase 12 (plugin/MCP/CLI) was the last** and is done. **Phase 1.5**
+  (suite integration + federated auth) remains deferred — decide later. **Phase 12** added a Spring AI **MCP
+  server** (SSE at `/api/v1/mcp/**`, tenant-scoped + role-gated, MLRO-gated dry-run-first submission), a Claude
+  **plugin** (`plugin/goaml/` + repo-root `.claude-plugin/marketplace.json`), and a **`--cli`** run-mode of the
+  same jar — REST/MCP/CLI all delegate to the same engine/services (parity). See `docs/13-plugin-mcp-cli.md`.
+  **Phase 14** added the deployable infra: a
   finalized 3-stage **Dockerfile** (node SPA build → layered `bootJar` with the SPA on the classpath →
   non-root JRE), a full **Helm chart** (`helm/goaml/`: Deployment+probes, Service, Ingress+TLS, HPA,
   ConfigMap, ServiceAccount+IRSA, 3 secret strategies), an **observability baseline**

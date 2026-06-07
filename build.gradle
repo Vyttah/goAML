@@ -93,6 +93,24 @@ dependencies {
     // Redis (Phase 6.2) — caches each tenant's goAML B2B session token (SqlAuthCookie) across app instances.
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
+    // Spring AI MCP Server (Phase 12) — exposes the goAML lifecycle as MCP @Tool methods over an
+    // HTTP/SSE (streamable) transport, so Claude can drive build/validate/submit safely. The BOM pins the
+    // Spring AI train; the webmvc starter auto-discovers ToolCallbackProvider beans and serves /sse +
+    // /mcp/message. Pinned to 1.0.2 (verified against Spring Boot 3.3.x); a contract test guards the wiring.
+    implementation platform('org.springframework.ai:spring-ai-bom:1.0.2')
+    implementation 'org.springframework.ai:spring-ai-starter-mcp-server-webmvc'
+    // The MCP sync server hops tool execution onto a Reactor scheduler thread, so the SecurityContext +
+    // TenantContext that JwtAuthFilter sets on the servlet thread must be propagated across that hop.
+    // Reactor's automatic context propagation (reactor-core) + ThreadLocalAccessors (context-propagation)
+    // do exactly that. Both arrive transitively via the MCP starter; declared here because we use their
+    // API directly (see mcp/McpContextPropagationConfig). Versions pinned by the Spring Boot BOM.
+    implementation 'io.projectreactor:reactor-core'
+    implementation 'io.micrometer:context-propagation'
+
+    // picocli (Phase 12.6) — the `--cli` run-mode of the same jar: a terminal surface (validate / preview /
+    // submit / status / import / lookups) that delegates to the SAME services as REST + MCP (parity).
+    implementation 'info.picocli:picocli:4.7.6'
+
     runtimeOnly    'org.postgresql:postgresql'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -148,7 +166,8 @@ def coveredPackages = [
         'com/vyttah/goaml/controller/report/**',
         'com/vyttah/goaml/controller/lookup/**',
         'com/vyttah/goaml/config/observability/**',
-        'com/vyttah/goaml/scheduler/**'
+        'com/vyttah/goaml/scheduler/**',
+        'com/vyttah/goaml/mcp/**'
 ]
 
 jacocoTestReport {

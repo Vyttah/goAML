@@ -49,16 +49,11 @@ public class DefaultReportService implements ReportService {
                     "A report already exists with entity_reference " + request.entityReference());
         }
 
-        Optional<TenantGoamlConfig> config = configRepository.findByTenantId(tenantId);
-        int rentityId = config.map(TenantGoamlConfig::getRentityId).orElse(0);
-        String jurisdiction = config.map(c -> c.getJurisdictionCode().toLowerCase()).orElse("ae");
+        int rentityId = resolveRentityId(tenantId);
+        ValidatedReport validated = buildAndValidate(request, tenantId);
 
-        DpmsrReportInput input = requestMapper.toInput(request, rentityId);
-        ValidatedReport validated = reportBuilder.buildAndValidate(input, jurisdiction);
-
-        List<ValidationMessage> messages = new ArrayList<>(validated.rules().messages());
-        messages.addAll(validated.xsd().messages());
-        String status = validated.isValid() ? "VALID" : "INVALID";
+        List<ValidationMessage> messages = mergeMessages(validated);
+        String status = statusOf(validated);
 
         Report report = new Report(UUID.randomUUID(), request.entityReference(), REPORT_CODE,
                 rentityId, status, toJson(request), actorUserId);
@@ -70,6 +65,41 @@ public class DefaultReportService implements ReportService {
                 REPORT_CODE + " " + request.entityReference() + " -> " + status);
 
         return new ReportResult(report.getId(), status, messages);
+    }
+
+    @Override
+    public ReportValidationResult validate(DpmsrCreateRequest request, UUID tenantId) {
+        ValidatedReport validated = buildAndValidate(request, tenantId);
+        return new ReportValidationResult(statusOf(validated), mergeMessages(validated));
+    }
+
+    @Override
+    public ReportPreview previewXml(DpmsrCreateRequest request, UUID tenantId) {
+        ValidatedReport validated = buildAndValidate(request, tenantId);
+        return new ReportPreview(statusOf(validated), validated.xml(), mergeMessages(validated));
+    }
+
+    /** The shared engine path: resolve the tenant's rentity_id + jurisdiction, map, build + validate. */
+    private ValidatedReport buildAndValidate(DpmsrCreateRequest request, UUID tenantId) {
+        Optional<TenantGoamlConfig> config = configRepository.findByTenantId(tenantId);
+        int rentityId = config.map(TenantGoamlConfig::getRentityId).orElse(0);
+        String jurisdiction = config.map(c -> c.getJurisdictionCode().toLowerCase()).orElse("ae");
+        DpmsrReportInput input = requestMapper.toInput(request, rentityId);
+        return reportBuilder.buildAndValidate(input, jurisdiction);
+    }
+
+    private int resolveRentityId(UUID tenantId) {
+        return configRepository.findByTenantId(tenantId).map(TenantGoamlConfig::getRentityId).orElse(0);
+    }
+
+    private static String statusOf(ValidatedReport validated) {
+        return validated.isValid() ? "VALID" : "INVALID";
+    }
+
+    private static List<ValidationMessage> mergeMessages(ValidatedReport validated) {
+        List<ValidationMessage> messages = new ArrayList<>(validated.rules().messages());
+        messages.addAll(validated.xsd().messages());
+        return messages;
     }
 
     @Override

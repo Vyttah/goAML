@@ -38,6 +38,11 @@ service:
 ingress:
   enabled: false
   className: ""
+  # The `/` rule already routes the REST API, the SPA, AND the MCP server (served at /api/v1/mcp/sse +
+  # /api/v1/mcp/message — Phase 12). The MCP transport is Server-Sent Events (a long-lived stream), so on
+  # nginx-ingress disable response buffering and raise the read timeout, e.g.:
+  #   nginx.ingress.kubernetes.io/proxy-buffering: "off"
+  #   nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
   annotations: {}
   host: goaml.example.com
   tls:

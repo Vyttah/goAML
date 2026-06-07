@@ -220,3 +220,36 @@ and a form/API from screening — but keep that as Phase 1.5."**
   run-mode. PII sample XMLs still must be purged from history before any first push to a remote.
 - **Next action:** merge `phase-14/infra` → `main`, then **Phase 12 (plugin/MCP/CLI) — the last phase**
   (confirm its 4 open decisions first).
+
+---
+
+## 2026-06-07 — Phase 12 (plugin / MCP / CLI), the final phase
+
+- **Decisions (confirmed via AskUserQuestion):** per-tenant **MCP service token** auth model (implemented as
+  the same JWT resolution for now — service-token issuance is a focused later add); **human-confirmed,
+  MLRO-gated, dry-run-first** submission; **full Claude plugin + MCP server**; **streamable-HTTP/SSE on EKS +
+  stdio local**. The user also chose to **build Phase 12 only** (not pull the deferred Phase 1.5 forward).
+- **Shipped in 7 gated steps (`94a0dce`…12.7), each with a per-step doc (`steps/PHASE-12.1..12.7`):**
+  - **12.1** MCP server (Spring AI 1.0.2 webmvc SSE) + token auth + tenant/RBAC. Two non-obvious findings,
+    both fixed: `base-url` is NOT honored for the WebMvc SSE route (used explicit `sse-endpoint`
+    `/api/v1/mcp/sse`); the sync server runs tools on a Reactor thread, so the SecurityContext + TenantContext
+    are carried across via Reactor automatic context propagation + ThreadLocalAccessors. Proven by a real
+    SSE-client parity IT.
+  - **12.2** read/build/validate/preview tools; added `ReportService.validate`/`previewXml` (closed the
+    Phase-13 gap) + `engine/metadata/ReportTypeMetadata` (single source of truth, shared with the validator).
+  - **12.3** the Claude plugin (skill + `.mcp.json` + `/goaml-build` `/goaml-validate`).
+  - **12.4** submit/status/messages + the **safety harness** (MLRO, dry-run-first, confirm-required,
+    validate-first) + a pre-submit hook; `SubmissionService.postMessage` added.
+  - **12.5** import + admin tools (lookups-refresh **deferred** — no backend FIU-lookup sync exists).
+  - **12.6** the **CLI** (`--cli` run-mode, picocli) with the same harness; made `SecurityConfig`/
+    `DefaultAuthService`/`AuthController` `@ConditionalOnWebApplication` so the non-web context loads, and moved
+    `JwtProperties` registration to `GoamlApplication`.
+  - **12.7** packaging (repo-root `.claude-plugin/marketplace.json`), `docs/13-plugin-mcp-cli.md`, the
+    carried-forward Helm-ingress/Dockerfile infra touch-up, planning sync, and the merge to `main`.
+- **Honest scope:** RBAC is enforced at each tool/command via explicit `McpIdentity.requireAnyRole` /
+  `CliAuthenticator.requireRoles` (reliable across the MCP/CLI edges) rather than `@PreAuthorize` through
+  picocli/MethodToolCallback reflection. The `cli/**` package is not under the JaCoCo gate (its bootstrap glue
+  isn't unit-testable); commands have unit + IT coverage. A live confirmed-submit-over-MCP/CLI E2E is left to
+  the existing WireMock submission-service coverage.
+- **Outcome:** the standalone product is complete — **14/14 phases**. Open: Phase 1.5 (deferred) + go-live
+  prerequisites (AWS, a remote + the **PII-history purge**, FIU creds/lookups).

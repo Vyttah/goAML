@@ -36,6 +36,30 @@ spring:
       # for CSV). Keep generous but bounded.
       max-file-size: ${GOAML_MULTIPART_MAX_FILE_SIZE:10MB}
       max-request-size: ${GOAML_MULTIPART_MAX_REQUEST_SIZE:15MB}
+  # Phase 12: Spring AI MCP server. Exposes the goAML lifecycle as MCP @Tool methods over an HTTP/SSE
+  # (streamable) transport so Claude can drive build/validate/submit safely. The endpoint paths are set
+  # explicitly under /api/v1/mcp/ (the `base-url` prefix property is NOT honored for the WebMvc SSE route
+  # in this Spring AI version, but sse-endpoint/sse-message-endpoint ARE). Namespacing under /api means the
+  # existing /api/** security rule + JwtAuthFilter authenticate every MCP call exactly like a REST call
+  # (tenant + RBAC parity). Only the tool capability is enabled. SYNC = servlet (WebMvc SSE) execution.
+  ai:
+    mcp:
+      server:
+        enabled: ${GOAML_MCP_ENABLED:true}
+        name: goaml-mcp
+        version: 0.1.0
+        type: SYNC
+        sse-endpoint: /api/v1/mcp/sse
+        sse-message-endpoint: /api/v1/mcp/message
+        instructions: >-
+          goAML MCP server for UAE FIU AML reporting. Read/build/validate/preview tools are safe;
+          submission is human-gated (validate-first, dry-run, MLRO-confirmed). Call goaml_whoami first
+          to confirm your tenant and role before acting.
+        capabilities:
+          tool: true
+          resource: false
+          prompt: false
+          completion: false
 
 server:
   port: 8080

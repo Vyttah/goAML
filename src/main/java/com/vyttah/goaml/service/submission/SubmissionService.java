@@ -23,4 +23,14 @@ public interface SubmissionService {
 
     /** Poll the FIU for the latest status of a report's most recent submission and persist the update. */
     ReportStatus refreshStatus(UUID reportId, UUID tenantId);
+
+    /**
+     * Post a free-text message to the tenant's FIU MessageBoard (a correspondence channel, not a report).
+     * Audited. The message text is not logged in the audit summary (only its length).
+     *
+     * @return the FIU's raw response body
+     * @throws SubmissionExceptions.TenantConfigMissingException no {@code tenant_goaml_config}
+     * @throws SubmissionExceptions.SubmissionTransportException auth/transport failure
+     */
+    String postMessage(String message, UUID tenantId, UUID actorUserId);
 }

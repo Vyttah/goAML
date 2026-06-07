@@ -263,6 +263,27 @@ class DefaultSubmissionServiceTest {
         verify(submissionRepository, never()).save(any());
     }
 
+    @Test
+    void postMessageSendsAndAudits() {
+        stubConfig();
+        when(b2bClient.postMessage(any(), any())).thenReturn("{\"ok\":true}");
+
+        String response = service.postMessage("Please advise on case 42", tenantId, actor);
+
+        assertThat(response).isEqualTo("{\"ok\":true}");
+        verify(b2bClient).postMessage(any(), any());
+        verify(auditService).record(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void postMessageTransportFailureThrows() {
+        stubConfig();
+        when(b2bClient.postMessage(any(), any())).thenThrow(new B2bTransportException("boom"));
+
+        assertThatThrownBy(() -> service.postMessage("hi", tenantId, actor))
+                .isInstanceOf(SubmissionExceptions.SubmissionTransportException.class);
+    }
+
     private static List<String> entryNames(byte[] zipBytes) throws Exception {
         List<String> names = new ArrayList<>();
         try (ZipInputStream zis = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {

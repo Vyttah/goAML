@@ -1,8 +1,13 @@
 # Plan — Phase 12: goAML Claude Plugin & MCP Harness
 
-> **Status:** PLANNED (not started). Elaborates roadmap Phase 12 (`mcp/` + `cli/`) into a full-fledged,
-> distributable **Claude plugin + MCP harness** so a user can connect Claude and drive *all* goAML
-> features by natural language — safely.
+> **Status: ✅ APPROVED (2026-06-07) — the 4 open decisions are resolved (all recommended defaults; see §10).
+> The LAST phase.** Elaborates roadmap Phase 12 (`mcp/` + `cli/`) into a full-fledged, distributable
+> **Claude plugin + MCP harness** so a user can connect Claude and drive *all* goAML features by natural
+> language — safely.
+>
+> **Stack locked:** Spring AI **1.0.2** MCP server starter **`org.springframework.ai:spring-ai-starter-mcp-server-webmvc`**
+> (SSE/streamable-HTTP, auto-discovers `@Tool` methods; verified compatible with Spring Boot 3.3.x / Java 21).
+> Pin the version + add a contract test (the starter API has moved fast across milestones).
 >
 > **Depends on:** Phases 6–11 (the MCP tools are thin wrappers over the already-built `engine/` and the
 > upcoming `b2b/`, `persistence/`, `service/`, `scheduler/`, `ingestion/` layers). The plugin can be
@@ -67,8 +72,9 @@ it shares the tenant routing, RBAC, audit, and service beans already in place. T
 - **streamable-HTTP / SSE** — for the deployed multi-tenant server on EKS (the primary mode), behind the
   same auth as `/api/v1`.
 
-> ⚠️ Verify exact Spring AI MCP starter coordinates/version during implementation; the API around MCP
-> server starters has moved fast. Pin the version and add a contract test.
+> ✅ Coordinates verified: `org.springframework.ai:spring-ai-starter-mcp-server-webmvc:1.0.2` (Spring AI
+> 1.0 GA renamed starters to `spring-ai-starter-*`). Needs the Spring AI BOM
+> (`org.springframework.ai:spring-ai-bom:1.0.2`). Pin it + a contract test (the API moved fast pre-1.0).
 
 ---
 
@@ -243,21 +249,39 @@ The **plugin** itself (skills/commands/hooks/.mcp.json) is a separate deliverabl
 
 ---
 
-## 10. Open decisions to confirm (before building)
+## 10. Decisions — ✅ RESOLVED (2026-06-07, all recommended defaults)
 
-These genuinely fork the design — defaults chosen are the recommended ones:
-
-1. **Auth model for the Claude user** — *default: per-tenant revocable MCP **service token** (role-scoped,
-   audited)*; alt: paste the short-lived user JWT; alt: OAuth device flow.
-2. **Submission autonomy** — *default: human-confirmed, MLRO-gated, dry-run-first (recommended for a
-   regulator-facing system)*; alt: build/validate-only via MCP and keep submission in the UI; alt: fully
-   autonomous (not recommended).
-3. **Plugin target** — *default: a Claude Code/Desktop plugin (skills + commands + .mcp.json + hooks)*;
-   alt: ship only the MCP server and let users wire any MCP client themselves.
-4. **MCP server transport for the deployed product** — *default: streamable-HTTP/SSE behind the existing
-   auth on EKS*; stdio reserved for local/desktop single-tenant use.
+1. **Auth model** — ✅ **per-tenant revocable MCP service token** (role-scoped, audited), issued from the
+   admin surface; resolved exactly like the REST JWT (TenantContext + RBAC).
+2. **Submission autonomy** — ✅ **human-confirmed, MLRO-gated, dry-run-first** (validate-first, idempotent).
+   The agent can never silently file to the FIU.
+3. **Plugin target** — ✅ **full Claude plugin + MCP server** (skill + commands + `.mcp.json` + pre-submit hook).
+4. **Transport** — ✅ **streamable-HTTP/SSE on EKS** (behind the existing auth) + **stdio for local/desktop**.
 
 ---
+
+## Outcome — ✅ DONE (2026-06-07)
+
+Shipped on branch `phase-12/plugin-mcp` in 7 gated steps (`94a0dce`…12.7), each with a per-step doc
+(`steps/PHASE-12.1..12.7`); merged to `main`. The standalone product is now **14/14 phases complete**.
+
+- **MCP server** (`mcp/`) — Spring AI 1.0.2 webmvc SSE at `/api/v1/mcp/**`, authenticated by the existing
+  `JwtAuthFilter` → `TenantContext` + RBAC, with Reactor context propagation across the sync server's thread
+  hop. ~24 `@Tool`s (reference data, DPMSR build/validate/preview/create, guarded submit/status/messages,
+  import, admin), each delegating to existing services; RBAC via `McpIdentity.requireAnyRole`.
+- **Submission harness** — MLRO-gated, dry-run-first, confirm-required, validate-first; proven by unit tests +
+  over-the-wire ITs. The single most important rule held.
+- **Plugin** (`plugin/goaml/`) — skill + `/goaml-*` commands + `.mcp.json` + pre-submit hook; published via the
+  repo-root `.claude-plugin/marketplace.json`.
+- **CLI** (`cli/`) — `--cli` run-mode of the same jar (picocli), same services + same harness.
+- **Docs/infra** — `docs/13-plugin-mcp-cli.md`; Helm ingress MCP/SSE guidance + Dockerfile `--cli` note.
+
+**Deviations / honest scope:** auth uses the same JWT as REST (the dedicated revocable *service token* is a
+later add — the resolution seam is in place); RBAC is enforced by explicit role checks at the MCP/CLI edges
+(not `@PreAuthorize` through reflection); `cli/**` is not under the JaCoCo gate (bootstrap glue); a
+lookups-refresh tool and STR/other report-type builders are deferred (no backend sync; engine builds DPMSR).
+
+**Next:** Phase 1.5 (deferred) and the external go-live prerequisites (incl. the PII-sample history purge).
 
 ## 11. Out of scope (for this phase)
 
