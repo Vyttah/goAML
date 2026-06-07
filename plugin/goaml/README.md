@@ -9,9 +9,9 @@ bundles:
 - slash **commands** `/goaml-build` and `/goaml-validate`;
 - the **MCP server connection** to your goAML backend (tenant-scoped, role-aware).
 
-> Submission, status tracking, imports, and admin tools are added in later plugin versions. Today's tools are
-> read/build/validate/preview/create (draft) — **nothing is ever filed to the FIU without an explicit,
-> MLRO-confirmed step.**
+> Imports and admin tools are added in later plugin versions. **Submission is supported but guarded:**
+> nothing is ever filed to the FIU without a dry run, an explicit `confirm=true`, and the **MLRO** role — the
+> server enforces this, and a pre-submit hook adds a visible reminder.
 
 ## Prerequisites
 
@@ -50,6 +50,8 @@ role. Then:
 - `/goaml-build` — interview-style: assemble a DPMSR, validate it, preview the XML, and (on your go-ahead)
   save a draft.
 - `/goaml-validate <report or details>` — validate a DPMSR and get the failures explained in plain language.
+- `/goaml-submit <report id>` — **MLRO only**: dry-run → human review → confirmed, irreversible FIU filing.
+- `/goaml-status <report id>` — poll and explain a submitted report's FIU status.
 
 Or just ask in natural language ("build a DPMSR for a AED 90,000 gold sale to Acme Trading FZE and check
 it") — the `goaml` skill guides Claude through the correct, safe workflow.

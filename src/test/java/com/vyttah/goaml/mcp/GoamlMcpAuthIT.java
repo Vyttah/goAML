@@ -157,6 +157,32 @@ class GoamlMcpAuthIT {
         }
     }
 
+    @Test
+    void submitToolIsMlroGatedOverTheWire() {
+        // An ANALYST cannot submit — the guard fires before any report lookup.
+        try (McpSyncClient client = connect(mintToken(List.of("ANALYST"), "public"))) {
+            McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
+                    "goaml_submit_report", Map.of("reportId", UUID.randomUUID().toString())));
+
+            assertThat(result.isError()).isEqualTo(Boolean.TRUE);
+            assertThat(firstText(result)).contains("requires one of roles");
+        }
+    }
+
+    @Test
+    void submitToolRefusesRealSubmissionWithoutConfirmation() {
+        // MLRO, but a real submit (dryRun=false) without confirm=true must be refused — and refused before
+        // any report lookup, so this needs no provisioned report.
+        try (McpSyncClient client = connect(mintToken(List.of("MLRO"), "public"))) {
+            McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
+                    "goaml_submit_report",
+                    Map.of("reportId", UUID.randomUUID().toString(), "dryRun", false)));
+
+            assertThat(result.isError()).isNotEqualTo(Boolean.TRUE);
+            assertThat(firstText(result)).contains("without explicit confirmation");
+        }
+    }
+
     private McpSyncClient connect(String token) {
         McpSyncClient client = McpClient.sync(transport(token)).requestTimeout(Duration.ofSeconds(30)).build();
         client.initialize();
