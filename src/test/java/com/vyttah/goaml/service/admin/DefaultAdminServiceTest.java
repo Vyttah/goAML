@@ -1,5 +1,6 @@
 package com.vyttah.goaml.service.admin;
 
+import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
@@ -40,8 +41,11 @@ class DefaultAdminServiceTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final AuditService auditService = mock(AuditService.class);
 
+    private final JurisdictionRegistry jurisdictionRegistry = new JurisdictionRegistry();
+
     private final DefaultAdminService service = new DefaultAdminService(provisioning, tenantRepository,
-            appUserRepository, roleRepository, configRepository, passwordEncoder, auditService);
+            appUserRepository, roleRepository, configRepository, jurisdictionRegistry, passwordEncoder,
+            auditService);
 
     private final UUID tenantId = UUID.randomUUID();
 
@@ -118,5 +122,35 @@ class DefaultAdminServiceTest {
         verify(configRepository).save(saved.capture());
         assertThat(saved.getValue().getTenantId()).isEqualTo(tenantId);
         assertThat(saved.getValue().getRentityId()).isEqualTo(100);
+    }
+
+    @Test
+    void upsertGoamlConfigNormalizesAuthModeCase() {
+        when(configRepository.findByTenantId(tenantId)).thenReturn(Optional.empty());
+
+        service.upsertGoamlConfig(tenantId,
+                new GoamlConfigRequest("ae", 100, "https://goaml.test/uae", "goaml/y/creds", "basic"));
+
+        ArgumentCaptor<TenantGoamlConfig> saved = ArgumentCaptor.forClass(TenantGoamlConfig.class);
+        verify(configRepository).save(saved.capture());
+        assertThat(saved.getValue().getAuthMode()).isEqualTo("BASIC");
+    }
+
+    @Test
+    void upsertGoamlConfigRejectsUnknownAuthModeWithoutSaving() {
+        assertThatThrownBy(() -> service.upsertGoamlConfig(tenantId,
+                new GoamlConfigRequest("AE", 100, "https://goaml.test/uae", "goaml/y/creds", "PASSWORD")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("authMode");
+        verify(configRepository, never()).save(any());
+    }
+
+    @Test
+    void upsertGoamlConfigRejectsUnknownJurisdictionWithoutSaving() {
+        assertThatThrownBy(() -> service.upsertGoamlConfig(tenantId,
+                new GoamlConfigRequest("ZZ", 100, "https://goaml.test/uae", "goaml/y/creds", "TOKEN")))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("jurisdictionCode");
+        verify(configRepository, never()).save(any());
     }
 }

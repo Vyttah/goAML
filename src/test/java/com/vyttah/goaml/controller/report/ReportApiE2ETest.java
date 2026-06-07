@@ -123,6 +123,29 @@ class ReportApiE2ETest {
     }
 
     @Test
+    void xmlEndpointReturnsMarshalledGoamlXml() {
+        String mlro = user("xml", "MLRO");
+        ResponseEntity<JsonNode> created = post("/api/v1/reports", String.format(DPMSR_JSON, "PAY-XML-1"), mlro);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String reportId = created.getBody().get("reportId").asText();
+
+        ResponseEntity<String> xml = rest.exchange("/api/v1/reports/" + reportId + "/xml",
+                HttpMethod.GET, new HttpEntity<>(headers(mlro)), String.class);
+        assertThat(xml.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(xml.getHeaders().getContentType().toString()).startsWith(MediaType.APPLICATION_XML_VALUE);
+        assertThat(xml.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("PAY-XML-1.xml");
+        assertThat(xml.getBody())
+                .contains("<report_code>DPMSR</report_code>")
+                .contains("<entity_reference>PAY-XML-1</entity_reference>")
+                .contains("<rentity_id>3177</rentity_id>");
+
+        // a missing report → 404
+        assertThat(rest.exchange("/api/v1/reports/" + UUID.randomUUID() + "/xml",
+                HttpMethod.GET, new HttpEntity<>(headers(mlro)), String.class).getStatusCode())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void analystCanCreateButCannotSubmit() {
         String analyst = user("analyst", "ANALYST");
 

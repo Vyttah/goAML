@@ -5,13 +5,17 @@ import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.StatusView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.SubmissionView;
+import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.security.UserPrincipal;
+import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
 import com.vyttah.goaml.service.submission.SubmissionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -56,6 +60,26 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<ReportView> get(@PathVariable UUID id) {
         return ResponseEntity.ok(ReportView.from(reportService.get(id)));
+    }
+
+    /**
+     * The marshalled goAML XML for a report (built + persisted at create, for VALID and INVALID alike).
+     * Served as {@code application/xml} with a download filename so the SPA can both preview and download
+     * the exact payload that would be submitted to the FIU.
+     */
+    @GetMapping(value = "/{id}/xml", produces = MediaType.APPLICATION_XML_VALUE)
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<String> xml(@PathVariable UUID id) {
+        Report report = reportService.get(id);
+        String xml = report.getReportXml();
+        if (xml == null || xml.isBlank()) {
+            throw new ReportExceptions.ReportNotFoundException("Report has no generated XML: " + id);
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_XML)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + report.getEntityReference() + ".xml\"")
+                .body(xml);
     }
 
     @PostMapping("/{id}/submit")

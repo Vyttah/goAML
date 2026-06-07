@@ -33,6 +33,18 @@ public interface AttachmentService {
     List<Attachment> list(UUID reportId);
 
     /**
+     * Fetch an attachment's bytes (from S3) plus the metadata needed to serve a download. Allowed in any
+     * report status (a submitted/frozen report's evidence is still retrievable).
+     *
+     * @throws com.vyttah.goaml.service.report.ReportExceptions.ReportNotFoundException if the report is absent
+     * @throws AttachmentExceptions.AttachmentNotFoundException                         if the attachment is absent
+     */
+    AttachmentDownload download(UUID reportId, UUID attachmentId);
+
+    /** An attachment's bytes + the metadata a controller needs to set Content-Type / filename. */
+    record AttachmentDownload(String filename, String contentType, byte[] bytes) {}
+
+    /**
      * Delete an attachment (the S3 object then the row).
      *
      * @throws com.vyttah.goaml.service.report.ReportExceptions.ReportNotFoundException if the report is absent

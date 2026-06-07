@@ -5,6 +5,7 @@ import com.vyttah.goaml.security.UserPrincipal;
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.attachment.AttachmentService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -55,6 +56,28 @@ public class AttachmentController {
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<List<AttachmentView>> list(@PathVariable UUID reportId) {
         return ResponseEntity.ok(attachmentService.list(reportId).stream().map(AttachmentView::from).toList());
+    }
+
+    @GetMapping("/{attachmentId}/content")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<byte[]> download(@PathVariable UUID reportId, @PathVariable UUID attachmentId) {
+        AttachmentService.AttachmentDownload dl = attachmentService.download(reportId, attachmentId);
+        return ResponseEntity.ok()
+                .contentType(parseContentType(dl.contentType()))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + dl.filename() + "\"")
+                .body(dl.bytes());
+    }
+
+    /** Best-effort parse of the stored content type; falls back to octet-stream for null/garbage. */
+    private static MediaType parseContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
+        try {
+            return MediaType.parseMediaType(contentType);
+        } catch (org.springframework.http.InvalidMediaTypeException e) {
+            return MediaType.APPLICATION_OCTET_STREAM;
+        }
     }
 
     @DeleteMapping("/{attachmentId}")

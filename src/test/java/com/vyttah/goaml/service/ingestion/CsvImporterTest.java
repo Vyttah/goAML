@@ -151,6 +151,21 @@ class CsvImporterTest {
     }
 
     @Test
+    void missingIndicatorsOrPartyReasonHeaderRejectsFile() {
+        // a header that has the old "required" set but omits indicators + party_reason — these are now
+        // required because the schema mandates them and the flat template is their only source.
+        byte[] bad = ("entity_reference,submission_date,party_type,good_item_type,good_estimated_value,"
+                + "reporting_person_first_name,reporting_person_last_name\n"
+                + "REF-1,2026-05-26,PERSON,GOLD,60000,Sara,Khan\n").getBytes(StandardCharsets.UTF_8);
+
+        assertThatThrownBy(() -> importer(500).importCsv(bad, tenantId, actor))
+                .isInstanceOf(ImportRejectedException.class)
+                .hasMessageContaining("indicators")
+                .hasMessageContaining("party_reason");
+        verify(reportService, never()).create(any(), any(), any());
+    }
+
+    @Test
     void overRowCapRejectsFile() {
         assertThatThrownBy(() -> importer(1).importCsv(csv(
                 "REF-1,2026-05-26,,,,,S,K,PERSON,,J,D,,,,,,,GOLD,bar,60000,AED,SOLD",

@@ -129,6 +129,34 @@ class DefaultAttachmentServiceTest {
     }
 
     @Test
+    void downloadFetchesBytesFromS3WithMetadata() {
+        Report r = report("SUBMITTED"); // download allowed even when frozen
+        when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));
+        UUID attId = UUID.randomUUID();
+        Attachment a = new Attachment(attId, r.getId(), "x.pdf", "application/pdf", 3L, "the-key", actor);
+        when(attachmentRepository.findByIdAndReportId(attId, r.getId())).thenReturn(Optional.of(a));
+        when(s3StorageClient.fetch("the-key")).thenReturn(pdf());
+
+        AttachmentService.AttachmentDownload dl = service.download(r.getId(), attId);
+
+        assertThat(dl.filename()).isEqualTo("x.pdf");
+        assertThat(dl.contentType()).isEqualTo("application/pdf");
+        assertThat(dl.bytes()).isEqualTo(pdf());
+    }
+
+    @Test
+    void downloadMissingAttachmentThrowsAndSkipsS3() {
+        Report r = report("VALID");
+        when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));
+        UUID attId = UUID.randomUUID();
+        when(attachmentRepository.findByIdAndReportId(attId, r.getId())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.download(r.getId(), attId))
+                .isInstanceOf(AttachmentExceptions.AttachmentNotFoundException.class);
+        verify(s3StorageClient, never()).fetch(any());
+    }
+
+    @Test
     void removeDeletesFromS3AndRepo() {
         Report r = report("VALID");
         when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));

@@ -212,6 +212,15 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   deferred); the **CLI** parity layer (+ dual-mode `@ConditionalOnWebApplication` fix); packaging/marketplace +
   docs + the Helm/Dockerfile infra touch-up. All gated green; merged to `main`. **The standalone product is
   complete (14/14 phases).**
+- **2026-06-08 session (pre–Phase-1.5 verification + hardening):** full test + live end-to-end verification
+  of the standalone product (every REST endpoint + MCP, real Postgres/LocalStack/Redis, generated valid goAML
+  5.0.2 XML; live FIU submit not possible w/o creds — transport failure handled as 502). Scan: no hardcoded
+  prod data / 0 TODOs. Found + fixed 5 surface/robustness gaps on branch `hardening/post-verification`
+  (5 atomic commits, full gate held, merged to `main`): (1) report XML view+download endpoint+UI; (2)
+  attachment download endpoint+UI; (3) AWS integration failures → 502 (not opaque 500); (4) validate
+  `authMode`/`jurisdictionCode` at config-write; (5) require `indicators`+`party_reason` in the DPMSR CSV.
+  No engine/validation/security logic changed. See [discussion-log.md](discussion-log.md) (Session 2026-06-08).
+  **Next: Phase 1.5 (deferred until go-ahead).**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev` → continue with **Phase 12** (confirm its 4 open decisions).

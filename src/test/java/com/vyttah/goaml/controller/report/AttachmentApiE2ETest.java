@@ -127,6 +127,33 @@ class AttachmentApiE2ETest {
     }
 
     @Test
+    void downloadsAttachmentBytes() {
+        when(s3StorageClient.fetch(any())).thenReturn("INVOICE-BYTES".getBytes(StandardCharsets.UTF_8));
+        String mlro = user("dl", "MLRO");
+        String reportId = postJson("/api/v1/reports", String.format(DPMSR_JSON, "PAY-ATT-DL"), mlro)
+                .getBody().get("reportId").asText();
+        String base = "/api/v1/reports/" + reportId + "/attachments";
+
+        String attachmentId = upload(base, "invoice.pdf", "application/pdf",
+                "INVOICE-BYTES".getBytes(StandardCharsets.UTF_8), mlro).getBody().get("id").asText();
+
+        HttpHeaders h = new HttpHeaders();
+        h.setBearerAuth(mlro);
+        ResponseEntity<byte[]> dl = rest.exchange(base + "/" + attachmentId + "/content",
+                HttpMethod.GET, new HttpEntity<>(h), byte[].class);
+
+        assertThat(dl.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(dl.getHeaders().getContentType()).isEqualTo(MediaType.APPLICATION_PDF);
+        assertThat(dl.getHeaders().getFirst(HttpHeaders.CONTENT_DISPOSITION)).contains("invoice.pdf");
+        assertThat(new String(dl.getBody(), StandardCharsets.UTF_8)).isEqualTo("INVOICE-BYTES");
+
+        // a missing attachment → 404
+        ResponseEntity<byte[]> missing = rest.exchange(base + "/" + UUID.randomUUID() + "/content",
+                HttpMethod.GET, new HttpEntity<>(h), byte[].class);
+        assertThat(missing.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
     void rejectsDisallowedExtension() {
         String mlro = user("badext", "MLRO");
         String reportId = postJson("/api/v1/reports", String.format(DPMSR_JSON, "PAY-ATT-2"), mlro)

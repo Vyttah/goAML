@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Descriptions,
+  Modal,
   Popconfirm,
   Result,
   Skeleton,
@@ -14,9 +15,19 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
-import { DeleteOutlined, ReloadOutlined, SendOutlined, UploadOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  FileTextOutlined,
+  ReloadOutlined,
+  SendOutlined,
+  UploadOutlined,
+} from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { StatusTag } from '../../components/StatusTag';
+import { getReportXml } from '../../api/reports';
+import { downloadAttachment } from '../../api/attachments';
+import { downloadBlob, downloadText } from '../../lib/download';
 import { errorMessage } from '../../api/client';
 import { useAuth } from '../../auth/AuthContext';
 import { ROLES } from '../../auth/roles';
@@ -43,9 +54,10 @@ function formatTimestamp(iso: string): string {
 }
 
 /**
- * Report detail + lifecycle: summary, MLRO submit (VALID-only, confirmed), on-demand FIU status, and
- * attachment management. Note: there is no backend endpoint for the report XML or for re-fetching the
- * validation result of an existing report, so those panels aren't shown here (small future backend adds).
+ * Report detail + lifecycle: summary, the generated goAML XML (view + download), MLRO submit
+ * (VALID-only, confirmed), on-demand FIU status, and attachment management (upload / download / remove).
+ * Note: re-fetching the validation result of an existing report has no backend endpoint yet, so that
+ * panel isn't shown here (a small future backend add).
  */
 export function ReportDetailPage() {
   const { id = '' } = useParams();
@@ -61,6 +73,9 @@ export function ReportDetailPage() {
 
   const [actionError, setActionError] = useState<string | null>(null);
   const [fiuStatus, setFiuStatus] = useState<StatusView | null>(null);
+  const [xml, setXml] = useState<string | null>(null);
+  const [xmlOpen, setXmlOpen] = useState(false);
+  const [xmlLoading, setXmlLoading] = useState(false);
 
   if (reportQuery.isLoading) {
     return <Skeleton active paragraph={{ rows: 6 }} />;
@@ -103,6 +118,35 @@ export function ReportDetailPage() {
     }
   };
 
+  const onViewXml = async () => {
+    setActionError(null);
+    setXmlLoading(true);
+    setXmlOpen(true);
+    try {
+      setXml(await getReportXml(id));
+    } catch (err) {
+      setXmlOpen(false);
+      setActionError(errorMessage(err, 'Could not load the report XML'));
+    } finally {
+      setXmlLoading(false);
+    }
+  };
+
+  const onDownloadXml = () => {
+    if (xml) {
+      downloadText(xml, `${report.entityReference}.xml`, 'application/xml');
+    }
+  };
+
+  const onDownloadAttachment = async (row: AttachmentView) => {
+    setActionError(null);
+    try {
+      downloadBlob(await downloadAttachment(id, row.id), row.filename);
+    } catch (err) {
+      setActionError(errorMessage(err, 'Could not download attachment'));
+    }
+  };
+
   const uploadProps: UploadProps = {
     showUploadList: false,
     multiple: false,
@@ -128,24 +172,30 @@ export function ReportDetailPage() {
       render: formatBytes,
     },
     { title: 'Added', dataIndex: 'createdAt', key: 'createdAt', width: 200, render: formatTimestamp },
-    ...(canEditAttachments
-      ? [
-          {
-            title: '',
-            key: 'actions',
-            width: 100,
-            render: (_: unknown, row: AttachmentView) => (
-              <Popconfirm
-                title="Remove this attachment?"
-                okText="Remove"
-                onConfirm={() => removeAttachment.mutate(row.id)}
-              >
-                <Button type="text" danger icon={<DeleteOutlined />} aria-label="Remove attachment" />
-              </Popconfirm>
-            ),
-          },
-        ]
-      : []),
+    {
+      title: '',
+      key: 'actions',
+      width: 130,
+      render: (_: unknown, row: AttachmentView) => (
+        <Space>
+          <Button
+            type="text"
+            icon={<DownloadOutlined />}
+            aria-label="Download attachment"
+            onClick={() => onDownloadAttachment(row)}
+          />
+          {canEditAttachments && (
+            <Popconfirm
+              title="Remove this attachment?"
+              okText="Remove"
+              onConfirm={() => removeAttachment.mutate(row.id)}
+            >
+              <Button type="text" danger icon={<DeleteOutlined />} aria-label="Remove attachment" />
+            </Popconfirm>
+          )}
+        </Space>
+      ),
+    },
   ];
 
   return (
@@ -160,6 +210,11 @@ export function ReportDetailPage() {
             {report.entityReference}
             <StatusTag status={report.status} />
           </Space>
+        }
+        extra={
+          <Button icon={<FileTextOutlined />} onClick={onViewXml} loading={xmlLoading}>
+            View XML
+          </Button>
         }
         style={{ marginBottom: 16 }}
       >
@@ -256,9 +311,44 @@ export function ReportDetailPage() {
           locale={{ emptyText: 'No attachments' }}
         />
         <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-          Attachments are bundled into the submission ZIP. Download isn't available (no endpoint yet).
+          Attachments are bundled into the submission ZIP at submit time.
         </Typography.Paragraph>
       </Card>
+
+      <Modal
+        title={`goAML XML — ${report.entityReference}`}
+        open={xmlOpen}
+        onCancel={() => setXmlOpen(false)}
+        width={820}
+        footer={[
+          <Button key="download" icon={<DownloadOutlined />} disabled={!xml} onClick={onDownloadXml}>
+            Download
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setXmlOpen(false)}>
+            Close
+          </Button>,
+        ]}
+      >
+        {xmlLoading ? (
+          <Skeleton active paragraph={{ rows: 8 }} />
+        ) : (
+          <pre
+            aria-label="report-xml"
+            style={{
+              maxHeight: '60vh',
+              overflow: 'auto',
+              background: '#f6f8fa',
+              padding: 12,
+              borderRadius: 4,
+              fontSize: 12,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+            }}
+          >
+            {xml}
+          </pre>
+        )}
+      </Modal>
     </>
   );
 }

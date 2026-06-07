@@ -45,8 +45,14 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CsvImporter {
 
+    // The columns a DPMSR row needs to stand a chance of validating. Beyond the obvious identity/goods/
+    // reporting-person fields, two are required because the goAML schema mandates them and the flat template
+    // is their only source: `indicators` (report_indicators is mandatory) and `party_reason` (report_party
+    // must carry one of country/is_suspected/significance/reason — the template only offers reason). Without
+    // these columns every row would fail XSD, so we reject the whole file up front rather than silently
+    // produce all-INVALID rows. (Cells may still be blank → that row fails with a clear per-row message.)
     private static final Set<String> REQUIRED_HEADERS = Set.of(
-            "entity_reference", "submission_date", "party_type",
+            "entity_reference", "submission_date", "party_type", "party_reason", "indicators",
             "good_item_type", "good_estimated_value",
             "reporting_person_first_name", "reporting_person_last_name");
 

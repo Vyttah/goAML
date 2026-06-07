@@ -6,6 +6,44 @@
 
 ---
 
+## Session 2026-06-08 — Pre–Phase-1.5 full verification + hardening pass
+
+Participants: developer (rajat.gajera) + Claude. Branch: `hardening/post-verification` → merged to `main`.
+Ask: before starting Phase 1.5, thoroughly test everything (nothing missed / nothing hardcoded / no default
+data), exercise every feature + endpoint with dummy data and generate XML (live FIU submit not possible —
+no creds), then the developer reviews the SPA.
+
+### What was verified (all green)
+
+- **Both test suites:** backend `test jacocoTestCoverageVerification` (full + coverage gate) and frontend
+  typecheck/lint/Vitest/build.
+- **Live end-to-end walk** (dev-seed app on real Postgres + LocalStack S3/SecretsManager + Redis): auth +
+  `/me` + RBAC (403s correct), lookups, **report create→validate→XSD→persist → generated well-formed goAML
+  5.0.2 XML** (header auto-applied), validation negatives (threshold / bad enums / dup), submit (graceful
+  502 on FIU transport — no real send), admin (provision/user/config), attachments (upload→S3/list/delete),
+  notifications (fan-out + read), imports (XML→VALID, CSV per-row, bad-header reject), **cross-tenant
+  isolation**, actuator health/prometheus, MCP SSE auth.
+- **Hardcoded/default-data scan:** 0 TODO/FIXME in `src/main`; the only "defaults" are documented + gated
+  (dev-seed password, LocalStack dummy creds, `rentity_id=0`→INVALID fallback, **placeholder lookup seeds
+  pending real UAE exports**).
+
+### Gaps found → fixed (developer chose "fix all, one by one"; 5 atomic commits, gate held, merged)
+
+1. **Report XML view/download** — XML was built+persisted but had no REST/UI surface. Added
+   `GET /reports/{id}/xml` + a "View XML" modal/download on the detail page.
+2. **Attachment download** — listable but not retrievable. Added `GET …/attachments/{id}/content`
+   (reuses `S3StorageClient.fetch`) + a per-row download action (viewers, not just editors).
+3. **Opaque 500 on FIU integration failure** — `SecretsAccessException`/`S3AccessException` were unmapped.
+   Mapped → **502** in `GlobalExceptionHandler`.
+4. **Late config validation** — admin `goaml-config` accepted any `authMode` (failed only at submit with a
+   cryptic enum error). Now validates `authMode` (→`B2bAuthMode`, normalized) + `jurisdictionCode`
+   (→registry) at write time → 400.
+5. **CSV template under-constrained** — `REQUIRED_HEADERS` omitted `indicators` + `party_reason` (both
+   schema-mandatory), so "required-only" CSVs always produced INVALID rows. Added both → fail-fast 400.
+
+All five re-verified live after rebuild. **No engine/validation/security logic changed** — these are surface
++ robustness fixes. Phase 1.5 remains the next track (deferred until the developer's go-ahead).
+
 ## Session 2026-06-03 — Resume, docs, XSD-first pivot, and report-type scope
 
 Participants: developer (rajat.gajera) + Claude. Branch: `main`. All work uncommitted at session end

@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/msw/server';
@@ -114,6 +114,54 @@ describe('ReportDetailPage', () => {
 
     expect(await screen.findByText('RK-9')).toBeInTheDocument();
     expect(screen.getByText('ACCEPTED')).toBeInTheDocument();
+  });
+
+  it('views the generated goAML XML in a modal', async () => {
+    stubReport('VALID');
+    stubAttachments();
+    server.use(
+      http.get(`*/api/v1/reports/${ID}/xml`, () =>
+        HttpResponse.text('<report><report_code>DPMSR</report_code></report>', {
+          headers: { 'Content-Type': 'application/xml' },
+        }),
+      ),
+    );
+    renderDetail('ANALYST');
+
+    await userEvent.click(await screen.findByRole('button', { name: /view xml/i }));
+
+    expect(await screen.findByLabelText('report-xml')).toHaveTextContent('<report_code>DPMSR</report_code>');
+    expect(screen.getByRole('button', { name: /download/i })).toBeEnabled();
+  });
+
+  it('downloads an attachment', async () => {
+    URL.createObjectURL = vi.fn(() => 'blob:x');
+    URL.revokeObjectURL = vi.fn();
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const item: AttachmentView = {
+      id: 'att-1',
+      reportId: ID,
+      filename: 'invoice.pdf',
+      contentType: 'application/pdf',
+      sizeBytes: 2048,
+      createdAt: '2026-06-01T10:00:00Z',
+    };
+    stubReport('VALID');
+    stubAttachments([item]);
+    server.use(
+      http.get(`*/api/v1/reports/${ID}/attachments/att-1/content`, () =>
+        HttpResponse.arrayBuffer(new TextEncoder().encode('PDF-BYTES').buffer, {
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+      ),
+    );
+    renderDetail('TENANT_ADMIN');
+
+    await userEvent.click(await screen.findByRole('button', { name: /download attachment/i }));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+    clickSpy.mockRestore();
   });
 
   it('lists attachments and removes one', async () => {

@@ -1,6 +1,8 @@
 package com.vyttah.goaml.exception;
 
 import com.vyttah.goaml.controller.lookup.LookupExceptions;
+import com.vyttah.goaml.integration.aws.S3AccessException;
+import com.vyttah.goaml.integration.aws.SecretsAccessException;
 import com.vyttah.goaml.service.admin.AdminExceptions;
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.ingestion.IngestionExceptions;
@@ -74,6 +76,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(SubmissionExceptions.SubmissionTransportException.class)
     public ResponseEntity<Map<String, Object>> handleTransport(RuntimeException ex) {
+        return body(HttpStatus.BAD_GATEWAY, ex.getMessage());
+    }
+
+    /**
+     * AWS integration failures (Secrets Manager credential resolution, S3 attachment bytes) reached during a
+     * request — an unprovisioned/misconfigured secret or an object-store error. These are upstream-dependency
+     * failures, not caller errors, so they map to {@code 502} with a clear message (never a bare 500).
+     */
+    @ExceptionHandler({SecretsAccessException.class, S3AccessException.class})
+    public ResponseEntity<Map<String, Object>> handleAwsIntegration(RuntimeException ex) {
         return body(HttpStatus.BAD_GATEWAY, ex.getMessage());
     }
 
