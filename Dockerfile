@@ -41,4 +41,7 @@ EXPOSE 8080
 # Container-aware heap sizing; override at runtime via JAVA_TOOL_OPTIONS or JVM flags.
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75.0"
 # Liveness/readiness are driven by the orchestrator (Helm probes hit /actuator/health/*).
+# Default: the web app (REST API + SPA + MCP server). The SAME image also runs the Phase-12 CLI — pass
+# `--cli` as the first argument (e.g. `docker run … goaml:tag --cli lookups --token …`); it boots a non-web
+# context, runs the command, and exits.
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

@@ -23,6 +23,9 @@ spec:
     - host: {{ .Values.ingress.host | quote }}
       http:
         paths:
+          # One prefix rule serves the REST API, the SPA, and the MCP server (/api/v1/mcp/sse +
+          # /api/v1/mcp/message). For the MCP SSE stream set the buffering/read-timeout annotations
+          # (see values.yaml ingress.annotations).
           - path: /
             pathType: Prefix
             backend:

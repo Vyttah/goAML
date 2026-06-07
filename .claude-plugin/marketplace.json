@@ -1,0 +1,19 @@
+{
+  "name": "vyttah-goaml",
+  "owner": {
+    "name": "Vyttah",
+    "url": "https://vyttah.com"
+  },
+  "metadata": {
+    "description": "Vyttah goAML — connect Claude to the goAML AML-reporting platform.",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "goaml",
+      "source": "./plugin/goaml",
+      "description": "Build, validate, preview, and (guarded) submit UAE FIU goAML AML reports through the goAML platform's MCP server — tenant-scoped, role-aware, MLRO-gated submission.",
+      "version": "0.1.0"
+    }
+  ]
+}

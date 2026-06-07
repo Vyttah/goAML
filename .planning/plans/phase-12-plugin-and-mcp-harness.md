@@ -260,6 +260,29 @@ The **plugin** itself (skills/commands/hooks/.mcp.json) is a separate deliverabl
 
 ---
 
+## Outcome — ✅ DONE (2026-06-07)
+
+Shipped on branch `phase-12/plugin-mcp` in 7 gated steps (`94a0dce`…12.7), each with a per-step doc
+(`steps/PHASE-12.1..12.7`); merged to `main`. The standalone product is now **14/14 phases complete**.
+
+- **MCP server** (`mcp/`) — Spring AI 1.0.2 webmvc SSE at `/api/v1/mcp/**`, authenticated by the existing
+  `JwtAuthFilter` → `TenantContext` + RBAC, with Reactor context propagation across the sync server's thread
+  hop. ~24 `@Tool`s (reference data, DPMSR build/validate/preview/create, guarded submit/status/messages,
+  import, admin), each delegating to existing services; RBAC via `McpIdentity.requireAnyRole`.
+- **Submission harness** — MLRO-gated, dry-run-first, confirm-required, validate-first; proven by unit tests +
+  over-the-wire ITs. The single most important rule held.
+- **Plugin** (`plugin/goaml/`) — skill + `/goaml-*` commands + `.mcp.json` + pre-submit hook; published via the
+  repo-root `.claude-plugin/marketplace.json`.
+- **CLI** (`cli/`) — `--cli` run-mode of the same jar (picocli), same services + same harness.
+- **Docs/infra** — `docs/13-plugin-mcp-cli.md`; Helm ingress MCP/SSE guidance + Dockerfile `--cli` note.
+
+**Deviations / honest scope:** auth uses the same JWT as REST (the dedicated revocable *service token* is a
+later add — the resolution seam is in place); RBAC is enforced by explicit role checks at the MCP/CLI edges
+(not `@PreAuthorize` through reflection); `cli/**` is not under the JaCoCo gate (bootstrap glue); a
+lookups-refresh tool and STR/other report-type builders are deferred (no backend sync; engine builds DPMSR).
+
+**Next:** Phase 1.5 (deferred) and the external go-live prerequisites (incl. the PII-sample history purge).
+
 ## 11. Out of scope (for this phase)
 
 - Building new backend business logic — MCP/CLI only wrap existing services (parity, not new behavior).

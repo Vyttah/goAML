@@ -19,7 +19,7 @@
 | 11 | **`ingestion/`** — file import as a persisted `import_job` with row-level results: goAML **XML** (`GoamlXmlImporter` reuses unmarshal+validators) + flat **DPMSR CSV** (`CsvImporter` → `DpmsrCreateRequest` → `ReportService.create`); `POST/GET /api/v1/imports`; sync + per-row isolation; MockMvc E2E. Plan: [plans/phase-11-ingestion.md](plans/phase-11-ingestion.md) | ✅ done | `dd9b54a`…(11.4) |
 | 13 | **React frontend** (`frontend/`) — Vite+React+TS+AntD SPA: auth → dashboard → DPMSR builder → detail/submit/track → import → notifications + lookups browser → admin; + REST enablers (lookup API, admin API, CORS/SPA-serving). 58 Vitest specs; typecheck+lint+build gated. Plan: [plans/phase-13-react-frontend.md](plans/phase-13-react-frontend.md) | ✅ done | `8e76a40`…(13.11) |
 | 14 | **Infra** — finalized multi-stage Dockerfile (SPA-bundled, layered, non-root), full Helm chart (`helm/goaml/`), observability baseline (Prometheus + JSON logs + correlation IDs), GitHub Actions CI + gated CD. Plan: [plans/phase-14-infra.md](plans/phase-14-infra.md) | ✅ done | `e24bce4`…(14.5) |
-| 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⏭️ **next (built LAST)** | — |
+| 12 | **goAML Claude Plugin & MCP harness + `cli/`** — Spring AI MCP server (SSE at `/api/v1/mcp/**`) + a Claude plugin (skill/commands/hook/marketplace) + a `--cli` run-mode of the same jar; all three delegate to the same engine/services (REST/MCP/CLI parity), tenant-scoped + role-gated, with an MLRO-gated dry-run-first submission harness. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ✅ done | `94a0dce`…(12.7) |
 
 > **Build order (decided 2026-06-06):** remaining phases run **13 → 14 → 12**. Phase 12 (plugin/MCP/CLI)
 > is deferred to last — it's dependency-safe (nothing depends on it; the frontend uses the REST API, and it
@@ -73,6 +73,25 @@ See [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md) 
   + `helm upgrade` to EKS gated on AWS secrets via OIDC). Per-step docs: `steps/PHASE-14.1..14.5`.
 - **Carried-forward touch-up:** when Phase 12 ships, expose the MCP HTTP route in the Helm ingress + add the
   `--cli` run-mode.
+
+## Phase 12 (DONE) — what shipped
+
+- **`mcp/`** — Spring AI 1.0.2 MCP server (SSE `/api/v1/mcp/sse`) inside the app; `JwtAuthFilter` authenticates
+  every call → `TenantContext` + RBAC; `McpContextPropagationConfig` carries that across the sync server's
+  Reactor thread hop. ~24 `@Tool`s spanning reference data, DPMSR build/validate/preview/create, **guarded**
+  submit/status/messages, import, and admin — each delegating to the existing services (REST/MCP parity), with
+  RBAC via `McpIdentity.requireAnyRole`. Submission is **MLRO-gated, dry-run-first, confirm-required,
+  validate-first**.
+- **`plugin/goaml/`** — a Claude plugin: `goaml` skill + `/goaml-build|validate|submit|status|import` commands +
+  `.mcp.json` (remote SSE) + a pre-submit hook; published via the repo-root `.claude-plugin/marketplace.json`.
+- **`cli/`** — the `--cli` run-mode of the same jar (picocli): `validate|preview|submit|status|import|lookups`,
+  same services + same submit harness; `CliAuthenticator` resolves a `--token`. `SecurityConfig`/`AuthController`/
+  `DefaultAuthService` made `@ConditionalOnWebApplication` so the non-web CLI context loads.
+- Backend reuse-enablers: `ReportService.validate`/`previewXml` (closed the Phase-13 preview/validation gap),
+  `SubmissionService.postMessage`, `engine/metadata/ReportTypeMetadata`. New deps: Spring AI BOM + MCP webmvc
+  starter, reactor-core + context-propagation, picocli. Per-step docs: `steps/PHASE-12.1..12.7`.
+- **Carried-forward infra touch-up DONE here:** MCP route + SSE guidance on the Helm ingress; `--cli` note on
+  the Dockerfile. Deferred (documented): a lookups-refresh tool (no backend FIU-lookup sync exists yet).
 
 ## Detailed phase plans
 

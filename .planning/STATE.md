@@ -19,11 +19,16 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–11 + 13 + 14 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML
-  5.0.2 + XSD gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 12 (plugin/MCP/CLI) next — the LAST phase.** Build order **13 → 14 → 12**; Phase 1.5
-  (suite integration + federated auth) **deferred — decide later** (see Recent Decisions).
-- **Last completed:** **Phase 14 (infra)** — deployable packaging: a finalized 3-stage **Dockerfile**
+- **Phases 1–14 ALL complete** (the standalone product is fully built — engine, REST API, SPA, infra, and the
+  Phase-12 plugin/MCP/CLI), plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD gate
+  + DPMSR builder) and the **Vyttah layer-first refactor**. **Phase 1.5** (suite integration + federated auth)
+  remains **deferred — decide later** (a separate track; see Recent Decisions).
+- **Last completed:** **Phase 12 (plugin / MCP / CLI) — the final phase.** A Spring AI MCP server (SSE at
+  `/api/v1/mcp/**`) inside the app, a distributable Claude plugin (skill + commands + hook + marketplace), and
+  a `--cli` run-mode of the same jar — all three delegating to the same engine/services (REST/MCP/CLI parity),
+  tenant-scoped + role-gated, with an **MLRO-gated, dry-run-first, confirm-required** submission harness.
+  Commits `94a0dce`…(12.7); merged to `main`. Per-step docs: `steps/PHASE-12.1..12.7`.
+- **Previously:** **Phase 14 (infra)** — deployable packaging: a finalized 3-stage **Dockerfile**
   (node SPA build → layered `bootJar` with the SPA on the classpath → non-root JRE; verified by a real
   `docker build` + run — SPA served, `/actuator/prometheus` 200, liveness/readiness UP, non-root), a full
   **Helm chart** (`helm/goaml/`: Deployment w/ health-group probes + hardened security context, Service,
@@ -77,16 +82,21 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   `cd frontend && npm run dev` → http://localhost:5173 (proxies `/api` → :8080). Container: `docker build -t
   goaml:dev .` then run with `SPRING_DATASOURCE_*` + `GOAML_JWT_SECRET` env (serves API + SPA on :8080).
 
-## Next Action — Phase 12 (plugin / MCP harness / CLI) — the LAST phase
+## Next Action — the standalone build is COMPLETE
 
-The goAML Claude plugin + MCP harness + a `cli/` run-mode of the same jar, so users connect Claude and drive
-goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md)
-— it has **4 open decisions to confirm** (auth model, submission autonomy, plugin target, transport).
-read/build/validate/preview tools are buildable on the existing `engine/`; submit/track/import tools reuse
-the now-complete Phases 6/7/9/11.
+All 14 roadmap phases are done. There is no next *build* phase for the standalone product. Open options
+(decide later):
+1. **Phase 1.5** — Vyttah-suite integration + federated auth (RabbitMQ accounting consumer → reportability →
+   auto-create DPMSR draft → MLRO 1-click; screening REST push; `/auth/federated/token` + `external_identity`).
+   Deferred; design in [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md).
+2. **Go-live prerequisites (external, gate live correctness not the build):** an AWS account/EKS/ECR/RDS; a
+   GitHub remote + CD secrets; **the PII-sample history purge BEFORE any first push to a remote** (real-PII
+   sample XMLs are in git history); per-tenant FIU B2B URLs + credentials; real UAE lookup exports + BRRs.
+3. **Smaller follow-ups surfaced during Phase 12:** a lookups-refresh tool (needs a backend FIU-lookup sync —
+   new work); STR/other report-type build tools (engine builds DPMSR today).
 
-> Carried-forward infra touch-up (Phase 14 landed before 12): when 12 ships, expose the MCP HTTP route in the
-> Helm ingress + add the `--cli` run-mode (a small Helm/Dockerfile tweak).
+> Phase-14 carried-forward infra touch-up is **DONE** (12.7): MCP route + SSE guidance on the Helm ingress and
+> the `--cli` note on the Dockerfile.
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
@@ -101,12 +111,11 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
 
 ## Progress
 
-`[█████████████] 13/14 (≈93%)` + XSD-first foundation + layer-first refactor
+`[██████████████] 14/14 (100%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · 13 frontend · **14 infra** |
-| ⏭️ | **12 plugin/MCP/CLI** (the last phase) |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · **12 plugin/MCP/CLI** · 13 frontend · 14 infra |
 | ⬜ | 1.5 suite-integration (deferred — decide later) |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
@@ -196,6 +205,13 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   (verified via real `docker build` + run), full Helm chart (`helm lint` clean), GitHub Actions CI + gated
   CD. Decisions: DPMSR builder = full nested form (13); SPA via Dockerfile node stage + gated CD + full Helm
   (14). **Next: merge `phase-14/infra` → `main`, then Phase 12 (plugin/MCP/CLI) — the last phase.**
+- **2026-06-07 session (Phase 12 — final phase):** built the **plugin/MCP/CLI** in 7 gated steps on branch
+  `phase-12/plugin-mcp` (steps 12.1–12.7): MCP server scaffold + auth/tenant/RBAC (incl. solving base-url + the
+  Reactor-thread context-propagation); read/build/validate/preview tools; the Claude plugin (skill + commands);
+  the submit/status/messages **safety harness** + pre-submit hook; import + admin tools (lookups-refresh
+  deferred); the **CLI** parity layer (+ dual-mode `@ConditionalOnWebApplication` fix); packaging/marketplace +
+  docs + the Helm/Dockerfile infra touch-up. All gated green; merged to `main`. **The standalone product is
+  complete (14/14 phases).**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev` → continue with **Phase 12** (confirm its 4 open decisions).
