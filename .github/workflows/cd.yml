@@ -1,0 +1,75 @@
+name: CD
+
+# On main: always build the production image (validates the Dockerfile). Push to ECR + helm-upgrade to EKS
+# are GATED on AWS secrets being present, so this is inert until an account/cluster is wired.
+#
+# Required repo secrets/vars to enable deploy:
+#   AWS_ROLE_ARN     (OIDC role to assume)        AWS_REGION
+#   ECR_REPOSITORY   (e.g. 123.dkr.ecr.<region>.amazonaws.com/goaml)
+#   EKS_CLUSTER      (cluster name)
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write   # for AWS OIDC
+
+jobs:
+  image:
+    name: Build image (+ gated deploy)
+    runs-on: ubuntu-latest
+    env:
+      # Secrets can't be used directly in `if:`; map presence to a plain string here.
+      DEPLOY_ENABLED: ${{ secrets.AWS_ROLE_ARN != '' && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Always build (and load) the image so the Dockerfile is exercised on every main push.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: goaml:${{ github.sha }}
+
+      # ---- gated deploy (only when AWS secrets exist) ----
+      - name: Configure AWS credentials
+        if: env.DEPLOY_ENABLED == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        if: env.DEPLOY_ENABLED == 'true'
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Tag + push image to ECR
+        if: env.DEPLOY_ENABLED == 'true'
+        run: |
+          docker tag goaml:${{ github.sha }} ${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+          docker tag goaml:${{ github.sha }} ${{ secrets.ECR_REPOSITORY }}:latest
+          docker push ${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+          docker push ${{ secrets.ECR_REPOSITORY }}:latest
+
+      - name: Set up Helm
+        if: env.DEPLOY_ENABLED == 'true'
+        uses: azure/setup-helm@v4
+
+      - name: Deploy to EKS
+        if: env.DEPLOY_ENABLED == 'true'
+        run: |
+          aws eks update-kubeconfig --name "${{ secrets.EKS_CLUSTER }}" --region "${{ secrets.AWS_REGION }}"
+          helm upgrade --install goaml ./helm/goaml \
+            --namespace goaml --create-namespace \
+            --set image.repository="${{ secrets.ECR_REPOSITORY }}" \
+            --set image.tag="${{ github.sha }}" \
+            --wait --timeout 5m
+
+      - name: Deploy skipped (no AWS secrets)
+        if: env.DEPLOY_ENABLED != 'true'
+        run: echo "AWS_ROLE_ARN not set — built the image only. Configure AWS secrets to enable ECR push + EKS deploy."
