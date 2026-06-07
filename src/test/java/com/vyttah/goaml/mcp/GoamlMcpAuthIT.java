@@ -183,6 +183,18 @@ class GoamlMcpAuthIT {
         }
     }
 
+    @Test
+    void adminToolIsRoleGatedOverTheWire() {
+        // provision_tenant is SUPER_ADMIN-only; an MLRO token must be refused (guard before any DB work).
+        try (McpSyncClient client = connect(mintToken(List.of("MLRO"), "public"))) {
+            McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
+                    "goaml_list_tenants", Map.of()));
+
+            assertThat(result.isError()).isEqualTo(Boolean.TRUE);
+            assertThat(firstText(result)).contains("requires one of roles");
+        }
+    }
+
     private McpSyncClient connect(String token) {
         McpSyncClient client = McpClient.sync(transport(token)).requestTimeout(Duration.ofSeconds(30)).build();
         client.initialize();

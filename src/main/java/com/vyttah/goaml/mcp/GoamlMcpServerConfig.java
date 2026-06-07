@@ -1,5 +1,7 @@
 package com.vyttah.goaml.mcp;
 
+import com.vyttah.goaml.mcp.tool.AdminTools;
+import com.vyttah.goaml.mcp.tool.IngestionTools;
 import com.vyttah.goaml.mcp.tool.LookupTools;
 import com.vyttah.goaml.mcp.tool.ReportTools;
 import com.vyttah.goaml.mcp.tool.SubmissionTools;
@@ -23,9 +25,10 @@ public class GoamlMcpServerConfig {
 
     @Bean
     public ToolCallbackProvider goamlMcpTools(SystemTools systemTools, LookupTools lookupTools,
-                                              ReportTools reportTools, SubmissionTools submissionTools) {
+                                              ReportTools reportTools, SubmissionTools submissionTools,
+                                              IngestionTools ingestionTools, AdminTools adminTools) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(systemTools, lookupTools, reportTools, submissionTools)
+                .toolObjects(systemTools, lookupTools, reportTools, submissionTools, ingestionTools, adminTools)
                 .build();
     }
 }
