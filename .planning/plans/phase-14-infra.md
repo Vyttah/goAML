@@ -89,4 +89,31 @@ touch-up then: MCP HTTP route in ingress + `--cli` run-mode); suite integration 
 
 ---
 
-## Outcome — 🔲 (fill on completion)
+## Outcome — ✅ DONE (2026-06-07)
+
+Shipped on branch `phase-14/infra` in 5 gated steps (`e24bce4`…14.5), each with a per-step doc
+(`steps/PHASE-14.1..14.5`).
+
+- **14.1 Observability** — `micrometer-registry-prometheus` (`/actuator/prometheus`), `prod`-profile JSON
+  logs (logback + logstash encoder), `CorrelationIdFilter` (`X-Correlation-Id` → MDC). Tested
+  (unit + Testcontainers IT). Found + fixed: Boot disables metrics export in tests → enabled via the
+  specific `management.prometheus.metrics.export.enabled` key (honored in tests **and** prod).
+- **14.2 Dockerfile** — 3-stage (node SPA → layered `bootJar` with SPA on the classpath → non-root JRE) +
+  `.dockerignore`. **Verified by a real `docker build` + run**: SPA served, `/actuator/prometheus` 200,
+  correlation header, liveness/readiness UP, non-root. Found + fixed: `.dockerignore` `build/` also matched
+  the `engine/build/` package → anchored to `/build/`.
+- **14.3 Helm** — full `helm/goaml/` chart; **`helm lint` clean**, renders across all modes (default,
+  ingress+ExternalSecret+IRSA, chart-managed secret).
+- **14.4 GitHub Actions** — `ci.yml` (backend + frontend gates) + `cd.yml` (image build always; ECR push +
+  `helm upgrade` gated on AWS secrets via OIDC). YAML validated; gate parity with local.
+- **14.5** — docs/planning sync + merge to `main`.
+
+**Deviations / honest scope:** real AWS provisioning + a live deploy are out (no account/cluster/remote) —
+CD is wired but inert until secrets exist. `helm` wasn't installed locally (fetched a throwaway binary to
+lint/template). Per the chosen decision there is **no Gradle node task** (the Dockerfile node stage handles
+the SPA).
+
+**Carried-forward:** when Phase 12 ships (after infra), add the MCP HTTP route to the Helm ingress + the
+`--cli` run-mode. PII sample XMLs must be purged from git history before any first push to a remote.
+
+**Next:** Phase 12 (plugin/MCP/CLI) — the last phase.

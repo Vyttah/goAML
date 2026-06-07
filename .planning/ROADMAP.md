@@ -18,8 +18,8 @@
 | 10 | **`notification/`** — per-tenant in-app store + SES email (`SesClient`), fired off report transitions at the `SubmissionService` seam (poller + on-demand + submit) to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`; Testcontainers ITs. Plan: [plans/phase-10-notifications.md](plans/phase-10-notifications.md) | ✅ done | `99e3c75`…`6da1a5f` |
 | 11 | **`ingestion/`** — file import as a persisted `import_job` with row-level results: goAML **XML** (`GoamlXmlImporter` reuses unmarshal+validators) + flat **DPMSR CSV** (`CsvImporter` → `DpmsrCreateRequest` → `ReportService.create`); `POST/GET /api/v1/imports`; sync + per-row isolation; MockMvc E2E. Plan: [plans/phase-11-ingestion.md](plans/phase-11-ingestion.md) | ✅ done | `dd9b54a`…(11.4) |
 | 13 | **React frontend** (`frontend/`) — Vite+React+TS+AntD SPA: auth → dashboard → DPMSR builder → detail/submit/track → import → notifications + lookups browser → admin; + REST enablers (lookup API, admin API, CORS/SPA-serving). 58 Vitest specs; typecheck+lint+build gated. Plan: [plans/phase-13-react-frontend.md](plans/phase-13-react-frontend.md) | ✅ done | `8e76a40`…(13.11) |
-| 14 | **Infra** — Dockerfile finalize, Helm chart, observability baseline, GitHub Actions CI/CD | ⏭️ **next** | — |
-| 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⬜ todo (**deferred — built LAST**) | — |
+| 14 | **Infra** — finalized multi-stage Dockerfile (SPA-bundled, layered, non-root), full Helm chart (`helm/goaml/`), observability baseline (Prometheus + JSON logs + correlation IDs), GitHub Actions CI + gated CD. Plan: [plans/phase-14-infra.md](plans/phase-14-infra.md) | ✅ done | `e24bce4`…(14.5) |
+| 12 | **goAML Claude Plugin & MCP harness** + `cli/` — full plugin so users connect Claude and drive all goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md) | ⏭️ **next (built LAST)** | — |
 
 > **Build order (decided 2026-06-06):** remaining phases run **13 → 14 → 12**. Phase 12 (plugin/MCP/CLI)
 > is deferred to last — it's dependency-safe (nothing depends on it; the frontend uses the REST API, and it
@@ -57,6 +57,22 @@ See [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md) 
   `steps/PHASE-13.1..13.11`.
 - **Known UI-surfaced backend gaps** (small future adds): report XML preview, re-fetching an existing
   report's validation result, and attachment download — no endpoints yet, flagged in-UI rather than faked.
+
+## Phase 14 (DONE) — what shipped
+
+- **Image:** finalized 3-stage `Dockerfile` (node SPA build → layered `bootJar` with the SPA on the
+  classpath → non-root JRE runtime, container-aware JVM) + `.dockerignore` (keeps `src/test/` incl. PII
+  samples out of the image). Verified by a real `docker build` + run (SPA served, prometheus 200,
+  liveness/readiness UP, non-root).
+- **Helm:** full `helm/goaml/` chart — Deployment (probes on the health groups, hardened security context),
+  Service, Ingress+TLS, HPA, ConfigMap, ServiceAccount+IRSA, and 3 secret strategies (ExternalSecret /
+  chart-managed / existing). `helm lint` clean; renders across modes.
+- **Observability:** `micrometer-registry-prometheus` (`/actuator/prometheus`), `prod`-profile JSON logs
+  (logback + logstash encoder), and a `CorrelationIdFilter` (`X-Correlation-Id` → MDC). Probes already existed.
+- **CI/CD:** `.github/workflows/ci.yml` (backend + frontend gates) + `cd.yml` (image build always; ECR push
+  + `helm upgrade` to EKS gated on AWS secrets via OIDC). Per-step docs: `steps/PHASE-14.1..14.5`.
+- **Carried-forward touch-up:** when Phase 12 ships, expose the MCP HTTP route in the Helm ingress + add the
+  `--cli` run-mode.
 
 ## Detailed phase plans
 

@@ -197,3 +197,26 @@ and a form/API from screening — but keep that as Phase 1.5."**
   code-only seeds (only country/currency are dropdowns). The **Gradle node task** (dist → static) is
   deferred to **Phase 14** packaging.
 - **Next action:** merge `phase-13/frontend` → `main`, then **Phase 14 (infra)**.
+
+---
+
+## 2026-06-07 — Phase 14: infra (Docker · Helm · observability · CI/CD)
+
+- **Built Phase 14 end-to-end** on branch `phase-14/infra` (steps 14.1–14.5):
+  - **14.1 observability** — `micrometer-registry-prometheus` (`/actuator/prometheus`), `prod`-profile JSON
+    logs (logback + logstash encoder), `CorrelationIdFilter` (`X-Correlation-Id` → MDC). Found Boot disables
+    metrics export in tests → enabled via the specific `management.prometheus.metrics.export.enabled` key.
+  - **14.2 Dockerfile** — finalized 3-stage (node SPA → layered bootJar w/ SPA on classpath → non-root JRE)
+    + `.dockerignore`; verified by a real `docker build` + run. Fixed a `.dockerignore` `build/` pattern that
+    also matched the `engine/build/` Java package.
+  - **14.3 Helm** — full `helm/goaml/` chart; `helm lint` clean, renders across modes.
+  - **14.4 GitHub Actions** — `ci.yml` (backend + frontend gates) + `cd.yml` (image build + secret-gated
+    ECR/EKS deploy via OIDC).
+- **Decisions (confirmed via AskUserQuestion):** SPA → jar via a **Dockerfile node stage** (Gradle stays
+  Node-free; no Gradle node task); **CI gates + image build, deploy gated on secrets**; **full Helm chart**.
+- **Out of scope / honest:** no real AWS account/EKS/ECR/remote, so CD is wired but inert until secrets
+  exist; `helm` wasn't installed (used a throwaway binary to lint/template).
+- **Carried-forward:** when Phase 12 ships, add the MCP HTTP route to the Helm ingress + the `--cli`
+  run-mode. PII sample XMLs still must be purged from history before any first push to a remote.
+- **Next action:** merge `phase-14/infra` → `main`, then **Phase 12 (plugin/MCP/CLI) — the last phase**
+  (confirm its 4 open decisions first).

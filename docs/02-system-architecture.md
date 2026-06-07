@@ -152,8 +152,13 @@ travels in the JWT and is pushed into a `ThreadLocal` per request. Full detail i
 - **CI/CD:** GitHub Actions — `ci.yml` (build + test backend & frontend on PRs), `cd.yml` (build image,
   push to ECR, `helm upgrade` to EKS on main).
 
-⚠️ Of the above, only the local-dev `Dockerfile` + `docker-compose.yml` exist today (Phase 14 finalizes
-the rest). For local development you only need Postgres (see [03](03-tech-stack-and-local-dev.md)).
+✅ **Phase 14 shipped most of the above:** the finalized SPA-bundled non-root `Dockerfile`, the full Helm
+chart (`helm/goaml/` — Deployment+probes, Service, Ingress+TLS, HPA, ConfigMap, ServiceAccount+IRSA, secret
+wiring), the observability baseline (`micrometer-registry-prometheus` → `/actuator/prometheus`, `prod`-profile
+JSON logs, a `CorrelationIdFilter`), and GitHub Actions (`ci.yml` gates + `cd.yml` image build + secret-gated
+ECR/EKS deploy). What remains external (not code): a real AWS account/EKS/ECR/RDS + the GitHub remote + CD
+secrets. For local development you only need Postgres (see [03](03-tech-stack-and-local-dev.md)); to run the
+container locally, `docker build -t goaml:dev .` then run it with `SPRING_DATASOURCE_*` + `GOAML_JWT_SECRET`.
 
 ---
 

@@ -25,11 +25,16 @@ suite (accounting/ERP + AML screening).
 - **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
 
 ## Key facts to not re-derive
-- **Status:** Phases 1–11 **+ 13** committed (+ XSD-first foundation + layer-first refactor); next =
-  **Phase 14 (infra)**. **Build order 13 → 14 → 12** — the **Claude plugin & MCP
-  harness + `cli/` (Phase 12) is deferred to LAST** (dependency-safe; the frontend uses the REST API, infra
-  packages the jar regardless, and 12 only needs the done Phases 6–11). **Phase 1.5** (suite integration +
-  federated auth) deferred — decide later. **Phase 13** added the **`frontend/` SPA** (Vite+React+TS+Ant
+- **Status:** Phases 1–11 **+ 13 + 14** committed (+ XSD-first foundation + layer-first refactor); next =
+  **Phase 12 (plugin/MCP/CLI) — the LAST phase**. **Build order 13 → 14 → 12.** **Phase 1.5** (suite
+  integration + federated auth) deferred — decide later. **Phase 14** added the deployable infra: a
+  finalized 3-stage **Dockerfile** (node SPA build → layered `bootJar` with the SPA on the classpath →
+  non-root JRE), a full **Helm chart** (`helm/goaml/`: Deployment+probes, Service, Ingress+TLS, HPA,
+  ConfigMap, ServiceAccount+IRSA, 3 secret strategies), an **observability baseline**
+  (`micrometer-registry-prometheus` → `/actuator/prometheus`, `prod` JSON logs, `CorrelationIdFilter`), and
+  **GitHub Actions** (`ci.yml` gates; `cd.yml` image build + secret-gated ECR/EKS deploy). When Phase 12
+  ships, a minor infra touch-up follows (MCP HTTP route in the Helm ingress + `--cli` run-mode).
+  **Phase 13** added the **`frontend/` SPA** (Vite+React+TS+Ant
   Design over the REST API: auth → dashboard → full DPMSR builder → detail/submit/track/attachments →
   import → notifications + reference browser → admin; 58 Vitest specs) plus its REST enablers
   (`controller/lookup/`, `controller/admin/` + `service/admin/`, CORS + SPA-serving) and a gated
