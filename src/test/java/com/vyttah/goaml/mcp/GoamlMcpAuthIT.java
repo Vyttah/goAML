@@ -119,6 +119,66 @@ class GoamlMcpAuthIT {
         }
     }
 
+    @Test
+    void readToolReturnsStructuredDataOverMcp() {
+        try (McpSyncClient client = connect(mintToken(List.of("ANALYST"), "public"))) {
+            McpSchema.CallToolResult result =
+                    client.callTool(new McpSchema.CallToolRequest("goaml_list_jurisdictions", Map.of()));
+
+            assertThat(result.isError()).isNotEqualTo(Boolean.TRUE);
+            // The UAE jurisdiction config is structured JSON: code + accepted report codes.
+            assertThat(firstText(result)).contains("ae").contains("DPMSR");
+        }
+    }
+
+    @Test
+    void validateDpmsrToolDeserializesRequestWithDatesAndReturnsVerdict() {
+        try (McpSyncClient client = connect(mintToken(List.of("ANALYST"), "public"))) {
+            McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
+                    "goaml_validate_dpmsr", Map.of("request", sampleDpmsrRequest())));
+
+            // The complex request (incl. an OffsetDateTime submissionDate) deserialized and the engine ran:
+            // no tenant config in this test → INVALID with a rentity_id message. The point is a STRUCTURED
+            // verdict came back, not a deserialization error.
+            assertThat(result.isError()).isNotEqualTo(Boolean.TRUE);
+            assertThat(firstText(result)).contains("status").contains("INVALID").contains("rentity_id");
+        }
+    }
+
+    @Test
+    void toolEnforcesRbacOverTheWire() {
+        // TENANT_ADMIN may read reports but NOT validate/build — the tool must refuse over MCP.
+        try (McpSyncClient client = connect(mintToken(List.of("TENANT_ADMIN"), "public"))) {
+            McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
+                    "goaml_validate_dpmsr", Map.of("request", sampleDpmsrRequest())));
+
+            assertThat(result.isError()).isEqualTo(Boolean.TRUE);
+            assertThat(firstText(result)).contains("requires one of roles");
+        }
+    }
+
+    private McpSyncClient connect(String token) {
+        McpSyncClient client = McpClient.sync(transport(token)).requestTimeout(Duration.ofSeconds(30)).build();
+        client.initialize();
+        return client;
+    }
+
+    /** A DPMSR request as nested maps (what an MCP client would send), incl. a date-typed field. */
+    private static Map<String, Object> sampleDpmsrRequest() {
+        return Map.of(
+                "entityReference", "MCP-" + UUID.randomUUID(),
+                "submissionDate", "2026-06-02T12:00:00Z",
+                "reason", "DPMS threshold met",
+                "action", "Filed",
+                "indicators", List.of("DPMSJ"),
+                "reportingPerson", Map.of("firstName", "Sara", "lastName", "Khan"),
+                "parties", List.of(Map.of(
+                        "reason", "Seller of gold above AED 55,000",
+                        "entity", Map.of("name", "Minimal Trading FZE", "incorporationCountryCode", "AE"))),
+                "goods", List.of(Map.of(
+                        "itemType", "GOLD", "estimatedValue", 90000, "currencyCode", "AED")));
+    }
+
     private static String firstText(McpSchema.CallToolResult result) {
         return result.content().stream()
                 .filter(McpSchema.TextContent.class::isInstance)

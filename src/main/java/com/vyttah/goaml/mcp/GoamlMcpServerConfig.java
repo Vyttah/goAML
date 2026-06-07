@@ -1,5 +1,7 @@
 package com.vyttah.goaml.mcp;
 
+import com.vyttah.goaml.mcp.tool.LookupTools;
+import com.vyttah.goaml.mcp.tool.ReportTools;
 import com.vyttah.goaml.mcp.tool.SystemTools;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
@@ -19,9 +21,10 @@ import org.springframework.context.annotation.Configuration;
 public class GoamlMcpServerConfig {
 
     @Bean
-    public ToolCallbackProvider goamlMcpTools(SystemTools systemTools) {
+    public ToolCallbackProvider goamlMcpTools(SystemTools systemTools, LookupTools lookupTools,
+                                              ReportTools reportTools) {
         return MethodToolCallbackProvider.builder()
-                .toolObjects(systemTools)
+                .toolObjects(systemTools, lookupTools, reportTools)
                 .build();
     }
 }

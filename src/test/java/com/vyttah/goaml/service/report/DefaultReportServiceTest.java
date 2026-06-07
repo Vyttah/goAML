@@ -116,6 +116,35 @@ class DefaultReportServiceTest {
     }
 
     @Test
+    void validateDoesNotPersistAndReturnsVerdict() {
+        stubConfig(3177);
+
+        ReportValidationResult valid = service.validate(minimalRequest("V-1", new BigDecimal("90000.00")), tenantId);
+        ReportValidationResult invalid = service.validate(minimalRequest("V-2", new BigDecimal("10000.00")), tenantId);
+
+        assertThat(valid.status()).isEqualTo("VALID");
+        assertThat(invalid.status()).isEqualTo("INVALID");
+        assertThat(invalid.messages()).anyMatch(m -> m.code().equals("DPMS_THRESHOLD"));
+        // Pure check: nothing persisted, no duplicate lookup, no audit.
+        verify(reportRepository, never()).save(any());
+        verify(reportRepository, never()).existsByEntityReference(any());
+        verify(auditService, never()).record(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void previewXmlReturnsMarshalledXmlWithoutPersisting() {
+        stubConfig(3177);
+
+        ReportPreview preview = service.previewXml(minimalRequest("P-1", new BigDecimal("90000.00")), tenantId);
+
+        assertThat(preview.status()).isEqualTo("VALID");
+        assertThat(preview.xml())
+                .contains("<report_code>DPMSR</report_code>")
+                .contains("<rentity_id>3177</rentity_id>");
+        verify(reportRepository, never()).save(any());
+    }
+
+    @Test
     void getMissingThrows() {
         when(reportRepository.findById(any())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.get(UUID.randomUUID()))

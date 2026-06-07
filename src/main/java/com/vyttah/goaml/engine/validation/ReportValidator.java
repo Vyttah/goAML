@@ -10,11 +10,11 @@ import com.vyttah.goaml.domain.generated.TTransItem;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionConfig;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.engine.lookup.LookupService;
+import com.vyttah.goaml.engine.metadata.ReportTypeMetadata;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Pre-submission business-rule validator. Applies schema-level and UAE-specific conditional rules
@@ -27,14 +27,8 @@ import java.util.Set;
 @Component
 public class ReportValidator {
 
-    /** Transaction-based report shapes (carry {@code <transaction>}). */
-    private static final Set<ReportType> TRANSACTION_CODES = Set.of(ReportType.STR, ReportType.AIFT, ReportType.ECDDT);
-    /** Activity-based report shapes (carry {@code <activity>}). */
-    private static final Set<ReportType> ACTIVITY_CODES = Set.of(ReportType.SAR, ReportType.AIF, ReportType.ECDD, ReportType.DPMSR);
-    /** Codes that must reference an originating FIU request. */
-    private static final Set<ReportType> FIU_REF_REQUIRED = Set.of(ReportType.AIF, ReportType.AIFT, ReportType.ECDD, ReportType.ECDDT);
-    /** Codes that require location / reason / action on the report header. */
-    private static final Set<ReportType> LOCATION_REASON_ACTION_REQUIRED = Set.of(ReportType.STR, ReportType.SAR);
+    // Report-shape + conditional-field metadata lives in ReportTypeMetadata (the single source of truth,
+    // shared with the MCP describe tool) so the validator and the agent-facing description never drift.
 
     private static final int MAX_ENTITY_REFERENCE = 255;
     private static final int MAX_FIU_REF = 255;
@@ -68,9 +62,9 @@ public class ReportValidator {
         validateShape(report, code, result);
         validateIndicators(report, result);
 
-        if (TRANSACTION_CODES.contains(code)) {
+        if (ReportTypeMetadata.isTransactionShaped(code)) {
             validateTransactions(report, jurisdiction, result);
-        } else if (ACTIVITY_CODES.contains(code)) {
+        } else if (ReportTypeMetadata.isActivityShaped(code)) {
             validateActivity(report, code, jurisdiction, result);
         }
         return result;
@@ -117,7 +111,7 @@ public class ReportValidator {
         validateReportingPerson(report.getReportingPerson(), result);
 
         // Conditional: fiu_ref_number required for follow-up report types.
-        if (code != null && FIU_REF_REQUIRED.contains(code) && isBlank(report.getFiuRefNumber())) {
+        if (code != null && ReportTypeMetadata.requiresFiuRef(code) && isBlank(report.getFiuRefNumber())) {
             result.error("report.fiu_ref_number", "FIU_REF_REQUIRED",
                     "fiu_ref_number is mandatory for report_code " + code);
         }
@@ -127,7 +121,7 @@ public class ReportValidator {
         }
 
         // Conditional: location / reason / action required for STR / SAR.
-        if (code != null && LOCATION_REASON_ACTION_REQUIRED.contains(code)) {
+        if (code != null && ReportTypeMetadata.requiresLocationReasonAction(code)) {
             if (report.getLocation() == null) {
                 result.error("report.location", "MANDATORY",
                         "location is mandatory for report_code " + code);
@@ -170,7 +164,7 @@ public class ReportValidator {
         boolean hasTransactions = !report.getTransaction().isEmpty();
         boolean hasActivity = report.getReportActivity() != null;
 
-        if (TRANSACTION_CODES.contains(code)) {
+        if (ReportTypeMetadata.isTransactionShaped(code)) {
             if (!hasTransactions) {
                 result.error("report.transaction", "SHAPE_REQUIRED",
                         "report_code " + code + " requires at least one transaction");
@@ -179,7 +173,7 @@ public class ReportValidator {
                 result.error("report.activity", "SHAPE_CONFLICT",
                         "report_code " + code + " is transaction-based and must not carry an activity");
             }
-        } else if (ACTIVITY_CODES.contains(code)) {
+        } else if (ReportTypeMetadata.isActivityShaped(code)) {
             if (!hasActivity) {
                 result.error("report.activity", "SHAPE_REQUIRED",
                         "report_code " + code + " requires an activity");

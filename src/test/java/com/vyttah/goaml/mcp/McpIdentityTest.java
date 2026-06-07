@@ -28,8 +28,10 @@ class McpIdentityTest {
         TenantContext.clear();
     }
 
+    private static final UUID TENANT_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+
     private void authenticate(List<String> roles, String schema) {
-        UserPrincipal principal = new UserPrincipal(USER_ID, null, "officer@demo.local", "", true, roles);
+        UserPrincipal principal = new UserPrincipal(USER_ID, TENANT_ID, "officer@demo.local", "", true, roles);
         var auth = new UsernamePasswordAuthenticationToken(principal, null, principal.getAuthorities());
         var ctx = SecurityContextHolder.createEmptyContext();
         ctx.setAuthentication(auth);
@@ -44,6 +46,7 @@ class McpIdentityTest {
         var identity = McpIdentity.current().orElseThrow();
 
         assertThat(identity.userId()).isEqualTo(USER_ID);
+        assertThat(identity.tenantId()).isEqualTo(TENANT_ID);
         assertThat(identity.email()).isEqualTo("officer@demo.local");
         assertThat(identity.tenantSchema()).isEqualTo("tenant_demo");
         // The ROLE_ authority prefix is stripped back to bare role names (matching the JWT claim).
@@ -80,8 +83,32 @@ class McpIdentityTest {
     @Test
     void requireThrowsWhenUnauthenticated() {
         assertThatThrownBy(McpIdentity::require)
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("No authenticated MCP identity");
+                .isInstanceOf(McpAccessDeniedException.class)
+                .hasMessageContaining("Authentication is required");
+    }
+
+    @Test
+    void requireAnyRoleReturnsIdentityWhenRolePresent() {
+        authenticate(List.of("ANALYST"), "tenant_demo");
+
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("MLRO", "ANALYST");
+
+        assertThat(identity.roles()).contains("ANALYST");
+    }
+
+    @Test
+    void requireAnyRoleThrowsWhenRoleMissing() {
+        authenticate(List.of("ANALYST"), "tenant_demo");
+
+        assertThatThrownBy(() -> McpIdentity.requireAnyRole("MLRO"))
+                .isInstanceOf(McpAccessDeniedException.class)
+                .hasMessageContaining("requires one of roles");
+    }
+
+    @Test
+    void requireAnyRoleThrowsWhenUnauthenticated() {
+        assertThatThrownBy(() -> McpIdentity.requireAnyRole("ANALYST"))
+                .isInstanceOf(McpAccessDeniedException.class);
     }
 
     @Test

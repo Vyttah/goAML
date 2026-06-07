@@ -6,6 +6,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -26,7 +27,7 @@ public final class McpIdentity {
     private McpIdentity() {}
 
     /** The authenticated caller of the current MCP tool invocation. */
-    public record Identity(UUID userId, String email, String tenantSchema, List<String> roles) {}
+    public record Identity(UUID userId, UUID tenantId, String email, String tenantSchema, List<String> roles) {}
 
     /**
      * The identity bound to the current thread, or empty when the call is unauthenticated (no
@@ -42,14 +43,30 @@ public final class McpIdentity {
                 .map(GrantedAuthority::getAuthority)
                 .map(a -> a.startsWith(ROLE_PREFIX) ? a.substring(ROLE_PREFIX.length()) : a)
                 .toList();
-        return Optional.of(new Identity(principal.getUserId(), principal.getUsername(),
-                TenantContext.get(), roles));
+        return Optional.of(new Identity(principal.getUserId(), principal.getTenantId(),
+                principal.getUsername(), TenantContext.get(), roles));
     }
 
-    /** Like {@link #current()} but throws when there is no authenticated caller. */
+    /** Like {@link #current()} but throws {@link McpAccessDeniedException} when unauthenticated. */
     public static Identity require() {
         return current().orElseThrow(() ->
-                new IllegalStateException("No authenticated MCP identity on the current call"));
+                new McpAccessDeniedException("Authentication is required for this goAML MCP tool"));
+    }
+
+    /**
+     * Require the caller to hold at least one of the given bare role names; returns the identity, or throws
+     * {@link McpAccessDeniedException} if unauthenticated or lacking every role. The MCP edge's equivalent
+     * of {@code @PreAuthorize("hasAnyRole(...)")}.
+     */
+    public static Identity requireAnyRole(String... roles) {
+        Identity identity = require();
+        for (String role : roles) {
+            if (identity.roles().contains(role)) {
+                return identity;
+            }
+        }
+        throw new McpAccessDeniedException("This goAML MCP tool requires one of roles "
+                + Arrays.toString(roles) + "; your roles are " + identity.roles());
     }
 
     /** Whether the current caller holds the given bare role name (e.g. {@code "MLRO"}). */
