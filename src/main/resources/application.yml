@@ -54,6 +54,12 @@ management:
       group:
         readiness:
           include: db,readinessState
+  # Phase 14: enable the Prometheus scrape endpoint explicitly. The specific key is honored even in tests,
+  # where Spring Boot otherwise disables metrics export by default (management.defaults.metrics.export).
+  prometheus:
+    metrics:
+      export:
+        enabled: true
 
 goaml:
   jwt:

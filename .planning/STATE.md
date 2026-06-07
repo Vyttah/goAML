@@ -19,12 +19,20 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Current Position
 
-- **Phases 1–11 + 13 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 +
-  XSD gate + DPMSR builder) and the **Vyttah layer-first refactor**.
-- **Active focus: Phase 14 (infra) next** — Dockerfile finalize, Helm chart, observability, CI/CD. Build
-  order **13 → 14 → 12**; Phase 12 (plugin/MCP/CLI) **deferred to last**, Phase 1.5 **deferred — decide
-  later** (see Recent Decisions).
-- **Last completed:** **Phase 13 (`frontend/`)** — the React + TypeScript + Vite + Ant Design SPA over the
+- **Phases 1–11 + 13 + 14 complete**, plus the **XSD-first foundation** (domain xjc-generated from goAML
+  5.0.2 + XSD gate + DPMSR builder) and the **Vyttah layer-first refactor**.
+- **Active focus: Phase 12 (plugin/MCP/CLI) next — the LAST phase.** Build order **13 → 14 → 12**; Phase 1.5
+  (suite integration + federated auth) **deferred — decide later** (see Recent Decisions).
+- **Last completed:** **Phase 14 (infra)** — deployable packaging: a finalized 3-stage **Dockerfile**
+  (node SPA build → layered `bootJar` with the SPA on the classpath → non-root JRE; verified by a real
+  `docker build` + run — SPA served, `/actuator/prometheus` 200, liveness/readiness UP, non-root), a full
+  **Helm chart** (`helm/goaml/`: Deployment w/ health-group probes + hardened security context, Service,
+  Ingress+TLS, HPA, ConfigMap, ServiceAccount+IRSA, 3 secret strategies; `helm lint` clean), an
+  **observability baseline** (`micrometer-registry-prometheus` → `/actuator/prometheus`, `prod`-profile JSON
+  logs, a `CorrelationIdFilter`), and **GitHub Actions** (`ci.yml` backend+frontend gates; `cd.yml` image
+  build + secret-gated ECR/EKS deploy via OIDC). Commits `e24bce4`…(14.5). Per-step docs:
+  `steps/PHASE-14.1..14.5`.
+- **Previously:** **Phase 13 (`frontend/`)** — the React + TypeScript + Vite + Ant Design SPA over the
   REST API: auth (JWT-claims identity, 401→login) → dashboard → **full DPMSR builder** (Zod mirror, lookup
   dropdowns, inline server validation) → report detail (MLRO submit + FIU status + attachments) → file
   import (XML/CSV + per-row results) → notifications (bell + center) → reference browser → admin (tenant /
@@ -59,25 +67,26 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   GETs). Per-tenant/per-report failures logged + skipped; the scheduled method never throws (would suppress
   future runs); `TenantContext` cleared per tenant. Testcontainers IT (two tenants transition + isolation).
   Commits `015ea61`…`9530bf3` (+ 9.4). Per-step docs: `steps/PHASE-9.1..9.4`.
-- **Branch:** `phase-13/frontend` (off `main`; Phases 6–11 + XSD-first are on `main`). Merge to `main` on
-  Phase 13 close.
+- **Branch:** `phase-14/infra` (off `main`; Phases 6–11 + 13 + XSD-first are on `main`). Merge to `main` on
+  Phase 14 close.
 - **Build/tests:** ✅ green — backend `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`;
-  frontend `cd frontend && npm test` (58) / `npm run typecheck` / `npm run lint` / `npm run build`.
+  frontend `cd frontend && npm test` (58) / `npm run typecheck` / `npm run lint` / `npm run build`;
+  `docker build -t goaml:dev .` builds + boots; `helm lint helm/goaml` clean.
 - **Local review:** `GOAML_DEV_SEED=true ./gradlew bootRun` (seeds a demo tenant + logins, all password
   `Passw0rd!`: `mlro@demo.local`, `analyst@demo.local`, `admin@demo.local`, `superadmin@goaml.local`) +
-  `cd frontend && npm run dev` → http://localhost:5173 (proxies `/api` → :8080).
+  `cd frontend && npm run dev` → http://localhost:5173 (proxies `/api` → :8080). Container: `docker build -t
+  goaml:dev .` then run with `SPRING_DATASOURCE_*` + `GOAML_JWT_SECRET` env (serves API + SPA on :8080).
 
-## Next Action — Phase 14 (infra)
+## Next Action — Phase 12 (plugin / MCP harness / CLI) — the LAST phase
 
-Package + deploy: finalize the Dockerfile (multi-stage: build the `frontend/` SPA → into the jar's
-`static/` → run), Helm chart, observability baseline (the actuator/prometheus endpoints already exist), and
-GitHub Actions CI/CD. The **Gradle node task** to build `frontend/` into `static/` for the prod jar belongs
-here (gate it so backend-only contributors aren't forced to build the SPA). Per docs/00.
+The goAML Claude plugin + MCP harness + a `cli/` run-mode of the same jar, so users connect Claude and drive
+goAML features safely. Plan: [plans/phase-12-plugin-and-mcp-harness.md](plans/phase-12-plugin-and-mcp-harness.md)
+— it has **4 open decisions to confirm** (auth model, submission autonomy, plugin target, transport).
+read/build/validate/preview tools are buildable on the existing `engine/`; submit/track/import tools reuse
+the now-complete Phases 6/7/9/11.
 
-> Caveat carried forward: when Phase 12 (plugin/MCP/CLI) ships *after* infra, expect a minor infra touch-up
-> (expose the MCP HTTP route in Helm/ingress + the `--cli` run-mode).
-
-**Then:** Phase 12 (plugin/MCP/CLI) **last** — see the build-order decision below.
+> Carried-forward infra touch-up (Phase 14 landed before 12): when 12 ships, expose the MCP HTTP route in the
+> Helm ingress + add the `--cli` run-mode (a small Helm/Dockerfile tweak).
 
 **Recently completed (history in `steps/` + `discussion-log.md`):** XSD-first foundation (STEP-1..7 +
 STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, goAML B2B client; **Phase 7**
@@ -85,17 +94,20 @@ STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, go
 (PHASE-8.1..8.5) → S3 client, `attachment` table, attachment service + submit wiring, multipart REST;
 **Phase 9** (PHASE-9.1..9.4) → scheduler queries + config, RetryService, SubmissionStatusPoller, IT;
 **Phase 10** (PHASE-10.1..10.4) → notification store + config, SesClient, NotificationService, seam+REST+IT;
-**Phase 11** (PHASE-11.1..11.4) → import_job store, GoamlXmlImporter, CsvImporter, ingestion service+REST+E2E.
+**Phase 11** (PHASE-11.1..11.4) → import_job store, GoamlXmlImporter, CsvImporter, ingestion service+REST+E2E;
+**Phase 13** (PHASE-13.1..13.11) → lookup+admin REST enablers, then the React SPA (auth→dashboard→builder→
+detail→import→notifications→reference→admin) + dev seeder; **Phase 14** (PHASE-14.1..14.5) → observability
+(Prometheus/JSON logs/correlation id), finalized Dockerfile, Helm chart, GitHub Actions CI + gated CD.
 
 ## Progress
 
-`[██████████] 12/14 (≈86%)` + XSD-first foundation + layer-first refactor
+`[█████████████] 13/14 (≈93%)` + XSD-first foundation + layer-first refactor
 
 | Done | Phase |
 |------|-------|
-| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · **13 frontend** |
-| ⏭️ | **14 infra** (Dockerfile + Helm + observability + CI/CD) |
-| ⬜ | then **12 mcp+cli last** (deferred); 1.5 suite-integration deferred |
+| ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · 13 frontend · **14 infra** |
+| ⏭️ | **12 plugin/MCP/CLI** (the last phase) |
+| ⬜ | 1.5 suite-integration (deferred — decide later) |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)
@@ -178,12 +190,12 @@ STEP-R); **Phase 6** (PHASE-6.1..6.5) → Secrets Manager, Redis token cache, go
   preserved snapshot); a follow-up commit merged Ultraplan's refinements into the auth plan and removed the
   redundant `goamlplanningkb/` duplicate. ⚠️ Real-PII sample XMLs remain committed (local-only, unpushed) —
   **anonymize before any push/share.**
-- **2026-06-06/07 session:** built **Phase 13 (React frontend)** end-to-end on branch `phase-13/frontend`
-  — backend enablers (lookup API, admin API, CORS/SPA-serving) then the full Vite+React+TS+AntD SPA
-  (steps 13.1–13.11), 58 Vitest specs, all gates green; added a gated dev seeder for local review. Decision
-  this session: the DPMSR builder is the **full nested form** (per plan D1). Surfaced (not faked) three
-  small backend gaps for later: report XML preview, validation re-fetch for an existing report, attachment
-  download. **Next: merge `phase-13/frontend` → `main`, then Phase 14 (infra).**
+- **2026-06-06/07 session:** built **Phase 13 (React frontend)** (steps 13.1–13.11, 58 Vitest specs, gated
+  dev seeder; merged to `main` `9a4c691`) **and Phase 14 (infra)** on branch `phase-14/infra` (steps
+  14.1–14.5): observability (Prometheus/JSON logs/correlation id), finalized SPA-bundled non-root Dockerfile
+  (verified via real `docker build` + run), full Helm chart (`helm lint` clean), GitHub Actions CI + gated
+  CD. Decisions: DPMSR builder = full nested form (13); SPA via Dockerfile node stage + gated CD + full Helm
+  (14). **Next: merge `phase-14/infra` → `main`, then Phase 12 (plugin/MCP/CLI) — the last phase.**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
-  `cd frontend && npm install && npm run dev` → continue with Phase 14 (infra).
+  `cd frontend && npm install && npm run dev` → continue with **Phase 12** (confirm its 4 open decisions).

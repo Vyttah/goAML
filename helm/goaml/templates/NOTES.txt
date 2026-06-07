@@ -1,0 +1,17 @@
+goAML {{ .Chart.AppVersion }} deployed as release "{{ .Release.Name }}" in namespace "{{ .Release.Namespace }}".
+
+Pods: kubectl -n {{ .Release.Namespace }} get pods -l app.kubernetes.io/instance={{ .Release.Name }}
+
+{{- if .Values.ingress.enabled }}
+URL: http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}/
+{{- else }}
+Port-forward to test locally:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "goaml.fullname" . }} 8080:{{ .Values.service.port }}
+  open http://localhost:8080/         # SPA
+  curl http://localhost:8080/actuator/health/readiness
+{{- end }}
+
+Secrets: {{ if .Values.externalSecret.enabled }}synced by an ExternalSecret from {{ .Values.externalSecret.secretStoreRef.name }}{{ else if .Values.secret.existingSecret }}using existing Secret "{{ .Values.secret.existingSecret }}"{{ else if .Values.secret.create }}chart-managed Secret (dev only — do not commit prod values){{ else }}NONE configured — set externalSecret.enabled, secret.create, or secret.existingSecret (the app needs GOAML_JWT_SECRET + SPRING_DATASOURCE_PASSWORD){{ end }}.
+{{- if .Values.serviceAccount.create }}
+AWS access: ServiceAccount "{{ include "goaml.serviceAccountName" . }}"{{ if .Values.serviceAccount.annotations }} (IRSA annotated){{ else }} — add eks.amazonaws.com/role-arn for IRSA{{ end }}.
+{{- end }}
