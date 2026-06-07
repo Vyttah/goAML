@@ -1,0 +1,109 @@
+# goAML Helm values. Override per environment (e.g. -f values-prod.yaml).
+replicaCount: 2
+
+image:
+  repository: goaml
+  # tag defaults to .Chart.AppVersion when empty (set to the immutable image digest/tag in CD).
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: ""
+  # IRSA: grant AWS access (Secrets Manager / S3 / SES) without static keys, e.g.
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::<account>:role/goaml
+  annotations: {}
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true   # /tmp is mounted writable (emptyDir) by the Deployment
+  capabilities:
+    drop: ["ALL"]
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: goaml.example.com
+  tls:
+    enabled: true
+    secretName: goaml-tls
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 768Mi
+  limits:
+    memory: 1536Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 75
+
+# Non-secret env → rendered into a ConfigMap and injected via envFrom.
+config:
+  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://goaml-postgres:5432/goaml"
+  SPRING_DATASOURCE_USERNAME: "goaml"
+  SPRING_DATA_REDIS_HOST: "goaml-redis"
+  SPRING_DATA_REDIS_PORT: "6379"
+  GOAML_AWS_REGION: "me-central-1"
+  GOAML_AWS_ENDPOINT: ""           # empty = real AWS (SDK resolves the regional endpoint + IRSA)
+  GOAML_S3_BUCKET: "goaml-attachments"
+  GOAML_ALLOWED_ORIGINS: ""        # blank: SPA is served same-origin from the jar (no CORS)
+
+# Secret env (GOAML_JWT_SECRET, SPRING_DATASOURCE_PASSWORD). Pick ONE strategy:
+#  1) externalSecret.enabled=true → an ExternalSecret (External Secrets Operator) syncs from AWS → a Secret
+#  2) secret.create=true          → a chart-managed Secret from secret.data (dev/test only; do not commit prod values)
+#  3) secret.existingSecret=<name> → reference a Secret created out-of-band
+secret:
+  create: false
+  existingSecret: ""
+  data:
+    GOAML_JWT_SECRET: ""
+    SPRING_DATASOURCE_PASSWORD: ""
+
+externalSecret:
+  enabled: false
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: aws-secrets
+    kind: ClusterSecretStore
+  data:
+    - secretKey: GOAML_JWT_SECRET
+      remoteRef:
+        key: goaml/app
+        property: jwt-secret
+    - secretKey: SPRING_DATASOURCE_PASSWORD
+      remoteRef:
+        key: goaml/app
+        property: db-password
+
+probes:
+  liveness:
+    path: /actuator/health/liveness
+  readiness:
+    path: /actuator/health/readiness
+  # generous startup window so a slow first boot (Flyway migrate) doesn't get killed
+  startupFailureThreshold: 30
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
