@@ -1,6 +1,8 @@
 package com.vyttah.goaml.service.admin;
 
+import com.vyttah.goaml.b2b.B2bAuthMode;
 import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
@@ -18,9 +20,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Default {@link AdminService}. Tenant provisioning reuses {@link TenantProvisioningService}; user creation
@@ -39,6 +43,7 @@ public class DefaultAdminService implements AdminService {
     private final AppUserRepository appUserRepository;
     private final RoleRepository roleRepository;
     private final TenantGoamlConfigRepository configRepository;
+    private final JurisdictionRegistry jurisdictionRegistry;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
 
@@ -91,16 +96,43 @@ public class DefaultAdminService implements AdminService {
 
     @Override
     public TenantGoamlConfig upsertGoamlConfig(UUID tenantId, GoamlConfigRequest request) {
+        String authMode = validateAuthMode(request.authMode());
+        validateJurisdiction(request.jurisdictionCode());
+
         TenantGoamlConfig config = configRepository.findByTenantId(tenantId)
                 .orElseGet(() -> new TenantGoamlConfig(UUID.randomUUID(), tenantId));
         config.setJurisdictionCode(request.jurisdictionCode());
         config.setRentityId(request.rentityId());
         config.setBaseUrl(request.baseUrl());
         config.setSecretsPath(request.secretsPath());
-        config.setAuthMode(request.authMode());
+        config.setAuthMode(authMode);
         configRepository.save(config);
         auditService.record("ADMIN.GOAML_CONFIG_SET", null, null, TenantContext.get(),
                 "set goAML config (rentity " + request.rentityId() + ", " + request.jurisdictionCode() + ")");
         return config;
+    }
+
+    /**
+     * Validate the FIU auth mode against {@link B2bAuthMode} at write time (returning the normalized,
+     * upper-cased value) so a typo fails here with a clear 400 — not later as a cryptic {@code valueOf}
+     * error at submit.
+     */
+    private static String validateAuthMode(String authMode) {
+        String normalized = authMode == null ? "" : authMode.trim().toUpperCase();
+        boolean known = Arrays.stream(B2bAuthMode.values()).anyMatch(m -> m.name().equals(normalized));
+        if (!known) {
+            String allowed = Arrays.stream(B2bAuthMode.values()).map(Enum::name).collect(Collectors.joining(", "));
+            throw new IllegalArgumentException("authMode must be one of [" + allowed + "], was: " + authMode);
+        }
+        return normalized;
+    }
+
+    /** Validate the jurisdiction against the configured registry (UAE today) at write time. */
+    private void validateJurisdiction(String jurisdictionCode) {
+        String code = jurisdictionCode == null ? "" : jurisdictionCode.trim().toLowerCase();
+        if (jurisdictionRegistry.find(code).isEmpty()) {
+            throw new IllegalArgumentException("Unknown jurisdictionCode: " + jurisdictionCode
+                    + " (supported: " + jurisdictionRegistry.codes() + ")");
+        }
     }
 }
