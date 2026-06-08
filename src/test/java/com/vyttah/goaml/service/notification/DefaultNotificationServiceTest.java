@@ -118,6 +118,32 @@ class DefaultNotificationServiceTest {
     }
 
     @Test
+    void draftAwaitingReviewNotifiesMlrosWithPendingType() {
+        UUID mlroId = UUID.randomUUID();
+        when(appUserRepository.findByTenantIdAndStatusAndRoles_Name(tenantId, "ACTIVE", "MLRO"))
+                .thenReturn(List.of(user(mlroId, "mlro@tenant.test")));
+
+        service(true).notifyDraftAwaitingReview(report(null), tenantId);
+
+        ArgumentCaptor<Notification> saved = ArgumentCaptor.forClass(Notification.class);
+        verify(notificationRepository, times(1)).save(saved.capture());
+        assertThat(saved.getValue().getRecipientUserId()).isEqualTo(mlroId);
+        assertThat(saved.getValue().getType()).isEqualTo("REPORT_PENDING_REVIEW");
+        verify(sesClient).send(eq("mlro@tenant.test"), eq("Report awaiting submission"), anyString());
+    }
+
+    @Test
+    void draftAwaitingReviewWithNoMlrosIsNoOp() {
+        when(appUserRepository.findByTenantIdAndStatusAndRoles_Name(tenantId, "ACTIVE", "MLRO"))
+                .thenReturn(List.of());
+
+        service(false).notifyDraftAwaitingReview(report(null), tenantId);
+
+        verify(notificationRepository, never()).save(any());
+        verifyNoInteractions(sesClient);
+    }
+
+    @Test
     void nonNotifiableStatusIsNoOp() {
         service(true).notifyReportTransition(report(UUID.randomUUID()), "SUBMITTED", tenantId);
 

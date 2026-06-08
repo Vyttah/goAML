@@ -25,6 +25,15 @@ public interface NotificationService {
      */
     void notifyReportTransition(Report report, String newStatus, UUID tenantId);
 
+    /**
+     * Notify the tenant's active MLROs (and the report author, if any) that an auto-created {@code VALID}
+     * report — from an accounting push or a file import — is a draft awaiting their one-click submit. Used
+     * when per-tenant auto-submit is off (the default). In-app rows are always written; email only if
+     * enabled; best-effort, exactly like {@link #notifyReportTransition}. Requires the caller's bound
+     * tenant {@link com.vyttah.goaml.config.tenant.TenantContext}.
+     */
+    void notifyDraftAwaitingReview(Report report, UUID tenantId);
+
     /** A recipient's notifications, newest first; {@code unreadOnly} restricts to unread. */
     List<Notification> list(UUID recipientUserId, boolean unreadOnly);
 

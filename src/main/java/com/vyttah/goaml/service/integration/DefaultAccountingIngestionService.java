@@ -10,13 +10,20 @@ import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
+import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
+import com.vyttah.goaml.service.submission.SubmissionResult;
+import com.vyttah.goaml.service.submission.SubmissionService;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -37,12 +44,17 @@ import java.util.UUID;
 @Service
 public class DefaultAccountingIngestionService implements AccountingIngestionService {
 
+    private static final Logger log = LoggerFactory.getLogger(DefaultAccountingIngestionService.class);
+
     private final TenantExternalRefRepository tenantExternalRefs;
     private final TenantRepository tenants;
     private final AppUserRepository appUsers;
     private final ReportRepository reportRepository;
+    private final TenantGoamlConfigRepository configRepository;
     private final ReportabilityDetector detector;
     private final ReportService reportService;
+    private final SubmissionService submissionService;
+    private final NotificationService notificationService;
 
     @Override
     public AccountingTxnResponse ingest(AccountingTxnPayload payload) {
@@ -74,9 +86,55 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
             DpmsrCreateRequest request = AccountingDpmsrMapper.toCreateRequest(
                     payload, ref, OffsetDateTime.now(ZoneOffset.UTC), mlro[0], mlro[1]);
             ReportResult result = reportService.create(request, tenant.tenantId(), null);
-            return new AccountingTxnResponse(ref, true, result.reportId(), result.status(), verdict.reasons());
+            return finalizeDraft(tenant.tenantId(), ref, result, verdict.reasons());
         } finally {
             restore(previous);
+        }
+    }
+
+    /**
+     * Decide what happens to a freshly-created reportable draft (submit gating, Phase 1.5b.5):
+     * <ul>
+     *   <li>not {@code VALID} (validation failed) — leave it for a human to fix; no auto-submit, no ping.</li>
+     *   <li>{@code VALID} + tenant {@code auto_submit} on — submit to the FIU now (audited inside
+     *       {@link SubmissionService#submit}); if that fails it falls back to the MLRO gate (best-effort —
+     *       a transport/credential failure must never fail the accounting push).</li>
+     *   <li>{@code VALID} + auto-submit off (default) — keep the draft and notify the tenant's MLROs that a
+     *       one-click submit is waiting.</li>
+     * </ul>
+     * Runs with the tenant {@link TenantContext} already bound by {@link #ingest}.
+     */
+    private AccountingTxnResponse finalizeDraft(UUID tenantId, String ref, ReportResult result,
+                                               List<String> reasons) {
+        UUID reportId = result.reportId();
+        if (!"VALID".equals(result.status())) {
+            return new AccountingTxnResponse(ref, true, reportId, result.status(), reasons);
+        }
+
+        boolean autoSubmit = configRepository.findByTenantId(tenantId)
+                .map(TenantGoamlConfig::isAutoSubmit)
+                .orElse(false);
+        if (autoSubmit) {
+            try {
+                SubmissionResult sub = submissionService.submit(reportId, tenantId, null);
+                return new AccountingTxnResponse(ref, true, reportId, sub.status(), reasons);
+            } catch (RuntimeException e) {
+                log.warn("Auto-submit of {} (tenant {}) failed: {} — leaving a VALID draft for the MLRO",
+                        ref, tenantId, e.getMessage());
+            }
+        }
+
+        notifyMlros(reportId, tenantId);
+        return new AccountingTxnResponse(ref, true, reportId, result.status(), reasons);
+    }
+
+    /** Best-effort MLRO ping that a validated draft awaits one-click submit — never fails the push. */
+    private void notifyMlros(UUID reportId, UUID tenantId) {
+        try {
+            reportRepository.findById(reportId)
+                    .ifPresent(r -> notificationService.notifyDraftAwaitingReview(r, tenantId));
+        } catch (RuntimeException e) {
+            log.warn("Failed to notify MLROs of draft {} (tenant {}): {}", reportId, tenantId, e.getMessage());
         }
     }
 
