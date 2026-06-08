@@ -46,6 +46,17 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Admin' })).toBeInTheDocument();
   });
 
+  it('hides tenant features (Dashboard, notification bell) from a platform SUPER_ADMIN', () => {
+    setToken(makeToken({ email: 'superadmin@goaml.local', roles: ['SUPER_ADMIN'] }));
+    renderWithProviders(shellRoutes(), ['/dashboard']);
+
+    expect(screen.queryByRole('link', { name: 'Dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /notifications/i })).not.toBeInTheDocument();
+    // the platform-level areas they can use are present
+    expect(screen.getByRole('link', { name: 'Admin' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reference' })).toBeInTheDocument();
+  });
+
   it('signs out: clears the token and returns to /login', async () => {
     setToken(makeToken({ roles: ['MLRO'] }));
     renderWithProviders(shellRoutes(), ['/dashboard']);

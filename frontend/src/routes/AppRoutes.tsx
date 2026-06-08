@@ -2,7 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './RequireAuth';
 import { RequireRole } from './RequireRole';
 import { AppShell } from '../components/AppShell';
-import { ROLES } from '../auth/roles';
+import { ROLES, landingPathFor } from '../auth/roles';
+import { useAuth } from '../auth/AuthContext';
 import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { DpmsrBuilderPage } from '../features/reports/DpmsrBuilderPage';
@@ -26,7 +27,7 @@ export function AppRoutes() {
 
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
-          <Route index element={<Navigate to="/dashboard" replace />} />
+          <Route index element={<HomeRedirect />} />
           <Route path="dashboard" element={<DashboardPage />} />
 
           <Route element={<RequireRole allowed={[ROLES.ANALYST, ROLES.MLRO]} />}>
@@ -46,4 +47,10 @@ export function AppRoutes() {
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
+}
+
+/** Index redirect: sends each role to its landing area (SUPER_ADMIN → /admin, others → /dashboard). */
+function HomeRedirect() {
+  const { identity } = useAuth();
+  return <Navigate to={landingPathFor(identity?.roles ?? [])} replace />;
 }
