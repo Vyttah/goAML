@@ -7,6 +7,7 @@ import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.security.AuthProperties;
 import com.vyttah.goaml.security.JwtService;
 import com.vyttah.goaml.service.audit.AuditService;
 import lombok.RequiredArgsConstructor;
@@ -32,9 +33,16 @@ public class DefaultAuthService implements AuthService {
     private final TenantRepository tenantRepository;
     private final JwtService jwtService;
     private final AuditService auditService;
+    private final AuthProperties authProperties;
 
     @Override
     public LoginResponse login(LoginRequest request) {
+        // Native login is only available when the deployment's auth mode exposes it (native | both). On a
+        // federated-only deployment this endpoint is effectively absent → 404.
+        if (!authProperties.mode().nativeLoginEnabled()) {
+            throw new AuthExceptions.AuthModeDisabledException(
+                    "Native login is disabled in this deployment (auth mode: " + authProperties.mode() + ")");
+        }
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));

@@ -25,12 +25,18 @@
 > is deferred to last — it's dependency-safe (nothing depends on it; the frontend uses the REST API, and it
 > only needs the now-complete Phases 6–11). Caveat: since infra (14) lands before 12, expect a minor infra
 > touch-up when 12 ships (expose the MCP HTTP route in Helm/ingress + confirm the `--cli` run-mode).
-> **Phase 1.5** (suite integration + federated auth) is **deferred — decide later** (separate track).
-| **1.5** | **Suite integration + federated auth** — RabbitMQ accounting consumer (txn → reportability → auto-create DPMSR draft → MLRO 1-click), screening REST/form push, `/api/v1/auth/federated/token` token-exchange + `external_identity`. Plan: [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md) | ⬜ todo (planned) | — |
+> **Phase 1.5** (suite integration + federated auth) is **IN PROGRESS** (started 2026-06-08). Sub-phases:
+> **1.5a federated auth ✅**, 1.5b accounting (REST, both models + reportability check), 1.5c screening REST + form.
+| **1.5a** | **Federated auth** — `goaml.auth.mode` (native\|federated\|both), V3 federated-identity migration (`external_identity`, `trusted_service`, `tenant_external_ref`, `tenant_goaml_config.auto_submit`), `ServiceCredentialValidator` (RS256 signed service assertion), `POST /api/v1/auth/federated/token` token-exchange (+ JIT provisioning). | ✅ done | `a4f1e4a`…`ef04cd9` |
+| **1.5b** | **Accounting → goAML (REST)** — both models: client builds the DPMSR via the existing report API **and** raw-invoice push → goAML reportability detection → auto-create draft → MLRO 1-click / `auto_submit`; idempotent + status pull; + a standalone `POST /api/v1/reportability/check`. (Was RabbitMQ — changed to REST 2026-06-08.) | ⬜ in progress | — |
+| **1.5c** | **Screening → goAML** — REST push (party/KYC, same service-assertion auth) → report → XML; + goAML SPA form. | ⬜ todo | — |
 
 > **Note on Phase 1.5:** the "1.5" label reflects its product priority, but it is **sequenced after the
-> standalone core** (it depends on the engine, the b2b client, and submission existing). Deps: RabbitMQ +
-> the screening API + Phase 6/7 submission.
+> standalone core** (it depends on the engine, the b2b client, and submission existing). **2026-06-08
+> decisions:** accounting integration is **REST, not RabbitMQ** (immediate verdict + status pull, one REST
+> style shared with screening, no broker); both apps consume goAML as **embedded API clients** behind their
+> own UIs (goAML = single system-of-record); accounting supports **both** "client builds the report" and
+> "push raw invoice → goAML builds it". B/C wire-DTOs are gated on the Vyttah accounting/screening schemas.
 
 ## Phase 6 (DONE) — what shipped
 

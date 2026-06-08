@@ -167,7 +167,14 @@ def coveredPackages = [
         'com/vyttah/goaml/controller/lookup/**',
         'com/vyttah/goaml/config/observability/**',
         'com/vyttah/goaml/scheduler/**',
-        'com/vyttah/goaml/mcp/**'
+        'com/vyttah/goaml/mcp/**',
+        // Phase 1.5a — federated auth (entities/repos excluded, consistent with the rest of the report).
+        'com/vyttah/goaml/service/auth/**',
+        'com/vyttah/goaml/controller/auth/**',
+        'com/vyttah/goaml/security/AuthMode*',
+        'com/vyttah/goaml/security/AuthProperties*',
+        'com/vyttah/goaml/security/ServiceCredentialValidator*',
+        'com/vyttah/goaml/security/ServiceCredentialException*'
 ]
 
 jacocoTestReport {

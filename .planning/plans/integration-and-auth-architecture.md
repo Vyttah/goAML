@@ -8,6 +8,25 @@
 > [`xsd-first-foundation.md`](xsd-first-foundation.md) · DPMSR triggers in
 > [`../discussion-log.md`](../discussion-log.md) (topic 11).
 
+> **⚠️ Update 2026-06-08 (Phase 1.5 build started — these supersede parts of §7/§8 below):**
+> 1. **Accounting integration is REST, not RabbitMQ.** Accounting **POSTs the invoice/transaction** to goAML
+>    and gets an *immediate* verdict (reportable → draft created, or acknowledged), then **pulls status**
+>    (`POST/GET /api/v1/integration/accounting/transactions`). Chosen for immediate confirmation, one REST
+>    ingestion style shared with screening, and no broker. No-loss = accounting-side **outbox + retry** made
+>    safe by **goAML idempotency on the external ref**. (RabbitMQ/`spring-boot-starter-amqp` are dropped.)
+> 2. **Embedded / headless consumer model.** Both accounting **and** the AML software integrate goAML as
+>    first-class REST API clients behind their *own* UIs (federated user JWT → `/api/v1/reports`…). goAML is
+>    the **single system-of-record** + FIU submit authority; reports are visible across both apps (same
+>    tenant). MLRO submit-gating still applies to the federated user.
+> 3. **Accounting = BOTH models:** the client builds the DPMSR itself via the report API **and** can push a
+>    raw invoice for goAML to detect + build.
+> 4. **Reportability-check endpoint** `POST /api/v1/reportability/check` — goAML's authoritative verdict, so
+>    clients can check before building; detection rules stay owned by goAML.
+> 5. **Tenant mapping** is a **`tenant_external_ref` table** (not a column on `tenant`) so accounting and
+>    screening can use different org ids for the same tenant.
+> The federated-auth design (§§2–5) is built as described. **Sub-phase 1.5a (federated auth) is DONE.**
+> Current step-by-step status lives in [`../ROADMAP.md`](../ROADMAP.md) + [`../discussion-log.md`](../discussion-log.md).
+
 ## 1. Where goAML sits in the Vyttah suite
 
 goAML is being built two ways at once:

@@ -223,7 +223,18 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   (was hitting the tenant Reports dashboard → "Access Denied" + a notification-bell 500) — role-aware landing
   to `/admin`, tenant-scoped nav/bell hidden, notifications API → clean 403 for a tenantless caller
   (`fix/superadmin-landing` → `main`). See [discussion-log.md](discussion-log.md) (Session 2026-06-08).
-  **Next: Phase 1.5 (deferred until go-ahead).**
+- **2026-06-08 session (later) — Phase 1.5 STARTED.** Plan approved (plan-mode); recorded four design changes
+  vs the locked architecture (all in [discussion-log.md](discussion-log.md) + the updated
+  [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md)): **accounting
+  integration is REST, not RabbitMQ**; both apps are **embedded API clients** (goAML = single
+  system-of-record); accounting supports **both** "client builds the report" and "push raw invoice → goAML
+  builds it"; goAML exposes a **reportability-check** endpoint. **Built + merged sub-phase 1.5a (federated
+  auth)** to `main` — `goaml.auth.mode`, V3 federated-identity migration, RS256 `ServiceCredentialValidator`,
+  `POST /api/v1/auth/federated/token` (+ JIT) — 5 gated steps `a4f1e4a`…`ef04cd9`, full gate green, new auth
+  packages added to the JaCoCo gate. **Next: 1.5b (accounting REST — reportability detector + check endpoint
+  buildable now; raw-invoice push DTO gated on the Vyttah accounting invoice schema), then 1.5c (screening).**
+  ⚠️ Push still gated on the PII-sample history purge.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
-  `cd frontend && npm install && npm run dev` → continue with **Phase 12** (confirm its 4 open decisions).
+  `cd frontend && npm install && npm run dev` → continue **Phase 1.5b** (need the accounting invoice schema
+  for the push DTO; the reportability detector + `/reportability/check` are buildable without it).
