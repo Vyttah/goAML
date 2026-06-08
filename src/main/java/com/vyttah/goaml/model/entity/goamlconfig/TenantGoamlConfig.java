@@ -49,6 +49,14 @@ public class TenantGoamlConfig {
     @Column(name = "auth_mode", nullable = false, length = 16)
     private String authMode;
 
+    /**
+     * Phase 1.5 — per-tenant opt-in to fully-automatic FIU submission of auto-created drafts (no human in
+     * the loop). Default {@code false}: the safe path is validated draft → MLRO one-click submit.
+     */
+    @Setter
+    @Column(name = "auto_submit", nullable = false)
+    private boolean autoSubmit;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
