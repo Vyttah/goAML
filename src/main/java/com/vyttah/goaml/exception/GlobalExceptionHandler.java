@@ -51,6 +51,15 @@ public class GlobalExceptionHandler {
         return body(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
+    /**
+     * The calling service authenticated, but the federated exchange could not resolve/provision a goAML
+     * identity (unknown user + JIT off, unresolved tenant/org ref, provisioning precondition). → {@code 403}.
+     */
+    @ExceptionHandler(AuthExceptions.FederatedExchangeException.class)
+    public ResponseEntity<Map<String, Object>> handleFederatedExchange(RuntimeException ex) {
+        return body(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     @ExceptionHandler({
             ReportExceptions.ReportNotFoundException.class,
             AttachmentExceptions.AttachmentNotFoundException.class,

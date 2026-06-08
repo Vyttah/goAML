@@ -18,4 +18,15 @@ public final class AuthExceptions {
             super(message);
         }
     }
+
+    /**
+     * A federated token-exchange authenticated the calling service but could not be completed: the external
+     * identity maps to no goAML user and JIT provisioning is disabled, the tenant/org reference doesn't
+     * resolve, or a provisioning precondition failed. Mapped to {@code 403 Forbidden}.
+     */
+    public static class FederatedExchangeException extends RuntimeException {
+        public FederatedExchangeException(String message) {
+            super(message);
+        }
+    }
 }
