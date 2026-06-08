@@ -302,3 +302,45 @@ and a form/API from screening — but keep that as Phase 1.5."**
   the existing WireMock submission-service coverage.
 - **Outcome:** the standalone product is complete — **14/14 phases**. Open: Phase 1.5 (deferred) + go-live
   prerequisites (AWS, a remote + the **PII-history purge**, FIU creds/lookups).
+
+## Session 2026-06-08 (later) — Phase 1.5 kickoff + key design changes
+
+Started building **Phase 1.5** (suite integration + federated auth) after the pre-1.5 verification pass.
+Confirmed scope = all three deliverables A→B→C; service trust = **signed service assertion** (RS256, per-source
+registered public key). Four design decisions were taken/recorded this session that **change the locked
+architecture** (`integration-and-auth-architecture.md` updated accordingly):
+
+- **Accounting integration is REST, not RabbitMQ.** Accounting POSTs the invoice/transaction and gets an
+  *immediate verdict* (reportable → draft created, or acknowledged); accounting then *pulls status*. Reasons:
+  the immediate-confirmation UX the developer wants, one REST ingestion style shared with screening (no broker /
+  AMQP / Testcontainers-RabbitMQ), and goAML's existing status API fits a pull. The one tradeoff —
+  delivery-loss if goAML is down — is covered by an **accounting-side outbox + retry** made safe by **goAML
+  idempotency on the external ref**. (Overturns the doc's RabbitMQ decision.)
+- **Embedded / headless consumer model.** Both accounting **and** the AML software integrate goAML as
+  first-class REST API clients behind *their own* UIs (federated user JWT → call `/api/v1/reports`…). goAML is
+  the **single system-of-record** + FIU submission authority; a report created by any client is visible to all
+  (same tenant). MLRO submit-gating still applies to the federated user (embedding can't bypass the control).
+- **Accounting = BOTH models:** (1) the client builds the DPMSR itself and uses the existing report API, **and**
+  (2) the client pushes a raw invoice and goAML auto-detects + builds the draft.
+- **Reportability-check endpoint:** goAML exposes its authoritative "is this reportable?" verdict
+  (`POST /api/v1/reportability/check`) so clients can check before building/submitting. Detection rules stay
+  owned by goAML (no rule drift across apps).
+
+- **Sub-phase 1.5a — federated auth: BUILT + merged to `main`** (branch `feature/phase-1.5a-federated-auth`,
+  5 gated steps, full backend gate green at each):
+  - **1.5a.1** `goaml.auth.mode` = native|federated|both (`AuthProperties`/`AuthMode`, default native →
+    standalone unchanged); `/login` gated off when federated → `AuthModeDisabledException` (404). `a4f1e4a`.
+  - **1.5a.2** `shared/V3__federated_identity.sql` + JPA: `external_identity`, `trusted_service`,
+    `tenant_external_ref` (mapping table — accounting/screening may use different org ids), and
+    `tenant_goaml_config.auto_submit` (default false). Testcontainers IT. `59b9e94`.
+  - **1.5a.3** `ServiceCredentialValidator` — RS256 verify against the registered per-source public key,
+    `aud=goaml`, reject expired, cap lifetime ≤5 min (replay window), cross-check iss. 10 unit tests. `12e0036`.
+  - **1.5a.4** `POST /api/v1/auth/federated/token` — verify assertion → resolve `external_identity` →
+    app_user + tenant → issue the **standard** goAML JWT (downstream unchanged); JIT-provisions unknown users
+    at least privilege (ANALYST), refuses to silently link by email. 7 unit + MockMvc E2E (token usable +
+    tenant-scoped on `/api/v1/me`; bad signature → 401). `ef04cd9`.
+  - **1.5a.5** JaCoCo `coveredPackages` += `service/auth/**`, `controller/auth/**`, and the new `security`
+    classes; planning docs synced; `--no-ff` merge to `main`.
+- **Next:** 1.5b (accounting REST — reportability detector + check endpoint buildable now; raw-invoice push
+  DTO gated on the Vyttah accounting invoice schema), then 1.5c (screening). **Push still gated on the
+  PII-history purge.**
