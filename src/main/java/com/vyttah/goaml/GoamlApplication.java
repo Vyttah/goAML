@@ -1,6 +1,7 @@
 package com.vyttah.goaml;
 
 import com.vyttah.goaml.cli.GoamlCliRunner;
+import com.vyttah.goaml.security.AuthProperties;
 import com.vyttah.goaml.security.JwtProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
@@ -20,7 +21,7 @@ import java.util.Arrays;
  * it is simply absent in CLI mode.
  */
 @SpringBootApplication
-@EnableConfigurationProperties(JwtProperties.class)
+@EnableConfigurationProperties({JwtProperties.class, AuthProperties.class})
 public class GoamlApplication {
 
     public static void main(String[] args) {
