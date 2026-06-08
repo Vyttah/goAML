@@ -43,8 +43,10 @@ class ScreeningPartyMapperTest {
         assertThat(party.entity()).isNull();
         assertThat(party.person().firstName()).isEqualTo("John");
         assertThat(party.person().lastName()).isEqualTo("Doe");
-        assertThat(party.person().idNumber()).isEqualTo("P123");        // from the identification
-        assertThat(party.person().identifications().get(0).type()).isEqualTo("PASSPORT");
+        assertThat(party.person().gender()).isEqualTo("M");             // normalized to a valid code
+        assertThat(party.person().countryOfBirth()).isEqualTo("IN");    // required for a party person
+        assertThat(party.person().idNumber()).isEqualTo("P123");        // derived from the identification number
+        assertThat(party.person().identifications()).isNull();          // block omitted (top-level id_number used)
         assertThat(party.comments()).contains("PEP");
     }
 
@@ -117,13 +119,14 @@ class ScreeningPartyMapperTest {
                 .containsExactly("Customer", "Shareholder", "Shareholder", "Beneficial Owner");
         DpmsrCreateRequest.Party shN = parties.get(1);
         assertThat(shN.person().firstName()).isEqualTo("Mona");
+        assertThat(shN.person().gender()).isEqualTo("-");   // not provided → valid "not provided" code
         assertThat(shN.comments()).contains("40%").contains("PEP");
         DpmsrCreateRequest.Party shL = parties.get(2);
         assertThat(shL.entity().name()).isEqualTo("Holdco Ltd");
         assertThat(shL.comments()).contains("60%");
         DpmsrCreateRequest.Party uboParty = parties.get(3);
         assertThat(uboParty.person().lastName()).isEqualTo("Owner");
-        assertThat(uboParty.person().identifications().get(0).number()).isEqualTo("U-1");
+        assertThat(uboParty.person().idNumber()).isEqualTo("U-1");   // top-level id_number from the UBO's id
     }
 
     @Test

@@ -38,7 +38,7 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
         ResolvedTenant tenant = resolveTenant(payload.companyId());
         String ref = reference(payload.companyId(), payload.customerUid());
         String payloadJson = serialize(payload);
-        String displayName = displayName(payload);
+        String displayName = ScreeningPartyMapper.displayName(payload);
         boolean riskFlag = payload.sanctions() != null && payload.sanctions().riskFlag();
 
         String previous = TenantContext.get();
@@ -95,7 +95,8 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
 
     private ScreeningSubjectResponse response(String ref, ScreeningPartyPayload payload) {
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(payload);
-        return new ScreeningSubjectResponse(ref, payload.subjectType().name(), displayName(payload),
+        return new ScreeningSubjectResponse(ref, payload.subjectType().name(),
+                ScreeningPartyMapper.displayName(payload),
                 payload.sanctions() != null && payload.sanctions().riskFlag(),
                 parties, ScreeningPartyMapper.sanctionsContext(payload));
     }
@@ -110,17 +111,6 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
                 .orElseThrow(() -> new IntegrationExceptions.UnmappedOrgException(
                         "Mapped tenant no longer exists for screening company " + companyId));
         return new ResolvedTenant(tenant.getId(), tenant.getSchemaName());
-    }
-
-    private static String displayName(ScreeningPartyPayload p) {
-        if (p.subjectType() == ScreeningPartyPayload.SubjectType.LEGAL) {
-            return p.legal() != null && notBlank(p.legal().legalName()) ? p.legal().legalName() : "Unknown";
-        }
-        if (p.natural() != null) {
-            String name = (orEmpty(p.natural().firstName()) + " " + orEmpty(p.natural().lastName())).trim();
-            return name.isEmpty() ? "Unknown" : name;
-        }
-        return "Unknown";
     }
 
     private String serialize(ScreeningPartyPayload payload) {
@@ -153,14 +143,6 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
         } else {
             TenantContext.clear();
         }
-    }
-
-    private static boolean notBlank(String s) {
-        return s != null && !s.isBlank();
-    }
-
-    private static String orEmpty(String s) {
-        return s == null ? "" : s;
     }
 
     private record ResolvedTenant(UUID tenantId, String schema) {}

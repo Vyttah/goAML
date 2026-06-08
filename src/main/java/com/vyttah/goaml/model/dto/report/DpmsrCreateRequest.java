@@ -60,6 +60,7 @@ public record DpmsrCreateRequest(
             @NotBlank String firstName,
             @NotBlank String lastName,
             OffsetDateTime birthdate,
+            String countryOfBirth,
             String nationality,
             String residence,
             String idNumber,

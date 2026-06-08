@@ -19,7 +19,7 @@ import java.util.List;
  * <p>Kept in the integration layer so screening vocabulary stays out of the engine, exactly like
  * {@code AccountingDpmsrMapper}.
  */
-final class ScreeningPartyMapper {
+public final class ScreeningPartyMapper {
 
     private static final String CUSTOMER = "Customer";
     private static final String SHAREHOLDER = "Shareholder";
@@ -30,8 +30,20 @@ final class ScreeningPartyMapper {
     private ScreeningPartyMapper() {
     }
 
+    /** The customer's display name (legal name / "first last"); never blank. */
+    public static String displayName(ScreeningPartyPayload p) {
+        if (p.subjectType() == ScreeningPartyPayload.SubjectType.LEGAL) {
+            return p.legal() != null && notBlank(p.legal().legalName()) ? p.legal().legalName() : "Unknown";
+        }
+        if (p.natural() != null) {
+            String name = (orEmpty(p.natural().firstName()) + " " + orEmpty(p.natural().lastName())).trim();
+            return name.isEmpty() ? "Unknown" : name;
+        }
+        return "Unknown";
+    }
+
     /** The customer party (first) followed by shareholder + UBO parties. Never empty. */
-    static List<DpmsrCreateRequest.Party> toParties(ScreeningPartyPayload p) {
+    public static List<DpmsrCreateRequest.Party> toParties(ScreeningPartyPayload p) {
         List<DpmsrCreateRequest.Party> parties = new ArrayList<>();
         parties.add(customerParty(p));
         for (ScreeningPartyPayload.RelatedParty sh : nullSafe(p.shareholders())) {
@@ -68,15 +80,18 @@ final class ScreeningPartyMapper {
 
     private static DpmsrCreateRequest.Person naturalPerson(ScreeningPartyPayload.NaturalCustomer c) {
         if (c == null) {
-            return new DpmsrCreateRequest.Person(null, "Unknown", "Unknown",
-                    null, null, null, null, null, null, null, null, null);
+            return new DpmsrCreateRequest.Person(genderCode(null), "Unknown", "Unknown",
+                    null, null, null, null, null, null, null, null, null, null);
         }
         String[] name = names(null, c.firstName(), c.lastName());
         String idNumber = firstNonBlank(c.emiratesId(), firstIdNumber(c.identifications()));
+        // The goAML identifications block requires a coded type + issue/expiry dates a screening profile
+        // rarely carries; the required top-level id_number captures the identifier, so we omit the block.
         return new DpmsrCreateRequest.Person(
-                c.gender(), name[0], name[1], toOffset(c.dob()), c.nationality(), c.residence(),
-                idNumber, null, c.occupation(), phone(c.phone()), address(c.address()),
-                identifications(c.identifications()));
+                genderCode(c.gender()), name[0], name[1], toOffset(c.dob()),
+                firstNonBlank(c.countryOfBirth(), c.nationality()), c.nationality(),
+                firstNonBlank(c.residence(), c.nationality()),
+                idNumber, null, c.occupation(), phone(c.phone()), address(c.address()), null);
     }
 
     private static DpmsrCreateRequest.Party relatedParty(ScreeningPartyPayload.RelatedParty rp, String reason) {
@@ -89,12 +104,9 @@ final class ScreeningPartyMapper {
         }
         String[] name = names(rp.fullName(), rp.firstName(), rp.lastName());
         DpmsrCreateRequest.Person person = new DpmsrCreateRequest.Person(
-                null, name[0], name[1], toOffset(rp.dob()), rp.nationality(), rp.residence(),
-                rp.idNumber(), null, null, phone(rp.phone()), null,
-                rp.idType() != null || rp.idNumber() != null
-                        ? List.of(new DpmsrCreateRequest.Identification(
-                                rp.idType(), rp.idNumber(), null, null, rp.idCountry()))
-                        : null);
+                genderCode(null), name[0], name[1], toOffset(rp.dob()), rp.nationality(), rp.nationality(),
+                firstNonBlank(rp.residence(), rp.nationality()), rp.idNumber(), null, null, phone(rp.phone()),
+                null, null);
         return new DpmsrCreateRequest.Party(reason, comments, null, person);
     }
 
@@ -107,26 +119,14 @@ final class ScreeningPartyMapper {
         for (ScreeningPartyPayload.RelatedParty d : list) {
             String[] name = names(d.fullName(), d.firstName(), d.lastName());
             out.add(new DpmsrCreateRequest.Director(
-                    null, name[0], name[1], toOffset(d.dob()), null, null,
+                    genderCode(null), name[0], name[1], toOffset(d.dob()), null, null,
                     d.idNumber(), d.nationality(), d.residence(), DIRECTOR_ROLE, phone(d.phone())));
         }
         return out;
     }
 
-    private static List<DpmsrCreateRequest.Identification> identifications(
-            List<ScreeningPartyPayload.Identification> src) {
-        List<ScreeningPartyPayload.Identification> list = nullSafe(src);
-        if (list.isEmpty()) {
-            return null;
-        }
-        return list.stream()
-                .map(i -> new DpmsrCreateRequest.Identification(
-                        i.type(), i.number(), toOffset(i.issueDate()), toOffset(i.expiryDate()), i.issueCountry()))
-                .toList();
-    }
-
     /** A human-readable PEP + sanctions summary for the customer party's comments; null when clean. */
-    static String sanctionsContext(ScreeningPartyPayload p) {
+    public static String sanctionsContext(ScreeningPartyPayload p) {
         StringBuilder sb = new StringBuilder();
         boolean pep = p.subjectType() == ScreeningPartyPayload.SubjectType.NATURAL
                 && p.natural() != null && p.natural().pep();
@@ -205,6 +205,19 @@ final class ScreeningPartyMapper {
                 : new DpmsrCreateRequest.Address(null, a.address(), a.city(), a.countryCode(), a.state());
     }
 
+    /**
+     * A valid goAML {@code gender_type} code ({@code M} / {@code F} / {@code -}). Party persons
+     * ({@code t_person_my_client}) require gender, so an absent/unknown value maps to {@code "-"} ("not
+     * provided") rather than being omitted (which fails XSD validation).
+     */
+    private static String genderCode(String gender) {
+        if (gender == null) {
+            return "-";
+        }
+        String g = gender.trim().toUpperCase();
+        return ("M".equals(g) || "F".equals(g)) ? g : "-";
+    }
+
     private static OffsetDateTime toOffset(LocalDate date) {
         return date == null ? null : date.atStartOfDay().atOffset(ZoneOffset.UTC);
     }
@@ -215,6 +228,10 @@ final class ScreeningPartyMapper {
 
     private static boolean notBlank(String s) {
         return s != null && !s.isBlank();
+    }
+
+    private static String orEmpty(String s) {
+        return s == null ? "" : s;
     }
 
     private static String blankToUnknown(String s) {
