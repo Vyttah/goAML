@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../auth/AuthContext';
+import { landingPathFor } from '../../auth/roles';
+import { identityFromToken } from '../../auth/jwt';
 import { useLogin } from './useLogin';
 import { errorMessage, httpStatus } from '../../api/client';
 import type { LoginRequest } from '../../types';
@@ -12,20 +14,21 @@ interface LocationState {
 
 /**
  * Email/password sign-in. On success the access token is stored, its claims become the in-app
- * identity, and the user is sent to wherever they were headed (or /dashboard). Already-authenticated
- * visitors are bounced straight there. There is no refresh token — a 401 elsewhere returns here.
+ * identity, and the user is sent to wherever they were headed, or to their role's landing area
+ * (SUPER_ADMIN → /admin, others → /dashboard). Already-authenticated visitors are bounced straight
+ * there. There is no refresh token — a 401 elsewhere returns here.
  */
 export function LoginPage() {
-  const { isAuthenticated, signIn } = useAuth();
+  const { isAuthenticated, identity, signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const loginMutation = useLogin();
   const [error, setError] = useState<string | null>(null);
 
-  const from = (location.state as LocationState | null)?.from?.pathname ?? '/dashboard';
+  const explicitFrom = (location.state as LocationState | null)?.from?.pathname;
 
   if (isAuthenticated) {
-    return <Navigate to={from} replace />;
+    return <Navigate to={explicitFrom ?? landingPathFor(identity?.roles ?? [])} replace />;
   }
 
   const onFinish = async (values: LoginRequest) => {
@@ -33,7 +36,8 @@ export function LoginPage() {
     try {
       const res = await loginMutation.mutateAsync(values);
       signIn(res.accessToken);
-      navigate(from, { replace: true });
+      const roles = identityFromToken(res.accessToken)?.roles ?? [];
+      navigate(explicitFrom ?? landingPathFor(roles), { replace: true });
     } catch (err) {
       setError(
         httpStatus(err) === 401 ? 'Invalid email or password' : errorMessage(err, 'Login failed'),

@@ -14,6 +14,7 @@ function routes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/dashboard" element={<div>DASHBOARD PAGE</div>} />
+      <Route path="/admin" element={<div>ADMIN PAGE</div>} />
       <Route path="/reports/new" element={<div>NEW REPORT PAGE</div>} />
     </Routes>
   );
@@ -39,6 +40,23 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('DASHBOARD PAGE')).toBeInTheDocument();
     expect(getToken()).toBe(token);
+  });
+
+  it('sends a SUPER_ADMIN to /admin (no tenant dashboard)', async () => {
+    const token = makeToken({ email: 'superadmin@goaml.local', roles: ['SUPER_ADMIN'] });
+    server.use(
+      http.post('*/api/v1/auth/login', () =>
+        HttpResponse.json({ accessToken: token, tokenType: 'Bearer', expiresInSeconds: 900 }),
+      ),
+    );
+
+    renderWithProviders(routes(), ['/login']);
+    await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'superadmin@goaml.local');
+    await userEvent.type(screen.getByPlaceholderText('Password'), 'P@ssw0rd!');
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
+
+    expect(await screen.findByText('ADMIN PAGE')).toBeInTheDocument();
+    expect(screen.queryByText('DASHBOARD PAGE')).not.toBeInTheDocument();
   });
 
   it('shows an error and stays on /login for bad credentials', async () => {

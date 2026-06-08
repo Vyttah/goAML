@@ -18,3 +18,14 @@ export const ALL_ROLES: Role[] = [ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN, ROLES.M
 export function hasAnyRole(roles: readonly string[], allowed: readonly Role[]): boolean {
   return allowed.some((r) => roles.includes(r));
 }
+
+/** Tenant-scoped roles — the users who work with reports/notifications inside a tenant. */
+export const TENANT_ROLES: Role[] = [ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN];
+
+/**
+ * Post-login landing route for a set of roles. A platform SUPER_ADMIN has no tenant, so the tenant
+ * Dashboard (Reports) doesn't apply — send them to Admin. Everyone else lands on the Dashboard.
+ */
+export function landingPathFor(roles: readonly string[]): string {
+  return hasAnyRole(roles, TENANT_ROLES) ? '/dashboard' : '/admin';
+}

@@ -58,6 +58,21 @@ export function DashboardPage() {
     },
   ];
 
+  // Reports are tenant-scoped; a platform SUPER_ADMIN has no tenant. Guard the deep-link/refresh case
+  // (the nav + post-login routing already steer them to Admin) so they see guidance, not an error.
+  if (!can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN)) {
+    return (
+      <Empty
+        image={Empty.PRESENTED_IMAGE_SIMPLE}
+        description="Reports are managed within a tenant. As a platform admin, use Admin to manage tenants and users."
+      >
+        <Button type="primary" onClick={() => navigate('/admin')}>
+          Go to Admin
+        </Button>
+      </Empty>
+    );
+  }
+
   return (
     <>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }}>

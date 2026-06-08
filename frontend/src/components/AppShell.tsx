@@ -15,11 +15,13 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Tenant-scoped features (reports dashboard, imports, notifications) don't apply to a platform
+  // SUPER_ADMIN, who has no tenant — they'd only hit access-denied/empty schemas.
+  const isTenantUser = can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN);
+
   const items = [
-    { key: '/dashboard', label: <Link to="/dashboard">Dashboard</Link> },
-    ...(can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN)
-      ? [{ key: '/imports', label: <Link to="/imports">Import</Link> }]
-      : []),
+    ...(isTenantUser ? [{ key: '/dashboard', label: <Link to="/dashboard">Dashboard</Link> }] : []),
+    ...(isTenantUser ? [{ key: '/imports', label: <Link to="/imports">Import</Link> }] : []),
     { key: '/reference', label: <Link to="/reference">Reference</Link> },
     ...(can(ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN)
       ? [{ key: '/admin', label: <Link to="/admin">Admin</Link> }]
@@ -47,7 +49,7 @@ export function AppShell() {
           style={{ flex: 1, minWidth: 0 }}
         />
         <Space>
-          <NotificationBell />
+          {isTenantUser && <NotificationBell />}
           {identity?.roles[0] && <Tag color="blue">{identity.roles[0]}</Tag>}
           <Typography.Text style={{ color: 'rgba(255,255,255,0.85)' }}>
             {identity?.email}
