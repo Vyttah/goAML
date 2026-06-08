@@ -271,6 +271,13 @@ export function ReportDetailPage() {
           )}
         </Space>
 
+        {!can(ROLES.MLRO) && !hasSubmission && (
+          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+            No actions available here — submitting to the FIU is restricted to an MLRO, and this report
+            hasn&apos;t been submitted yet.
+          </Typography.Paragraph>
+        )}
+
         {!canSubmit && report.status !== 'VALID' && can(ROLES.MLRO) && (
           <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
             Only a <strong>VALID</strong> report can be submitted (this one is {report.status}).
