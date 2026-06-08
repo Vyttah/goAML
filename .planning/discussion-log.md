@@ -42,7 +42,18 @@ no creds), then the developer reviews the SPA.
    schema-mandatory), so "required-only" CSVs always produced INVALID rows. Added both → fail-fast 400.
 
 All five re-verified live after rebuild. **No engine/validation/security logic changed** — these are surface
-+ robustness fixes. Phase 1.5 remains the next track (deferred until the developer's go-ahead).
++ robustness fixes.
+
+### During the developer's SPA review — one more fix
+
+6. **SUPER_ADMIN landed on the tenant Reports dashboard → "Access Denied"** (reports are tenant-scoped; a
+   platform SUPER_ADMIN has no tenant), and the notification bell **500'd** (the `notification` table lives
+   in tenant schemas, absent in `public`). Fix: role-aware landing (`landingPathFor` → SUPER_ADMIN `/admin`),
+   hide tenant-scoped nav + bell from a tenantless admin, a Dashboard deep-link guard, and harden the
+   notifications API to a clean **403** for a tenantless caller (mirrors the reports API). Branch
+   `fix/superadmin-landing` → merged to `main`. Gate held (frontend 62, backend coverage).
+
+Phase 1.5 remains the next track (deferred until the developer's go-ahead).
 
 ## Session 2026-06-03 — Resume, docs, XSD-first pivot, and report-type scope
 

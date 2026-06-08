@@ -219,7 +219,10 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   (5 atomic commits, full gate held, merged to `main`): (1) report XML view+download endpoint+UI; (2)
   attachment download endpoint+UI; (3) AWS integration failures → 502 (not opaque 500); (4) validate
   `authMode`/`jurisdictionCode` at config-write; (5) require `indicators`+`party_reason` in the DPMSR CSV.
-  No engine/validation/security logic changed. See [discussion-log.md](discussion-log.md) (Session 2026-06-08).
+  No engine/validation/security logic changed. **+ during the SPA review:** fixed SUPER_ADMIN landing
+  (was hitting the tenant Reports dashboard → "Access Denied" + a notification-bell 500) — role-aware landing
+  to `/admin`, tenant-scoped nav/bell hidden, notifications API → clean 403 for a tenantless caller
+  (`fix/superadmin-landing` → `main`). See [discussion-log.md](discussion-log.md) (Session 2026-06-08).
   **Next: Phase 1.5 (deferred until go-ahead).**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
