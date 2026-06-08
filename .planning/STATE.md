@@ -231,10 +231,24 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   builds it"; goAML exposes a **reportability-check** endpoint. **Built + merged sub-phase 1.5a (federated
   auth)** to `main` — `goaml.auth.mode`, V3 federated-identity migration, RS256 `ServiceCredentialValidator`,
   `POST /api/v1/auth/federated/token` (+ JIT) — 5 gated steps `a4f1e4a`…`ef04cd9`, full gate green, new auth
-  packages added to the JaCoCo gate. **Next: 1.5b (accounting REST — reportability detector + check endpoint
-  buildable now; raw-invoice push DTO gated on the Vyttah accounting invoice schema), then 1.5c (screening).**
-  ⚠️ Push still gated on the PII-sample history purge.
+  packages added to the JaCoCo gate. ⚠️ Push still gated on the PII-sample history purge.
+- **2026-06-09 session — Phase 1.5b (accounting REST) COMPLETE, merged to `main`.** Both integration models +
+  the reportability check, on branch `feature/phase-1.5b-accounting` (`d4a50de`…1.5b.6, `--no-ff` to `main`):
+  **(1.5b.1-2)** goAML-owned `ReportabilityDetector` (cash ≥ AED 55,000 + precious) + `POST
+  /api/v1/reportability/check`; **(1.5b.4)** Model 2 raw-invoice push `POST
+  /api/v1/integration/accounting/transactions` (service-assertion authed) → reportability verdict →
+  validated DPMSR draft, idempotent on `ACC-<companyId>-<documentNumber>`, status pull — incl. discovering
+  goAML's XSD **enumerates `item_type`** so `CommodityMapping` maps accounting `commodityType` → real codes
+  (`METAL→GOLD`, diamonds→`DIMND`, jewellery→`JEWEL`, stones/pearl→`GEM`, `WATCH→WATCH`; a watch is DPMS only
+  with metal/stone value); **(1.5b.5)** submit gating — `tenant_goaml_config.auto_submit` ON → auto-submit
+  (best-effort; an FIU failure falls back to the MLRO gate), OFF (default) → notify tenant MLROs of a
+  one-click draft (new `notifyDraftAwaitingReview` seam method); **(1.5b.3)** Model 1 embedded-consumer E2E
+  (a federated JWT drives the existing `/api/v1/reports*` API end-to-end; MLRO submit-gating preserved for
+  federated users) + the consumer contract doc [docs/14-suite-integration.md](../docs/14-suite-integration.md).
+  Full gate green each step; new packages (`ingestion/reportability`, `service/integration`,
+  `controller/integration`) added to the JaCoCo gate. **Next: 1.5c (screening REST push + SPA form) — gated
+  on the Vyttah screening payload schema.** ⚠️ Push still gated on the PII-sample history purge.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
-  `cd frontend && npm install && npm run dev` → continue **Phase 1.5b** (need the accounting invoice schema
-  for the push DTO; the reportability detector + `/reportability/check` are buildable without it).
+  `cd frontend && npm install && npm run dev` → continue **Phase 1.5c** (screening REST push + SPA form —
+  needs the Vyttah screening payload schema for the wire DTO; auth + the report API it builds on are done).

@@ -344,3 +344,38 @@ architecture** (`integration-and-auth-architecture.md` updated accordingly):
 - **Next:** 1.5b (accounting REST — reportability detector + check endpoint buildable now; raw-invoice push
   DTO gated on the Vyttah accounting invoice schema), then 1.5c (screening). **Push still gated on the
   PII-history purge.**
+
+### Session 2026-06-09 — Sub-phase 1.5b (accounting REST): BUILT + merged to `main`
+
+Branch `feature/phase-1.5b-accounting`, gated steps `d4a50de`…(1.5b.6), `--no-ff` to `main`. Full backend
+gate (`./gradlew test jacocoTestCoverageVerification`) green at each step.
+
+- **1.5b.1-2 — `ReportabilityDetector` + check endpoint.** goAML-owned rules (no drift across apps):
+  reportable iff the cash component is **≥ AED 55,000** AND the goods are precious-metals/stones. `POST
+  /api/v1/reportability/check` (user-JWT authed, for embedded UIs) → `{reportable, reasons[]}`; AED-only in
+  v1 (non-AED rejected). `d4a50de`.
+- **1.5b.4 — Model 2 raw-invoice push.** `POST /api/v1/integration/accounting/transactions` (server-to-server,
+  `X-Service-Assertion` authed) → 202 `{goamlRef, reportable, reportId, status, reasons}`. Reportable → goAML
+  builds a **validated DPMSR draft** (tenant from `companyId` via `tenant_external_ref`); **idempotent** on
+  `ACC-<companyId>-<documentNumber>` (safe accounting-outbox retry). DTO `AccountingTxnPayload` shaped to the
+  Vyttah accounting/masters vocabulary the user provided (source doc, cash settlement, party
+  corporate→Entity / individual→Person, `goods[]`). **Key finding:** goAML's XSD **enumerates `goods.item_type`**
+  (caught at runtime — `PRECIOUS_METAL` failed `cvc-enumeration-valid`), so `CommodityMapping` maps the
+  accounting `commodityType` enum → real codes: `METAL→GOLD`, `LOOSE_DIAMOND_*→DIMND`,
+  `DIAMOND_JEWELLERY_*→JEWEL`, `COLOR_STONE`/`PEARL→GEM`, `WATCH→WATCH`. **Watch rule (confirmed):** a watch is
+  DPMS goods only when the line carries metal/stone value. (`METAL→GOLD` is coarse — refining to SLVER/PLTNM
+  needs a masters metal-type field, a later enhancement.) `2c0d1c1`.
+- **1.5b.5 — submit gating.** After a VALID draft: `tenant_goaml_config.auto_submit` **ON** → `SubmissionService.submit`
+  now (audited); a transport/credential failure is **swallowed and falls back to the MLRO gate** (an FIU
+  outage never fails the accounting push). **OFF** (default, safe) → keep the draft + notify the tenant's
+  MLROs via a new `NotificationService.notifyDraftAwaitingReview` (in-app `REPORT_PENDING_REVIEW`, email if
+  enabled; factored out of `notifyReportTransition` via a shared `fanOut`). `0dc8cd9`.
+- **1.5b.3 — Model 1 embedded consumer.** Proved (E2E) an external app drives the **existing** `/api/v1/reports*`
+  API with a **federated** JWT end-to-end (create→validate→list→get→xml→submit→status) — goAML as single
+  system-of-record — and that **MLRO submit-gating holds for federated users** (a JIT ANALYST: create OK,
+  submit 403). Wrote the consumer contract `docs/14-suite-integration.md` (both models, assertion, auth modes,
+  exchange, report API, check endpoint, push + `auto_submit` + idempotency/no-loss). `58e6cf8`.
+- **1.5b.6 — wrap-up.** JaCoCo `coveredPackages` += `ingestion/reportability/**`, `service/integration/**`,
+  `controller/integration/**` (DTOs/entities excluded, as elsewhere); planning docs synced; `--no-ff` merge.
+- **Next:** 1.5c (screening REST push + a goAML SPA form) — gated on the Vyttah screening payload schema; the
+  AML software can already use Model 1 today. **Push still gated on the PII-history purge.**
