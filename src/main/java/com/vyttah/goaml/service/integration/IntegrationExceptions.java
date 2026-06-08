@@ -1,7 +1,7 @@
 package com.vyttah.goaml.service.integration;
 
 /**
- * Integration-push exceptions (Phase 1.5b). Mapped to HTTP by {@code GlobalExceptionHandler}.
+ * Integration-push exceptions (Phase 1.5b/1.5c). Mapped to HTTP by {@code GlobalExceptionHandler}.
  */
 public final class IntegrationExceptions {
 
@@ -14,6 +14,15 @@ public final class IntegrationExceptions {
      */
     public static class UnmappedOrgException extends RuntimeException {
         public UnmappedOrgException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * No screened subject exists for the requested screening company + customer uid (Phase 1.5c). → {@code 404}.
+     */
+    public static class ScreenedSubjectNotFoundException extends RuntimeException {
+        public ScreenedSubjectNotFoundException(String message) {
             super(message);
         }
     }
