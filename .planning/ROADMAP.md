@@ -26,9 +26,9 @@
 > only needs the now-complete Phases 6–11). Caveat: since infra (14) lands before 12, expect a minor infra
 > touch-up when 12 ships (expose the MCP HTTP route in Helm/ingress + confirm the `--cli` run-mode).
 > **Phase 1.5** (suite integration + federated auth) is **IN PROGRESS** (started 2026-06-08). Sub-phases:
-> **1.5a federated auth ✅**, 1.5b accounting (REST, both models + reportability check), 1.5c screening REST + form.
+> **1.5a federated auth ✅**, **1.5b accounting (REST, both models + reportability check) ✅**, 1.5c screening REST + form.
 | **1.5a** | **Federated auth** — `goaml.auth.mode` (native\|federated\|both), V3 federated-identity migration (`external_identity`, `trusted_service`, `tenant_external_ref`, `tenant_goaml_config.auto_submit`), `ServiceCredentialValidator` (RS256 signed service assertion), `POST /api/v1/auth/federated/token` token-exchange (+ JIT provisioning). | ✅ done | `a4f1e4a`…`ef04cd9` |
-| **1.5b** | **Accounting → goAML (REST)** — both models: client builds the DPMSR via the existing report API **and** raw-invoice push → goAML reportability detection → auto-create draft → MLRO 1-click / `auto_submit`; idempotent + status pull; + a standalone `POST /api/v1/reportability/check`. (Was RabbitMQ — changed to REST 2026-06-08.) | ⬜ in progress | — |
+| **1.5b** | **Accounting → goAML (REST)** — both models: client builds the DPMSR via the existing report API (Model 1, embedded-consumer E2E) **and** raw-invoice push → goAML reportability detection → auto-create draft → MLRO 1-click / `auto_submit`; idempotent + status pull; + a standalone `POST /api/v1/reportability/check`. Contract: [docs/14-suite-integration.md](../docs/14-suite-integration.md). (Was RabbitMQ — changed to REST 2026-06-08.) | ✅ done | `d4a50de`…(1.5b.6) |
 | **1.5c** | **Screening → goAML** — REST push (party/KYC, same service-assertion auth) → report → XML; + goAML SPA form. | ⬜ todo | — |
 
 > **Note on Phase 1.5:** the "1.5" label reflects its product priority, but it is **sequenced after the

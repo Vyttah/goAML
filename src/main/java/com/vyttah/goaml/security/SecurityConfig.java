@@ -45,7 +45,12 @@ public class SecurityConfig {
                                 "/actuator/health/**",
                                 "/actuator/info",
                                 "/actuator/prometheus",
-                                "/api/v1/auth/**"
+                                "/api/v1/auth/**",
+                                // Phase 1.5b/1.5c: server-to-server integration push (accounting/screening).
+                                // Authenticated by the signed service assertion (X-Service-Assertion),
+                                // verified inside the controller via ServiceCredentialValidator — not a user
+                                // JWT — so it is permitted here (like /api/v1/auth/**) and gated there.
+                                "/api/v1/integration/**"
                         ).permitAll()
                         // Phase 12: the MCP transport (SSE stream + JSON-RPC message endpoint) is
                         // authenticated like the REST API. With base-url=/api/v1 the endpoints land at

@@ -174,7 +174,11 @@ def coveredPackages = [
         'com/vyttah/goaml/security/AuthMode*',
         'com/vyttah/goaml/security/AuthProperties*',
         'com/vyttah/goaml/security/ServiceCredentialValidator*',
-        'com/vyttah/goaml/security/ServiceCredentialException*'
+        'com/vyttah/goaml/security/ServiceCredentialException*',
+        // Phase 1.5b — accounting integration (reportability rules, both models). DTOs/entities excluded.
+        'com/vyttah/goaml/ingestion/reportability/**',
+        'com/vyttah/goaml/service/integration/**',
+        'com/vyttah/goaml/controller/integration/**'
 ]
 
 jacocoTestReport {

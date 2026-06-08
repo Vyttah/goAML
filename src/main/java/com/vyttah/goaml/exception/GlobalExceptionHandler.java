@@ -7,6 +7,7 @@ import com.vyttah.goaml.service.admin.AdminExceptions;
 import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.auth.AuthExceptions;
 import com.vyttah.goaml.service.ingestion.IngestionExceptions;
+import com.vyttah.goaml.service.integration.IntegrationExceptions;
 import com.vyttah.goaml.service.notification.NotificationExceptions;
 import com.vyttah.goaml.security.ServiceCredentialException;
 import com.vyttah.goaml.service.report.ReportExceptions;
@@ -67,7 +68,8 @@ public class GlobalExceptionHandler {
             IngestionExceptions.ImportJobNotFoundException.class,
             LookupExceptions.LookupNotFoundException.class,
             AdminExceptions.GoamlConfigNotFoundException.class,
-            AuthExceptions.AuthModeDisabledException.class
+            AuthExceptions.AuthModeDisabledException.class,
+            IntegrationExceptions.UnmappedOrgException.class
     })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());

@@ -44,10 +44,21 @@ public class DefaultNotificationService implements NotificationService {
         if (tpl == null) {
             return; // not a notifiable transition (e.g. SUBMITTED/DRAFT) — no-op
         }
+        fanOut(report, tenantId, tpl);
+    }
 
+    @Override
+    public void notifyDraftAwaitingReview(Report report, UUID tenantId) {
+        fanOut(report, tenantId, new Template("REPORT_PENDING_REVIEW", "Report awaiting submission",
+                "Report " + report.getEntityReference() + " is a validated draft awaiting MLRO review and "
+                        + "submission to the FIU."));
+    }
+
+    /** Resolve recipients, write the durable in-app rows, then (gated, best-effort) email each recipient. */
+    private void fanOut(Report report, UUID tenantId, Template tpl) {
         Map<UUID, AppUser> recipients = resolveRecipients(report, tenantId);
         if (recipients.isEmpty()) {
-            log.debug("No recipients for report {} transition {}", report.getEntityReference(), newStatus);
+            log.debug("No recipients for report {} ({})", report.getEntityReference(), tpl.type());
             return;
         }
 
