@@ -69,7 +69,8 @@ public class GlobalExceptionHandler {
             LookupExceptions.LookupNotFoundException.class,
             AdminExceptions.GoamlConfigNotFoundException.class,
             AuthExceptions.AuthModeDisabledException.class,
-            IntegrationExceptions.UnmappedOrgException.class
+            IntegrationExceptions.UnmappedOrgException.class,
+            IntegrationExceptions.ScreenedSubjectNotFoundException.class
     })
     public ResponseEntity<Map<String, Object>> handleNotFound(RuntimeException ex) {
         return body(HttpStatus.NOT_FOUND, ex.getMessage());

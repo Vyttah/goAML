@@ -30,7 +30,7 @@ class DpmsrRequestMapperTest {
                 "GOLD", "Emirates Gold", "1kg bar", "Buyer", "SOLD",
                 new BigDecimal("75000.00"), "AED", new BigDecimal("1000"), "GRAM", null);
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
-                "F", "Sara", "Khan", null, "AE", "AE", "784199012345678", null, "MLRO",
+                "F", "Sara", "Khan", null, "AE", "AE", "AE", "784199012345678", null, "MLRO",
                 new DpmsrCreateRequest.Phone("BU", "L", "971", "44441234"),
                 new DpmsrCreateRequest.Address("BU", "Office 1", "Dubai", "AE", "Dubai"), null);
 
@@ -52,7 +52,7 @@ class DpmsrRequestMapperTest {
         DpmsrCreateRequest.Identification eid = new DpmsrCreateRequest.Identification(
                 "EID", "784198012345678", odt("2020-01-15T00:00:00"), odt("2030-01-14T00:00:00"), "AE");
         DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
-                "M", "Mohamad", "Al-Jaber", odt("1985-03-12T00:00:00"), "AE", "AE",
+                "M", "Mohamad", "Al-Jaber", odt("1985-03-12T00:00:00"), "AE", "AE", "AE",
                 "784198012345678", "Y", null,
                 new DpmsrCreateRequest.Phone("PRIVT", "L", "971", "501112233"), null, List.of(eid));
         DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Walk-in buyer", null, null, buyer);
@@ -73,7 +73,7 @@ class DpmsrRequestMapperTest {
 
     private static DpmsrCreateRequest req(DpmsrCreateRequest.Party party) {
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
-                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null);
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
         DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
                 "GOLD", null, null, null, null, new BigDecimal("90000.00"), "AED", null, null, null);
         return new DpmsrCreateRequest(null, "PAY-X", odt("2026-06-02T12:00:00"), null, "r", "a",

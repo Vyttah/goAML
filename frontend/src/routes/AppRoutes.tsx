@@ -11,6 +11,7 @@ import { ReportDetailPage } from '../features/reports/ReportDetailPage';
 import { ImportPage } from '../features/imports/ImportPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { LookupsBrowserPage } from '../features/lookups/LookupsBrowserPage';
+import { ScreeningSubjectsPage } from '../features/screening/ScreeningSubjectsPage';
 import { AdminPage } from '../features/admin/AdminPage';
 import { ForbiddenPage, NotFoundPage } from '../features/misc/StatusPages';
 
@@ -35,6 +36,9 @@ export function AppRoutes() {
           </Route>
           <Route path="reports/:id" element={<ReportDetailPage />} />
           <Route path="imports" element={<ImportPage />} />
+          <Route element={<RequireRole allowed={[ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN]} />}>
+            <Route path="screening" element={<ScreeningSubjectsPage />} />
+          </Route>
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="reference" element={<LookupsBrowserPage />} />
 

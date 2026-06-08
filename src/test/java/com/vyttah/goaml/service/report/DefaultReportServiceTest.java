@@ -161,7 +161,7 @@ class DefaultReportServiceTest {
         DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
                 "GOLD", null, "1kg gold bar", null, null, value, "AED", null, null, null);
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
-                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null);
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
         return new DpmsrCreateRequest(null, ref, odt("2026-06-02T12:00:00"), null,
                 "DPMS threshold met", "Filed", List.of("DPMSJ"), mlro, null, List.of(party), List.of(gold));
     }

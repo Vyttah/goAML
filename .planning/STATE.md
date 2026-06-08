@@ -246,9 +246,26 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   (a federated JWT drives the existing `/api/v1/reports*` API end-to-end; MLRO submit-gating preserved for
   federated users) + the consumer contract doc [docs/14-suite-integration.md](../docs/14-suite-integration.md).
   Full gate green each step; new packages (`ingestion/reportability`, `service/integration`,
-  `controller/integration`) added to the JaCoCo gate. **Next: 1.5c (screening REST push + SPA form) — gated
-  on the Vyttah screening payload schema.** ⚠️ Push still gated on the PII-sample history purge.
+  `controller/integration`) added to the JaCoCo gate. ⚠️ Push still gated on the PII-sample history purge.
+- **2026-06-09 session (later) — Phase 1.5c (screening) COMPLETE → Phase 1.5 DONE, merged to `main`.** Branch
+  `feature/phase-1.5c-screening` (`f0d4ccc`…1.5c.5, `--no-ff`). The screening payload schema came from the
+  live `customer-service` OpenAPI (`https://dev-aml-api.vyttah.com/customer-service-0.0.1-SNAPSHOT/v3/api-docs`).
+  **(1.5c.1)** `ScreeningPartyPayload` (resolved-codes) + `ScreeningPartyMapper` (customer→Entity/Person,
+  directors→entity directors, shareholders/UBOs→parties, PEP/sanctions→party comments). **(1.5c.2)**
+  `screened_subject` tenant table (`tenant/V6`) + `DefaultScreeningIngestionService` (resolve SCREENING
+  company→tenant, bind context, idempotent upsert on `SCR-<companyId>-<uid>`) + `POST/GET
+  /api/v1/integration/screening/subjects` (service-assertion authed). **(1.5c.3)** user-facing
+  `/api/v1/screening/subjects` browse + **seed a DPMSR draft** from a subject (`/{ref}/seed-report`) →
+  parties flow into a real report's XML. **Fixed a latent engine gap**: DPMSR person parties
+  (`t_person_my_client`) require `country_of_birth` (added to `DpmsrCreateRequest.Person` + mapper) and a
+  `<phones>` wrapper (now always emitted); a person party further needs a full ID doc + `tax_reg_number`, so
+  person-seeded reports are analyst-completed drafts while **entity**-party customers seed fully VALID reports.
+  **(1.5c.4)** SPA **Screening** page (browse subjects + seed modal → navigate to the report); frontend gate
+  green (tsc/eslint/64 vitest/build). **(1.5c.5)** JaCoCo += `service/screening`/`controller/screening`;
+  docs + planning synced. **Phase 1.5 is complete; all standalone + suite-integration work is done.** ⚠️ Push
+  still gated on the PII-sample history purge.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
-  `cd frontend && npm install && npm run dev` → continue **Phase 1.5c** (screening REST push + SPA form —
-  needs the Vyttah screening payload schema for the wire DTO; auth + the report API it builds on are done).
+  `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
+  (suite integration + federated auth) are all done. Remaining are go-live externals (PII-history purge
+  before any remote push, per-tenant FIU creds, real lookups/BRRs) — see Blockers.

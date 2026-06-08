@@ -379,3 +379,33 @@ gate (`./gradlew test jacocoTestCoverageVerification`) green at each step.
   `controller/integration/**` (DTOs/entities excluded, as elsewhere); planning docs synced; `--no-ff` merge.
 - **Next:** 1.5c (screening REST push + a goAML SPA form) — gated on the Vyttah screening payload schema; the
   AML software can already use Model 1 today. **Push still gated on the PII-history purge.**
+
+### Session 2026-06-09 (later) — Sub-phase 1.5c (screening): BUILT + merged → Phase 1.5 COMPLETE
+
+Branch `feature/phase-1.5c-screening` (`f0d4ccc`…1.5c.5, `--no-ff` to `main`). Full gate green per step.
+
+- **Schema source decision.** The screening payload schema came from the **live `customer-service` OpenAPI**
+  (`https://dev-aml-api.vyttah.com/customer-service-0.0.1-SNAPSHOT/v3/api-docs`) — the Vyttah AML software,
+  the same platform documented in the `aml-ai-skills` cheat-sheet (its *API contract* is fine to reuse here;
+  only its *build order* is off-limits per the root CLAUDE.md). **Output decision (user):** a screening
+  customer profile → **reusable party + DPMSR draft seed** (not a new STR report type, not enrich-existing).
+- **Resolved-codes contract.** Screening masters are FK ids (`nationalityId`, `idTypeId`, …); per the locked
+  "source assembles, goAML never calls back" rule, the wire DTO `ScreeningPartyPayload` carries **resolved**
+  ISO/goAML codes (the screening side resolves before pushing, like accounting).
+- **1.5c.1** `ScreeningPartyMapper`: customer→Entity(LEGAL, +directors)/Person(NATURAL); shareholders/UBOs→
+  parties (`Shareholder`/`Beneficial Owner`); PEP + sanctions hits→customer party comments.
+- **1.5c.2** `screened_subject` tenant table (`tenant/V6`) storing the resolved payload as JSONB; idempotent
+  upsert on `SCR-<companyId>-<customerUid>`; `POST/GET /api/v1/integration/screening/subjects` (assertion auth).
+- **1.5c.3** user-facing `/api/v1/screening/subjects` browse + `POST /{ref}/seed-report` → DPMSR draft from the
+  subject's parties + caller goods/MLRO. **Latent engine gap found + fixed:** a DPMSR person party
+  (`t_person_my_client`) requires `gender`, `birthdate`, `country_of_birth`, `id_number`, `nationality1`,
+  `residence`, a `<phones>` wrapper, a full identification (coded type + issue/expiry) **and** `tax_reg_number`.
+  Added `country_of_birth` to the DTO/mapper and made the engine always emit a (possibly empty) `<phones>`;
+  the identifications block is omitted (partial screening data would fail it) in favour of the required
+  top-level `id_number`. Net: **entity**-party customers seed fully VALID reports; **person**-party customers
+  seed drafts an analyst completes (the missing ID-doc/tax fields). (Prior to this, *no* natural-person DPMSR
+  party could validate — the accounting path had only ever used entity parties.)
+- **1.5c.4** SPA **Screening** page (Ant Design table + seed modal → navigate to the report); frontend gate
+  green (tsc/eslint/64 vitest/vite build).
+- **1.5c.5** JaCoCo += `service/screening`/`controller/screening` (added mapper edge-case tests to hold the
+  ≥80% branch bar); docs (`docs/14`) + planning synced; `--no-ff` merge. **Phase 1.5 closed.**

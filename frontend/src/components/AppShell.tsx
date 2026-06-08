@@ -22,6 +22,9 @@ export function AppShell() {
   const items = [
     ...(isTenantUser ? [{ key: '/dashboard', label: <Link to="/dashboard">Dashboard</Link> }] : []),
     ...(isTenantUser ? [{ key: '/imports', label: <Link to="/imports">Import</Link> }] : []),
+    ...(isTenantUser
+      ? [{ key: '/screening', label: <Link to="/screening">Screening</Link> }]
+      : []),
     { key: '/reference', label: <Link to="/reference">Reference</Link> },
     ...(can(ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN)
       ? [{ key: '/admin', label: <Link to="/admin">Admin</Link> }]

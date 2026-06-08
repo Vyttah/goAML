@@ -102,7 +102,7 @@ public class CsvImporter {
 
     private DpmsrCreateRequest toRequest(CSVRecord rec) {
         Person reportingPerson = new Person(null, req(rec, "reporting_person_first_name"),
-                req(rec, "reporting_person_last_name"), null, null, null, null, null, null, null, null, null);
+                req(rec, "reporting_person_last_name"), null, null, null, null, null, null, null, null, null, null);
 
         return new DpmsrCreateRequest(
                 opt(rec, "rentity_branch"),
@@ -123,7 +123,8 @@ public class CsvImporter {
         return switch (type) {
             case "PERSON" -> new Party(opt(rec, "party_reason"), null, null, new Person(
                     null, req(rec, "person_first_name"), req(rec, "person_last_name"),
-                    parseNullableDate(opt(rec, "person_birthdate")), opt(rec, "person_nationality"),
+                    parseNullableDate(opt(rec, "person_birthdate")),
+                    opt(rec, "person_nationality"), opt(rec, "person_nationality"),
                     null, opt(rec, "person_id_number"), null, null, null, null, null));
             case "ENTITY" -> new Party(opt(rec, "party_reason"), null, new Entity(
                     req(rec, "entity_name"), null, opt(rec, "entity_incorporation_number"),

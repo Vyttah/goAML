@@ -26,7 +26,7 @@ final class AccountingDpmsrMapper {
     static DpmsrCreateRequest toCreateRequest(AccountingTxnPayload p, String entityReference,
                                               OffsetDateTime submissionDate, String mlroFirst, String mlroLast) {
         DpmsrCreateRequest.Person reportingPerson = new DpmsrCreateRequest.Person(
-                null, mlroFirst, mlroLast, null, null, null, null, null, null, null, null, null);
+                null, mlroFirst, mlroLast, null, null, null, null, null, null, null, null, null, null);
 
         return new DpmsrCreateRequest(
                 null,
@@ -72,7 +72,7 @@ final class AccountingDpmsrMapper {
         String idNumber = ind != null && ind.identifications() != null && !ind.identifications().isEmpty()
                 ? ind.identifications().get(0).number() : null;
         return new DpmsrCreateRequest.Person(
-                null, first, last, dob, nationality, null, idNumber, null, null, null, null, null);
+                null, first, last, dob, nationality, nationality, null, idNumber, null, null, null, null, null);
     }
 
     private static List<DpmsrCreateRequest.Goods> goods(AccountingTxnPayload p) {

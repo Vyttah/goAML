@@ -110,15 +110,19 @@ public class DpmsrRequestMapper {
         p.setFirstName(dto.firstName());
         p.setLastName(dto.lastName());
         p.setBirthdate(dto.birthdate());
+        p.setCountryOfBirth(dto.countryOfBirth());
         p.setNationality1(dto.nationality());
         p.setResidence(dto.residence());
         p.setIdNumber(dto.idNumber());
         p.setTaxRegNumber(dto.taxRegNumber());
         p.setOccupation(dto.occupation());
+        // <phones> is a required element on t_person_my_client (its inner <phone> is optional), so a party
+        // person always gets a phones wrapper — empty when no phone is supplied — to stay XSD-valid.
+        TPersonMyClient.Phones phones = new TPersonMyClient.Phones();
         if (dto.phone() != null) {
-            p.setPhones(GoamlWrappers.wrap(new TPersonMyClient.Phones(),
-                    TPersonMyClient.Phones::getPhone, phone(dto.phone())));
+            phones.getPhone().add(phone(dto.phone()));
         }
+        p.setPhones(phones);
         if (dto.identifications() != null && !dto.identifications().isEmpty()) {
             TPersonMyClient.Identifications wrapper = new TPersonMyClient.Identifications();
             for (DpmsrCreateRequest.Identification id : dto.identifications()) {

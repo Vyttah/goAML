@@ -25,11 +25,11 @@
 > is deferred to last — it's dependency-safe (nothing depends on it; the frontend uses the REST API, and it
 > only needs the now-complete Phases 6–11). Caveat: since infra (14) lands before 12, expect a minor infra
 > touch-up when 12 ships (expose the MCP HTTP route in Helm/ingress + confirm the `--cli` run-mode).
-> **Phase 1.5** (suite integration + federated auth) is **IN PROGRESS** (started 2026-06-08). Sub-phases:
-> **1.5a federated auth ✅**, **1.5b accounting (REST, both models + reportability check) ✅**, 1.5c screening REST + form.
+> **Phase 1.5** (suite integration + federated auth) is **COMPLETE** (2026-06-08→09). Sub-phases:
+> **1.5a federated auth ✅**, **1.5b accounting (REST, both models + reportability check) ✅**, **1.5c screening (push + seed + SPA) ✅**.
 | **1.5a** | **Federated auth** — `goaml.auth.mode` (native\|federated\|both), V3 federated-identity migration (`external_identity`, `trusted_service`, `tenant_external_ref`, `tenant_goaml_config.auto_submit`), `ServiceCredentialValidator` (RS256 signed service assertion), `POST /api/v1/auth/federated/token` token-exchange (+ JIT provisioning). | ✅ done | `a4f1e4a`…`ef04cd9` |
 | **1.5b** | **Accounting → goAML (REST)** — both models: client builds the DPMSR via the existing report API (Model 1, embedded-consumer E2E) **and** raw-invoice push → goAML reportability detection → auto-create draft → MLRO 1-click / `auto_submit`; idempotent + status pull; + a standalone `POST /api/v1/reportability/check`. Contract: [docs/14-suite-integration.md](../docs/14-suite-integration.md). (Was RabbitMQ — changed to REST 2026-06-08.) | ✅ done | `d4a50de`…(1.5b.6) |
-| **1.5c** | **Screening → goAML** — REST push (party/KYC, same service-assertion auth) → report → XML; + goAML SPA form. | ⬜ todo | — |
+| **1.5c** | **Screening → goAML** — server-to-server screened-party push (`POST /api/v1/integration/screening/subjects`, service-assertion auth) → reusable `screened_subject`; user-facing browse + **seed a DPMSR draft** from a subject (`/api/v1/screening/subjects/{ref}/seed-report`) → parties in XML; + a goAML SPA **Screening** page. Also fixed a latent engine gap (DPMSR person parties: `country_of_birth` + always-emit `<phones>`). Contract: [docs/14-suite-integration.md](../docs/14-suite-integration.md). | ✅ done | `f0d4ccc`…(1.5c.5) |
 
 > **Note on Phase 1.5:** the "1.5" label reflects its product priority, but it is **sequenced after the
 > standalone core** (it depends on the engine, the b2b client, and submission existing). **2026-06-08
