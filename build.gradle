@@ -178,7 +178,10 @@ def coveredPackages = [
         // Phase 1.5b — accounting integration (reportability rules, both models). DTOs/entities excluded.
         'com/vyttah/goaml/ingestion/reportability/**',
         'com/vyttah/goaml/service/integration/**',
-        'com/vyttah/goaml/controller/integration/**'
+        'com/vyttah/goaml/controller/integration/**',
+        // Phase 1.5c — screening integration (party mapping + screened-subject seed). DTOs/entities excluded.
+        'com/vyttah/goaml/service/screening/**',
+        'com/vyttah/goaml/controller/screening/**'
 ]
 
 jacocoTestReport {

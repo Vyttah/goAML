@@ -177,6 +177,46 @@ Nothing changes. `auth.mode` defaults to `native`, the federated endpoint is `40
 integration endpoints are inert with no registered `trusted_service`. The suite features light up only
 when an operator registers a trusted service and the org/identity mappings.
 
-> **Screening (Model for the AML software) — `1.5c`, pending.** The screening REST push
-> (`/api/v1/integration/screening`) and a goAML-side manual-entry form are a later sub-phase, gated on
-> the screening payload schema. The AML software can already use **Model 1** today.
+---
+
+## Screening integration (the AML software)
+
+The AML screening software (Vyttah `customer-service`) integrates two ways: **Model 1** (embedded — drive
+the report API with a federated JWT, available to it today) and a dedicated **screened-party push**.
+
+### Push a screened customer (server-to-server)
+
+`POST /api/v1/integration/screening/subjects` — `X-Service-Assertion` authed for `SourceSystem.SCREENING`,
+tenant resolved from `companyId` via `tenant_external_ref`. Body is the `ScreeningPartyPayload` contract: an
+already-**resolved** view of a customer (the screening side maps its master FKs → ISO/goAML codes before
+pushing, like accounting):
+
+- `subjectType` `NATURAL` | `LEGAL`, the customer (`natural` / `legal`), plus `directors[]`, `shareholders[]`,
+  `ubos[]` and a `sanctions` block (`riskFlag` + `hits[]`).
+
+→ **`202`** with the mapped goAML party set + the PEP/sanctions context recorded on the customer party.
+goAML stores it as a reusable **`screened_subject`**, idempotent on `SCR-<companyId>-<customerUid>`.
+
+| Method & path | Purpose |
+|---|---|
+| `POST /api/v1/integration/screening/subjects` | push/refresh a screened customer |
+| `GET  /api/v1/integration/screening/subjects/{customerUid}?companyId=` | fetch one |
+| `GET  /api/v1/integration/screening/subjects?companyId=` | all from this company |
+
+### Seed a report from a screened subject (user-facing)
+
+A goAML user (the SPA's **Screening** page) browses screened subjects and seeds a DPMSR draft from one —
+the subject carries the **parties** (customer → Entity/Person; directors → entity directors;
+shareholders/UBOs → additional parties), the user supplies the goods + reporting MLRO + report reference:
+
+| Method & path (JWT, tenant-scoped) | Role | Purpose |
+|---|---|---|
+| `GET  /api/v1/screening/subjects` (+ `/{ref}`) | ANALYST/MLRO/TENANT_ADMIN | browse |
+| `POST /api/v1/screening/subjects/{ref}/seed-report` | ANALYST/MLRO | create a DPMSR draft from the subject |
+
+**Person-party note:** a goAML DPMSR **person** party requires gender, birthdate, country-of-birth, a national
+id, nationality, residence, a phones block, a full identification document (coded type + issue/expiry dates)
+**and** a `tax_reg_number` flag. A screening profile rarely carries all of these, so a person-seeded report is
+a **draft the analyst completes** before submission; an **entity**-party customer (legal) seeds a fully VALID
+report directly. (Mapping fills gender→`-`, country-of-birth/residence→nationality fallbacks, and uses the
+required top-level `id_number`; the optional identifications block is omitted to avoid partial-data XSD errors.)

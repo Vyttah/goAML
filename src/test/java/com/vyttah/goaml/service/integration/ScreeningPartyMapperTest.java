@@ -129,6 +129,72 @@ class ScreeningPartyMapperTest {
         assertThat(uboParty.person().idNumber()).isEqualTo("U-1");   // top-level id_number from the UBO's id
     }
 
+    private static NaturalCustomer natural(String gender, String first, String last, java.time.LocalDate dob) {
+        return new NaturalCustomer(gender, first, last, null, dob, null, null, null, null, null, null, null,
+                null, null, false);
+    }
+
+    private static DpmsrCreateRequest.Person personOf(NaturalCustomer nat) {
+        ScreeningPartyPayload p = new ScreeningPartyPayload(1, "U", SubjectType.NATURAL,
+                nat, null, null, null, null, null);
+        return ScreeningPartyMapper.toParties(p).get(0).person();
+    }
+
+    @Test
+    void genderIsNormalisedAndUnknownDefaultsToDash() {
+        assertThat(personOf(natural("F", "Ann", "Lee", null)).gender()).isEqualTo("F");
+        assertThat(personOf(natural("male", "Bob", "Ng", null)).gender()).isEqualTo("-");
+        assertThat(personOf(natural(null, "Cy", "Ho", null)).gender()).isEqualTo("-");
+    }
+
+    @Test
+    void missingCustomerNamesFallBackToUnknown() {
+        // subjectType LEGAL but no legal block, and NATURAL with no natural block → defensive "Unknown"
+        ScreeningPartyPayload legalNoBody = new ScreeningPartyPayload(1, "X", SubjectType.LEGAL,
+                null, null, null, null, null, null);
+        assertThat(ScreeningPartyMapper.toParties(legalNoBody).get(0).entity().name()).isEqualTo("Unknown");
+        assertThat(ScreeningPartyMapper.displayName(legalNoBody)).isEqualTo("Unknown");
+
+        ScreeningPartyPayload naturalNoBody = new ScreeningPartyPayload(1, "X", SubjectType.NATURAL,
+                null, null, null, null, null, null);
+        assertThat(ScreeningPartyMapper.toParties(naturalNoBody).get(0).person().firstName()).isEqualTo("Unknown");
+        assertThat(ScreeningPartyMapper.displayName(naturalNoBody)).isEqualTo("Unknown");
+    }
+
+    @Test
+    void relatedPartyFullNameSplitsAndCleanCustomerHasNoComments() {
+        RelatedParty oneName = new RelatedParty("NATURAL", "Cher", null, null, null, "AE", null,
+                false, null, null, null, null, null, null, null, null);
+        LegalCustomer legal = new LegalCustomer("Clean FZE", null, "INC", null, "AE", null, null, null, null, null);
+        ScreeningPartyPayload p = new ScreeningPartyPayload(1, "C", SubjectType.LEGAL,
+                null, legal, null, List.of(oneName), null, null);
+
+        List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(p);
+        assertThat(parties.get(0).comments()).isNull();                 // no PEP, no sanctions
+        assertThat(parties.get(1).person().firstName()).isEqualTo("Cher");
+        assertThat(parties.get(1).person().lastName()).isEqualTo("Unknown");  // single-token name
+        assertThat(parties.get(1).comments()).isNull();                 // no %/PEP
+    }
+
+    @Test
+    void pepOnlyCustomerCommentsAndHitTruncation() {
+        // PEP but no sanctions → "PEP." only
+        NaturalCustomer pep = new NaturalCustomer(null, "P", "Q", null, null, null, null, null, null, null,
+                null, null, null, null, true);
+        assertThat(ScreeningPartyMapper.sanctionsContext(new ScreeningPartyPayload(1, "P", SubjectType.NATURAL,
+                pep, null, null, null, null, null))).isEqualTo("PEP.");
+
+        // >5 hits → "+N more"
+        List<Sanctions.Hit> hits = new java.util.ArrayList<>();
+        for (int i = 0; i < 7; i++) {
+            hits.add(new Sanctions.Hit("H" + i, i, null, null, null, null));
+        }
+        LegalCustomer legal = new LegalCustomer("Z FZE", null, "I", null, "AE", null, null, null, null, null);
+        String ctx = ScreeningPartyMapper.sanctionsContext(new ScreeningPartyPayload(1, "Z", SubjectType.LEGAL,
+                null, legal, null, null, null, new Sanctions(true, hits)));
+        assertThat(ctx).contains("7 hit(s)").contains("+2 more");
+    }
+
     @Test
     void sanctionsHitsRenderIntoCustomerComments() {
         LegalCustomer legal = new LegalCustomer("Risky FZE", null, "INC-9", null, "AE", null, null, null, null, null);
