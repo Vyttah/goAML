@@ -8,6 +8,7 @@ import com.vyttah.goaml.service.attachment.AttachmentExceptions;
 import com.vyttah.goaml.service.auth.AuthExceptions;
 import com.vyttah.goaml.service.ingestion.IngestionExceptions;
 import com.vyttah.goaml.service.notification.NotificationExceptions;
+import com.vyttah.goaml.security.ServiceCredentialException;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.submission.SubmissionExceptions;
 import org.springframework.http.HttpStatus;
@@ -38,6 +39,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
         return body(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    /**
+     * A sibling service's signed assertion failed verification (Phase 1.5 token-exchange / integration push).
+     * → {@code 401}: the calling service did not authenticate. Only the integration/federated endpoints
+     * (server-to-server, never the SPA) raise this, so a JSON 401 body is safe here.
+     */
+    @ExceptionHandler(ServiceCredentialException.class)
+    public ResponseEntity<Map<String, Object>> handleServiceCredential(ServiceCredentialException ex) {
+        return body(HttpStatus.UNAUTHORIZED, ex.getMessage());
     }
 
     @ExceptionHandler({
