@@ -90,6 +90,16 @@ describe('ReportDetailPage', () => {
     expect(screen.queryByRole('button', { name: /submit to fiu/i })).not.toBeInTheDocument();
   });
 
+  it('shows a no-actions hint in Lifecycle for a non-MLRO on an unsubmitted report', async () => {
+    stubReport('VALID');
+    stubAttachments();
+    renderDetail('TENANT_ADMIN');
+
+    await screen.findByText('DPMSR-1');
+    expect(screen.getByText(/No actions available here/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /submit to fiu/i })).not.toBeInTheDocument();
+  });
+
   it('disables submit for a non-VALID report and explains why', async () => {
     stubReport('INVALID');
     stubAttachments();
