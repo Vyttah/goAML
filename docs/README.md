@@ -28,6 +28,7 @@
 | 10 | [10 — B2B Submission Protocol](10-b2b-submission-protocol.md) | How reports are actually submitted to the FIU over goAML's REST API (the target of Phase 6/9). |
 | 11 | [11 — Glossary](11-glossary.md) | Every acronym and term in one place. Keep this open in a tab. |
 | 12 | [12 — Frontend (SPA)](12-frontend.md) | The Phase 13 React + Ant Design SPA: stack, layout, how it talks to the API (JWT-claims identity, 401→login), local run, and testing. |
+| 15 | [15 — DPMSR field requirements](15-dpmsr-field-requirements.md) | **Mandatory vs optional** for every DPMSR field (from the goAML XSD), for the frontend "required" markers — incl. the context-dependent person rules + a regeneration recipe. |
 | — | [CONVENTIONS.md](CONVENTIONS.md) | The repo's **layer-first folder structure & coding conventions** (Vyttah standard, adapted). The authoritative structure reference. |
 
 ---
