@@ -94,18 +94,6 @@
                 <state>Dubai</state>
               </address>
             </addresses>
-            <employer_address_id>
-              <address_type>OFFIC</address_type>
-              <address>AL RAS DUBAI</address>
-              <city>DUBAI</city>
-              <country_code>AE</country_code>
-              <state>Dubai</state>
-            </employer_address_id>
-            <employer_phone_id>
-              <tph_contact_type>OFFIC</tph_contact_type>
-              <tph_communication_type>M</tph_communication_type>
-              <tph_number>971500000001</tph_number>
-            </employer_phone_id>
             <identification>
               <type>EID</type>
               <number>784198000000001</number>

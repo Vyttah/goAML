@@ -77,8 +77,6 @@ class GeneratedTypeJsonBindingSpikeTest {
         TEntity.DirectorId director = back.getDirectorId().get(0);
         assertThat(director.getRole()).as("enum role via module").isEqualTo(EntityPersonRoleType.PRTNR);
         assertThat(director.getSsn()).isEqualTo("784198000000001");
-        assertThat(director.getEmployerAddressId()).isNotNull();
-        assertThat(director.getEmployerPhoneId()).isNotNull();
         assertThat(director.getIdentification().get(0).getType()).isEqualTo("EID");
         assertThat(director.getAddresses().getAddress().get(0).getAddress()).isEqualTo("AL RAS DUBAI");
     }

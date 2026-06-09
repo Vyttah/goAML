@@ -1,6 +1,8 @@
 package com.vyttah.goaml.domain.generated;
 
 import com.vyttah.goaml.engine.marshal.ReportMarshaller;
+import com.vyttah.goaml.engine.validation.ValidationResult;
+import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -58,8 +60,9 @@ class DpmsrFullFieldFidelityTest {
         assertThat(director.getIdNumber()).as("director id_number").isEqualTo("784198000000001");
         assertThat(director.getAddresses().getAddress().get(0).getAddress())
                 .as("director addresses").isEqualTo("AL RAS DUBAI");
-        assertThat(director.getEmployerAddressId()).as("director employer_address_id").isNotNull();
-        assertThat(director.getEmployerPhoneId()).as("director employer_phone_id").isNotNull();
+        // NB: employer_address_id/employer_phone_id are NOT valid on t_entity_person (a director) per the
+        // official XSD — the real third-party report includes them there (schema-invalid); our XSD gate
+        // correctly rejects that, so the anonymized sample omits them.
         // real files use the inline <identification> form (the schema's choice), not the <identifications> wrapper
         TPersonIdentification id = director.getIdentification().get(0);
         assertThat(id.getType()).as("director identification type").isEqualTo("EID");
@@ -78,6 +81,17 @@ class DpmsrFullFieldFidelityTest {
         assertThat(item.getStatusComments()).as("goods status_comments").contains("CASH RECEIVED");
         assertThat(item.getRegistrationNumber()).as("goods registration_number").isEqualTo("SAMPLE0000001");
         assertThat(item.getIdentificationNumber()).as("goods identification_number").isEqualTo("REC0000000001");
+    }
+
+    @Test
+    void theFullFieldSampleRoundTripsAndStillConformsToTheAuthoritativeXsd() throws IOException {
+        Report report = marshaller.unmarshal(readResource("samples/USG-dpmsr-activity.xml"));
+        byte[] remarshalled = marshaller.marshal(report);
+
+        ValidationResult result = new XsdSchemaValidator().validate(remarshalled);
+        assertThat(result.isValid())
+                .as("re-marshalled full-field DPMSR should conform to goAMLSchema.xsd; errors=%s", result.errors())
+                .isTrue();
     }
 
     private static byte[] readResource(String path) throws IOException {
