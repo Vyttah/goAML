@@ -1,179 +1,166 @@
 # Plan — Suite cockpit integration (AML software ⇄ goAML) + standalone parity
 
-> **Status:** PLANNED (2026-06-09). Drives the next build track after Phase 1.5.
-> **Why this exists:** a competitive teardown of **LexAML** (liveexshield.com — a deployed UAE AML suite
-> with paying clients) showed the suite's shape and the one structural advantage we hold. This plan turns
-> that into concrete work across **both** Vyttah products.
+> **Status:** PLANNED (grounded v2, 2026-06-09 — after reading the real AML stack at `dev/AML`).
+> **Scope:** two repos — **goAML** (`dev/goAML`, this repo) and the **AML software** (`dev/AML`).
+> **Origin:** a competitive teardown of **LexAML** (liveexshield.com — a deployed UAE AML suite with paying
+> clients) + a full read of both codebases.
 
 ## The competitive finding (the "why")
 
-LexAML is one monolith: Customer Onboarding → Sanction Screening → RBA → Transaction (pick customer + enter
-deal) → **Transaction Approval (maker-checker)** → GoAML Xml (generate) → **manual upload to the goAML portal**.
-Several UAE clients use it.
+LexAML is one monolith: Onboarding → Screening → RBA → Transaction (pick customer + enter the deal) →
+Transaction Approval (maker-checker) → GoAML Xml (generate) → **manual upload to the goAML portal**. Several
+UAE clients use it. Everything it bundles, Vyttah already has **live** in the AML software — except the
+*transaction/deal* step and the *goAML filing* — and Vyttah ends in **B2B auto-submission**, not manual upload.
 
-Mapped against Vyttah:
+**Verdict:** the Vyttah suite (AML software + goAML) matches LexAML on breadth and beats it on automation,
+**iff live B2B submission is proven** (externally gated — pursued in parallel). The work is to build the deal
++ the seam.
 
-| LexAML capability | Vyttah home | State |
-|---|---|---|
-| Customer master / onboarding (entity, shareholders, directors, UBO, bank) | **AML software** | live |
-| Sanction / PEP screening | **AML software** | live |
-| RBA risk scoring | **AML software** | live |
-| Case management (Tr-Case / ISTR) | **AML software** | live |
-| Maker-checker approval | **both planes** | to build (AML has it; goAML to add) |
-| goAML report build / validate / **XSD fidelity** | **goAML** | live (DPMSR) |
-| Reporting-person ("GoAML Person") as a tenant default | **goAML** | to build |
-| Lookups / dropdowns | **goAML** | partial (4 sets) → expand |
-| **FIU submission** | **goAML** | **B2B REST auto-submit + poll** (LexAML = manual upload) |
+## Locked decisions
 
-**Verdict:** the Vyttah suite (AML software + goAML) matches LexAML on breadth and **beats it on automation**
-(B2B auto-submission, multi-tenant SaaS, REST/MCP/CLI, schema-fidelity on the current 5.0.2 — LexAML's own
-generated sample was the older "goAML XML Schema v2"). The whole thesis rests on **proving live B2B
-submission** — gated on a real regulated-entity relationship; pursued in parallel (Phase E). An incumbent
-choosing manual upload is the loudest signal that B2B needs validating before we bank the strategy on it.
+1. **Cockpit = the AML software** (owns all masters **and** transactions, like LexAML). **goAML = report
+   generator + system-of-record:** it receives and stores the whole bundle (parties + goods + deal + master
+   snapshot) + the generated XML + FIU status, so a goAML login shows the full transaction *and* its report —
+   but goAML keeps **no separate editable masters**.
+2. **The DPMSR "deal" is built IN the AML software** — a new transaction/filing module (entity + endpoints +
+   Frontend_Customer screen). Officer picks a customer → enters the deal → "File to goAML" pushes the bundle.
+3. **First we prove the pipe end-to-end** (Slice 1): RS256 auth bridge + map one company→tenant + push one
+   customer's parties → goAML builds a DPMSR draft. No UI. De-risk auth + tenancy + mapping before building.
+4. **Maker-checker on both planes** — AML business sign-off upstream; goAML adds its own MLRO/compliance review.
+5. **MLRO fed by goAML, not AML** — goAML stores the reporting person as a tenant default and auto-injects it;
+   the AML software sends none.
 
-## Locked decisions (this session, 2026-06-09)
+## Ground truth (what actually exists — verified in code, 2026-06-09)
 
-1. **Cockpit = the AML software.** It owns all masters + transactions (like LexAML). **goAML is the report
-   generator + system-of-record**: it receives and stores the *whole* thing (the report input/payload =
-   parties + goods + transaction details, and a master snapshot) plus the generated XML and FIU status, so
-   **logging into goAML shows the full transaction *and* its report** — but goAML keeps **no separate
-   editable masters** (no parallel CRM).
-2. **Maker-checker on both planes.** The AML software gates with its own (business) approval before filing;
-   goAML adds its own report review/approval stage (the MLRO/compliance sign-off before FIU submit). Two-tier,
-   not redundant: business checker upstream, compliance checker at the filing authority.
-3. **Priority = demo-ready suite first.** Build the seam + UX gaps so the integrated suite demos end-to-end
-   without waiting on FIU access; chase a client RE → live B2B proof in **parallel** (Phase E).
-4. **MLRO is fed by goAML, not the AML software.** goAML stores the reporting-person as a tenant default and
-   auto-injects it into every report → the AML software does **not** capture or send goAML-person data.
+### goAML (`dev/goAML`) — Spring Boot 3.3 / Java 21
+- **System-of-record already there:** `report.input` (JSONB, NOT NULL) stores the full structured report; 
+  `report.report_xml` the marshalled XML; `submission` the FIU status. → "store the whole transaction" is mostly
+  a **view** task, not new storage. — `model/entity/report/Report.java`, `db/migration/tenant/V2__reports.sql`.
+- **Phase 1.5 integration scaffolding is built:** federated SSO (`POST /api/v1/auth/federated/token` +
+  RS256 `ServiceCredentialValidator` + `external_identity`/`trusted_service`), a **screening receiver**
+  (`POST /api/v1/integration/screening/subjects` → `screened_subject` + `ScreeningPartyMapper`) modelled from
+  the AML `customer-service` OpenAPI, the accounting raw-invoice push, and `tenant.external_org_ref` for org→tenant
+  resolution. — `controller/integration/`, `service/integration/`, `model/entity/federated/`.
+- **DPMSR full-schema fidelity:** `POST /api/v1/reports` binds `DpmsrReportPayload` (xjc-generated leaf types) →
+  the XML carries every goAML element. B2B submit + poll + ZIP, XML view/download, attachments, notifications,
+  CSV/XML import — all live (Phases 6–14).
+- **4 lookup sets only** (countries, currencies, funds, transmode); **reporting person passed per-report** (no
+  tenant default); **no maker-checker** (MLRO submit-gate only); **single schema 5.0.2**.
 
-## What already exists (don't rebuild)
+### AML software (`dev/AML`) — Spring Boot 4.0.2 / Java 21 + Next.js 15
+- **Modules:** `aml-orm` (entities), `customer-service` :8081 (masters/KYC/screening/RBA/case), `admin-service`
+  :8082 (Company/masters), `user-service` :8080 (auth). Postgres 16 + Flyway. **Frontend_Customer** :8083 =
+  the compliance cockpit (Next.js/React 19/Tailwind/Zustand/React Query); Frontend_Admin :8084 = admin.
+- **Masters (map to goAML parties):** `Customer`→`CustomerLegal`/`CustomerNatural`; related parties
+  `Shareholder`/`Director`/`Ubo`/`Representative` (+ `*Identification` docs: idType/number/expiry/placeOfIssue
+  + S3 refs); `CustomerBank`. Most attributes are FKs to `Master*` (country/gender/occupation/nationality…).
+- **Tenancy:** `company_id` (String UUID) on every row + JWT claim + `X-Company-Id` header. `admin-service`
+  owns `Company`. → maps to goAML `tenant.external_org_ref`.
+- **Workflow:** `caseManagementStatus`/`kycStatus`/`riskMitigationStatus`; `CustomerRbaScore`;
+  `CaseManagementDecisionLog` (PENDING→COMPLETED/REJECTED) — the maker-checker pattern to reuse.
+- **Auth:** **HS256 shared-secret** (jjwt), issuer `vyattah-aml-user-service`, claims incl. `companyId` — **no
+  RSA keypair**. customer-service OpenAPI at `/v3/api-docs`.
+- **🔴 NO transaction/deal entity or screen** anywhere (onboarding/screening only) — the deal must be built.
+- **🔴 Nothing calls goAML yet** (0 references) — the AML *sender* is greenfield (goAML's receiver exists).
 
-- **`report.input` (JSONB, NOT NULL)** already stores the full structured report input the engine built from
-  (parties + goods + header); **`report.report_xml`** stores the marshalled XML; **`submission`** tracks FIU
-  status. So "store the whole transaction + report" is mostly a **read/view** concern, not new storage.
-  — `model/entity/report/Report.java`, `db/migration/tenant/V2__reports.sql`.
-- **Phase 1.5 is DONE** (not deferred): federated SSO (`POST /api/v1/auth/federated/token` + `ServiceCredentialValidator`
-  + `external_identity`/`trusted_service`), the **screening→goAML party feed** (`POST /api/v1/integration/screening/subjects`
-  → `screened_subject` + `ScreeningPartyMapper`, customer→entity/person, directors→entity directors,
-  shareholders/UBOs→parties, PEP/sanctions→comments; + a user-facing seed-DPMSR-from-subject flow), and the
-  **accounting** raw-invoice push (reportability check → auto-draft). — `controller/integration/`,
-  `service/integration/`, `model/entity/federated/`, `docs/14-suite-integration.md`.
-- **Report lifecycle + MLRO submit-gate**, B2B client + ZIP packager + on-demand/scheduled status poll,
-  XML view/download, attachments, notifications, CSV/XML import. — Phases 6–14.
-- **DPMSR full-schema fidelity:** the REST API binds `DpmsrReportPayload` (xjc-generated leaf types) so a
-  caller can supply — and the XML carries — **every** goAML element. — `.planning/plans/full-schema-fidelity.md`.
+## Field mapping — AML masters/deal → goAML DPMSR (the integration contract)
+
+AML resolves its `Master*` FKs to **codes** before sending (ISO country, goAML gender/role codes, etc.) — the
+screening payload is already "resolved-codes" shaped.
+
+| goAML DPMSR element | Source in the AML software |
+|---|---|
+| Entity party `t_entity` (name, incorporation_*, business, tax_reg_number, phones, addresses) | `CustomerLegal` (legalName, dateOfIncorporation, countryOfIncorporation, businessActivity, trn, licenseNumber→entity_identification, phone, registeredOfficeAddress) |
+| Person party `t_person_my_client` | `CustomerNatural` (names, genderId, dob, nationality, residence, occupation, pepStatus, emiratesId, countryOfBirth) |
+| Director (`director_id`/related person) + role | `Director`/`Representative` (+ isManager/role) |
+| Report parties / related persons (significance) | `Shareholder`, `Ubo` (+ shareholdingPercent, pepStatus) |
+| `t_person_identification` (type/number/issue/expiry/issue_country) | `*Identification` (idType, idNumber, expiryDate, placeOfIssue) |
+| Goods `t_trans_item` (item_type, estimated_value, status_code, size/uom, disposed_value, currency, registration_*) | **the new Deal entity** (built in AML) |
+| Report header (entity_reference, submission_date, reason/description, action, indicators) | the new Deal entity (internal ref, date, description, action taken, indicators) |
+| `reporting_person` (MLRO) | **goAML tenant default** (Phase A) — AML sends nothing |
+| tenant / `rentity_id` | AML `company_id` → goAML `tenant.external_org_ref` → tenant's `rentity_id` |
+
+Requiredness per field: goAML `docs/15-dpmsr-field-requirements.md` (note person-party needs gender+dob+id_number
++nationality1+residence+tax_reg_number+a phone block+≥1 full ID; entity party needs only `name`).
 
 ---
 
-## Build track — goAML (this repo)
+## Execution — slice/phase sequencing
 
-Standing workflow (unchanged): each step = **atomic commit** + full backend gate
-(`./gradlew test jacocoTestCoverageVerification`) + frontend gate where applicable
-(`npm run typecheck && lint && test && build`) + planning-doc sync + `--no-ff` merge to `main`.
+Standing workflow (both repos): each step = **atomic commit** + that repo's full gate + planning sync +
+`--no-ff` merge. goAML gate = `./gradlew test jacocoTestCoverageVerification` (+ frontend gate for SPA).
 
-### Phase A — Reporting-person (MLRO) as a tenant default, auto-fed  ⟵ start here (cheapest, highest value)
+### ⭐ Slice 1 — Prove the pipe end-to-end (no UI)  ← START HERE
+Goal: one onboarded AML customer → a goAML DPMSR draft, tenant-scoped, over a signed service call.
 
-- **A.1** — New per-tenant `goaml_person` table (next tenant migration): the goAML reporting person fields
-  (`first_name`, `last_name`, `gender`, `ssn`, `id_number`, `nationality`, `email`, `occupation`, plus
-  `is_active`, timestamps). Multiple allowed, one active (mirrors LexAML's "GoAML Person" list). JPA entity +
-  repo. (Per-tenant schema keeps the MLRO PII inside tenant isolation.)
-- **A.2** — Auto-inject on report build: when an inbound payload's `reportingPerson` is null, fill it from the
-  tenant's **active** `goaml_person`. Touches `DefaultReportService` / the DPMSR builder path; `reportingPerson`
-  becomes optional on the wire. Unit + E2E (payload without reporting-person → valid report carrying the
-  tenant default; no active person → clear 4xx).
-- **A.3** — Admin REST (`/api/v1/admin/goaml-person` CRUD + set-active) + RBAC (TENANT_ADMIN/MLRO) + a SPA
-  admin screen (like LexAML's setting). Vitest.
+- **S1.1 (AML)** — RS256 service-assertion capability in `user-service` (RSA keypair via env/secret +
+  `ServiceAssertionService` that signs a short-lived assertion: iss=AML source, aud=goAML, exp). Expose the
+  public key / register it.
+- **S1.2 (goAML)** — Register a `trusted_service` row (source=SCREENING or a new AML source) with that public
+  key + map one AML `company_id` → a goAML tenant (`external_org_ref`) with FIU config + (Phase A) reporting
+  person. Confirm `ServiceCredentialValidator` accepts the AML assertion.
+- **S1.3 (goAML)** — Integration intake that accepts the **AML-native bundle** (customer + resolved parties)
+  and maps → a DPMSR draft, **idempotent on an AML ref**, reusing/extending `ScreeningPartyMapper`. (Deal is
+  optional/stubbed in this slice — parties → draft.) MockMvc E2E.
+- **S1.4 (AML)** — Minimal integration client in `customer-service`: given a customer, resolve `Master*`→codes,
+  assemble the bundle, sign (S1.1), POST to goAML (S1.3). Prove a real customer → a goAML draft.
 
-### Phase B — Expanded lookups / dropdowns
+### Phase A (goAML) — Reporting-person as a tenant default, auto-fed  (cheap; do alongside Slice 1)
+- A.1 per-tenant `goaml_person` table (first/last/gender/ssn/id_number/nationality/email/occupation + is_active).
+- A.2 auto-inject on report build when the payload omits `reportingPerson`; `reportingPerson` becomes optional.
+- A.3 admin REST + SPA screen (like LexAML's "GoAML Person"). → AML never sends the MLRO.
 
-- **B.1** — Add the goAML code sets the DPMSR form needs beyond today's 4 (countries, currencies, funds,
-  transmode): **item types**, **item status codes**, **DPMSR report indicators**, **party role codes**,
-  **identification types**, **contact/communication types**, **address types**. Seed from the 5.0.2 XSD
-  enumerations where they exist + known UAE code lists; new JSON under `resources/lookups/ae/`; extend
-  `LookupService` set names + validation. (The live FIU-OData lookups-refresh sync stays a later/external
-  follow-up — see STATE "Smaller follow-ups".)
-- **B.2** — Wire the new dropdowns into the SPA builder + the transaction/report view (Zod mirror + tests).
+### Phase B (goAML) — Expanded lookups / dropdowns
+- B.1 add item types, item status codes, DPMSR indicators, party role / identification / contact / address code
+  sets (from the 5.0.2 XSD enums + known UAE codes); extend `LookupService`. B.2 wire SPA dropdowns. (Live
+  FIU-OData lookup sync stays a later external follow-up; values provisional.)
 
-### Phase C — Maker-checker approval (goAML plane)
+### Phase C — The Deal module (the cockpit build, AML-side) + the real feed
+- **C.1 (AML)** — `GoamlTransaction` (deal) entity in `aml-orm`: `companyId`, `customerId`/`customerKind`,
+  selected party refs, goods fields (itemType, make, description, estimatedValue, currency, statusCode/comments,
+  disposedValue, size/uom, registrationDate/number, identificationNumber), report fields (internalRef, date,
+  description, actionTaken, reason, indicators[]), workflow `status` (DRAFT→PENDING_APPROVAL→APPROVED→FILED),
+  `goamlReportId`, `goamlStatus`. Flyway + repo + service.
+- **C.2 (AML)** — `customer-service` endpoints: CRUD the deal, **"File to goAML"** (assemble full bundle incl.
+  deal → S1.3 call → store goamlReportId), and a status-pull/refresh. Resolve `Master*`→codes in the mapper.
+- **C.3 (AML)** — Frontend_Customer screen (new route, e.g. `/goaml-filing`): pick customer → parties
+  auto-loaded → enter the deal → maker-checker → **File to goAML** → show returned status. Next.js/React.
+- **C.4 (goAML)** — extend the S1.3 intake to consume the deal → goods (`TTransItem`) + report header, producing
+  a fully VALID DPMSR (entity-party customers validate fully; person-party need the heavier field set per docs/15).
 
-- **C.1** — Report review stage: states `VALID → PENDING_REVIEW → APPROVED` before `SUBMITTED`
-  (REJECTED-back-to-DRAFT path). Add `reviewed_by`/`approved_by`/`approved_at` + audit; submit guard requires
-  `APPROVED`. Role split: ANALYST = maker (create/edit), a checker role approves, **MLRO submits** (keep the
-  existing MLRO gate as the final compliance step). Config flag so a standalone deployment can run the simple
-  flow; suite runs full maker-checker. Migration + entity + service + unit tests.
-- **C.2** — REST `approve`/`reject` endpoints + RBAC + E2E (maker can't approve own; submit blocked until
-  APPROVED; reject returns to DRAFT with comments).
-- **C.3** — SPA: a review queue + approve/reject UI; reflect the new states on the detail page.
-
-### Phase D — AML → goAML report build seam + the "see it all in goAML" view
-
-- **D.1** — Integration intake that mirrors the existing accounting/screening pattern: a service-assertion-authed
-  endpoint that accepts the **AML-native** transaction + masters (the `customer-service` shape already used for
-  screening) **plus** the deal/goods/transaction details, maps to a DPMSR (reuse/extend `ScreeningPartyMapper`
-  + a new transaction/goods mapper), creates the report (stores full `input` + the native snapshot for display),
-  **idempotent on the AML transaction ref**. Keep the **direct** path too: a client may instead POST a full
-  `DpmsrReportPayload` to `/api/v1/reports` (already works). MockMvc E2E.
-- **D.2** — "Whole transaction + report" view in goAML: a read endpoint returning the stored `input`
-  (parties / directors / UBO / goods / transaction details) + status + XML, and a SPA **Transaction & Report**
-  detail page that renders it richly (not just status + raw XML). Satisfies decision #1 — a goAML login shows
-  the full picture. (Builds on the existing detail page + `GET /reports/{id}/xml`.)
-- **D.3** — Status feedback to the cockpit: confirm/extend the status-pull endpoint + notifications the AML
-  software polls/stores; document the back-link contract.
+### Phase D — Maker-checker (both planes) + "see it all in goAML"
+- **D.1 (AML)** — deal approval before filing, reusing the `CaseManagementDecisionLog` pattern (maker creates,
+  checker approves → only then "File" is enabled).
+- **D.2 (goAML)** — report review stage: `VALID → PENDING_REVIEW → APPROVED → (MLRO) SUBMITTED`, RBAC + audit,
+  configurable (standalone can skip). REST approve/reject + E2E + SPA review queue.
+- **D.3 (goAML)** — "Transaction & Report" view: a read endpoint + SPA page rendering the stored `input`
+  (parties/directors/UBO/goods/deal) + status + XML — a goAML login shows the whole thing.
+- **D.4 (AML)** — show goAML status + link in the case UI (poll/refresh).
 
 ### Phase E — Live B2B proof (parallel, external — NOT a code phase)
+Secure a client RE + SACM registration → per-tenant FIU B2B URL + creds → submit a real DPMSR → confirm FIU
+acceptance (`plans/go-live-integration-runbook.md`). **Also resolve:** did the FIU accept the third-party `USG…`
+report that our XSD gate rejects (`employer_address_id` in a director)? Determines if our gate must relax.
 
-Secure a real client RE relationship + SACM registration → per-tenant FIU B2B URL + credentials → submit a
-real DPMSR → confirm FIU acceptance. Follow `plans/go-live-integration-runbook.md`. This validates the single
-differentiator; run it alongside A–D. **Also resolve the open question:** did the FIU actually accept the
-third-party `USG…` report that nested `employer_address_id` in a director (which our XSD gate rejects)? If yes,
-our gate is stricter than the FIU's live validation and we reconcile; if no, our gate is correct.
+## The seam (integration contract — summary)
 
----
-
-## Build track — AML software (separate repo — requirements, to be planned there)
-
-goAML cannot be edited from this repo; these are the integration requirements the AML software's own plan must
-cover. The goAML side of each is already built or is in Phases A–D above.
-
-1. **Federated SSO** — sign a short-lived RS256 service assertion with the AML software's registered key and
-   exchange it at `POST /api/v1/auth/federated/token` for a goAML JWT; attach it to all goAML calls.
-   *(goAML side: built.)*
-2. **"File to goAML" action** — from a selected customer + its transaction, call the goAML intake (Phase D.1)
-   with native masters + deal/goods details (or assemble + POST a full `DpmsrReportPayload`). Map AML master
-   fields → the contract. *(goAML side: D.1.)*
-3. **Drop goAML-person capture** — do not collect/send the reporting person; goAML feeds it from its tenant
-   default. *(goAML side: Phase A.)*
-4. **Maker-checker upstream** — gate with the AML software's existing approval/case workflow before filing.
-5. **Status back-link** — store the returned goAML report id; poll/display FIU status in the AML case UI.
-   *(goAML side: D.3.)*
-
----
-
-## The seam (integration contract)
-
-| Concern | Mechanism | goAML side |
-|---|---|---|
-| Identity / SSO | RS256 service assertion → goAML JWT | `POST /api/v1/auth/federated/token` (built) |
-| Party/master feed | AML-native push, mapped to goAML parties | `ScreeningPartyMapper` (built) + D.1 |
-| Report creation | native intake **or** full `DpmsrReportPayload` | D.1 + `POST /api/v1/reports` (built) |
-| Reporting person (MLRO) | goAML tenant default, auto-injected | Phase A — **AML sends nothing** |
-| Approval | AML business checker → goAML MLRO checker | AML workflow + Phase C |
-| Submission to FIU | goAML B2B REST + poll | built (Phases 6/7/9) |
-| Status / receipt | notifications + status pull | D.3 (built core) |
-| System-of-record / audit | full `input` + XML + submission stored | built (Report) + D.2 view |
+| Concern | Mechanism | goAML side | AML side |
+|---|---|---|---|
+| Service trust | RS256 signed assertion | `ServiceCredentialValidator` + `trusted_service` (built) | **S1.1** keypair + signer (new) |
+| Tenant resolution | `company_id` → `external_org_ref` | built | send `company_id` |
+| Party feed | AML-native bundle, resolved codes | `ScreeningPartyMapper` + S1.3 intake | resolve `Master*`→codes |
+| Deal / goods | bundle carries the deal | C.4 maps → `TTransItem` + header | **C.1–C.3** deal module (new) |
+| Reporting person | goAML tenant default | **Phase A** | sends nothing |
+| Approval | two-tier | **D.2** MLRO review | **D.1** business checker |
+| Submit → FIU | B2B REST + poll | built | — |
+| Status / SoR view | notifications + read view | **D.3** | **D.4** display |
 
 ## Risks / constraints
-
-- **🔴 Live B2B is unproven and externally gated** (SACM registration needs a regulated-entity relationship).
-  It is the differentiator; Phase E de-risks it in parallel. Do not let A–D imply it's proven.
-- **Both-plane maker-checker** must not become double busywork — frame as business sign-off (AML) vs compliance
-  sign-off (goAML/MLRO); make goAML's stage configurable so standalone stays simple.
-- **Lookups are seeds** until real UAE FIU exports land (existing known gap) — Phase B uses XSD enums + known
-  codes; flag values as provisional.
-- **Standalone-safe:** Phases A–C keep goAML usable standalone (its own SPA builder, optional maker-checker);
-  the seam (D) is additive.
+- **🔴 Live B2B unproven & externally gated** (SACM/real RE) — the differentiator; Phase E de-risks in parallel.
+- **Two Spring Boot majors** (goAML 3.3, AML 4.0.2) — fine; they integrate only over REST.
+- **FK→code resolution** must be correct on the AML side (country/gender/role/id-type) or the XSD gate rejects.
+- **Lookups are provisional** until real UAE FIU exports land.
+- **Standalone-safe:** Phases A–B + goAML's SPA keep goAML usable alone; the seam is additive.
 
 ## Suggested order
-
-**A → B → D.2 → C → D.1/D.3**, with **E in parallel**. (A and B are cheap, visible, fully in-repo; D.2 makes
-the "see it all in goAML" story real; C and the D.1 intake are the larger builds.)
+**Slice 1 (+ Phase A in parallel) → B → Phase C (deal module) → C.4 → D**, with **E in parallel** throughout.

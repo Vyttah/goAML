@@ -47,6 +47,18 @@ report — so "store the whole transaction" is mostly a read/view concern (Phase
 Plan: [plans/suite-cockpit-integration.md](plans/suite-cockpit-integration.md) (goAML Phases A–E + AML-software
 integration requirements + the seam contract). Order: A → B → D.2 → C → D.1/D.3, E in parallel.
 
+**Then read the real AML stack** at `dev/AML` (SpringBoot4 `aml-orm`/`customer-service`/`admin-service`/`user-service`
++ Next.js Frontend_Customer cockpit + Python sanctions scraper) → three findings reshaped the plan: **(1) the AML
+software has NO transaction/deal entity or screen** (onboarding/screening only) — the DPMSR "deal" must be built;
+**(2) auth is HS256 shared-secret, no keypair** — but goAML's federated/integration auth expects an RS256 signed
+assertion, so an auth bridge is new AML-side work; **(3) nothing in AML calls goAML yet** (goAML's screening
+*receiver* is built; the AML *sender* is greenfield). Tenancy maps cleanly: AML `company_id` → goAML
+`tenant.external_org_ref`. Two decisions locked: **the deal module is built in the AML software** (entity +
+customer-service endpoints + Frontend_Customer screen; "File to goAML" pushes the bundle), and **we prove the pipe
+end-to-end first** (Slice 1: RS256 bridge + 1 company→tenant + 1 customer's parties → goAML draft, no UI). Plan
+rewritten to grounded **v2** with the AML↔goAML field mapping + slice/phase sequencing
+(Slice 1 + Phase A → B → C deal module → C.4 → D, E parallel). AML stack saved to auto-memory (`aml-software-stack`).
+
 ---
 
 ## Session 2026-06-08 — Pre–Phase-1.5 full verification + hardening pass
