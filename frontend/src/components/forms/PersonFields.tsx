@@ -50,6 +50,21 @@ export function PersonFields({ name }: { name: NamePath }) {
           </Form.Item>
         </Col>
         <Col span={6}>
+          <Form.Item label="SSN / Emirates ID" name={[...name, 'ssn']}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item label="Passport no." name={[...name, 'passportNumber']}>
+            <Input />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item label="Passport country" name={[...name, 'passportCountry']}>
+            <CodeSelect set="countries" placeholder="Country" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
           <Form.Item label="Tax reg. number" name={[...name, 'taxRegNumber']}>
             <Input />
           </Form.Item>

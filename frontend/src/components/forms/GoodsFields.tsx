@@ -59,6 +59,38 @@ export function GoodsFields({ name }: { name: number }) {
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
       </Col>
+      <Col span={8}>
+        <Form.Item
+          label="Disposed value"
+          name={[name, 'disposedValue']}
+          tooltip="The actual value/cash disposed against this item"
+        >
+          <InputNumber style={{ width: '100%' }} min={0} />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          label="Registration number"
+          name={[name, 'registrationNumber']}
+          tooltip="e.g. the invoice number"
+        >
+          <Input />
+        </Form.Item>
+      </Col>
+      <Col span={8}>
+        <Form.Item
+          label="Identification number"
+          name={[name, 'identificationNumber']}
+          tooltip="e.g. the receipt number"
+        >
+          <Input />
+        </Form.Item>
+      </Col>
+      <Col span={24}>
+        <Form.Item label="Status comments" name={[name, 'statusComments']}>
+          <Input.TextArea rows={2} />
+        </Form.Item>
+      </Col>
     </Row>
   );
 }

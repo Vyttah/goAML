@@ -1,7 +1,7 @@
 import { apiClient } from './client';
 import { API_PREFIX } from '../lib/config';
 import type { CreateReportResponse, ReportView, StatusView, SubmissionView } from '../types';
-import type { DpmsrCreateRequest } from '../types/dpmsr';
+import type { DpmsrReportPayload } from '../types/dpmsrPayload';
 
 const BASE = `${API_PREFIX}/reports`;
 
@@ -17,8 +17,8 @@ export async function getReport(id: string): Promise<ReportView> {
   return data;
 }
 
-/** Create + validate a DPMSR report. Returns the validation outcome (status + messages). */
-export async function createReport(body: DpmsrCreateRequest): Promise<CreateReportResponse> {
+/** Create + validate a DPMSR report (full-fidelity payload). Returns the validation outcome. */
+export async function createReport(body: DpmsrReportPayload): Promise<CreateReportResponse> {
   const { data } = await apiClient.post<CreateReportResponse>(BASE, body);
   return data;
 }

@@ -38,6 +38,9 @@ export interface DpmsrPerson {
   nationality?: string;
   residence?: string;
   idNumber?: string;
+  ssn?: string;
+  passportNumber?: string;
+  passportCountry?: string;
   taxRegNumber?: string;
   occupation?: string;
   phone?: DpmsrPhone;
@@ -53,10 +56,13 @@ export interface DpmsrDirector {
   passportNumber?: string;
   passportCountry?: string;
   idNumber?: string;
+  ssn?: string;
   nationality?: string;
   residence?: string;
   role?: string;
   phone?: DpmsrPhone;
+  address?: DpmsrAddress;
+  identifications?: DpmsrIdentification[];
 }
 
 export interface DpmsrEntity {
@@ -65,7 +71,9 @@ export interface DpmsrEntity {
   incorporationNumber?: string;
   incorporationState?: string;
   incorporationCountryCode?: string;
+  incorporationDate?: string;
   phone?: DpmsrPhone;
+  address?: DpmsrAddress;
   directors?: DpmsrDirector[];
 }
 
@@ -88,6 +96,10 @@ export interface DpmsrGoods {
   size?: number;
   sizeUom?: string;
   registrationDate?: string;
+  disposedValue?: number;
+  statusComments?: string;
+  registrationNumber?: string;
+  identificationNumber?: string;
 }
 
 export interface DpmsrCreateRequest {
