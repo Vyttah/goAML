@@ -278,4 +278,6 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
   (suite integration + federated auth) are all done, and the PII-history purge is done. Remaining are
-  go-live externals (per-tenant FIU creds, real lookups/BRRs) — see Blockers.
+  go-live externals (per-tenant FIU creds, real lookups/BRRs) — see Blockers. **To integrate accounting +
+  AML screening, follow [plans/go-live-integration-runbook.md](plans/go-live-integration-runbook.md)**
+  (deploy → register trust/tenant-mappings → wire each sibling app → FIU submit config → contract review).
