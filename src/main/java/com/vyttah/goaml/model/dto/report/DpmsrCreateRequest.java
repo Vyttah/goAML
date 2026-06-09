@@ -16,6 +16,11 @@ import java.util.List;
  * MLRO, location, indicators). DPMSR-fixed header values (submission_code {@code E}, report_code
  * {@code DPMSR}, currency {@code AED}) and {@code rentity_id} are applied by the engine / from
  * {@code tenant_goaml_config} — not carried here.
+ *
+ * <p>{@code reportingPerson} is <b>optional</b>: when omitted, the service injects the tenant's active goAML
+ * person ({@code tenant_goaml_person}) so the AML cockpit / CSV / accounting / screening feeds need not send
+ * the MLRO. If none is configured and none is supplied, the report validates as INVALID
+ * ({@code reporting_person is mandatory}).
  */
 public record DpmsrCreateRequest(
         String rentityBranch,
@@ -25,7 +30,7 @@ public record DpmsrCreateRequest(
         String reason,
         String action,
         List<String> indicators,
-        @NotNull Person reportingPerson,
+        Person reportingPerson,
         Address location,
         @NotNull List<Party> parties,
         @NotNull List<Goods> goods) {

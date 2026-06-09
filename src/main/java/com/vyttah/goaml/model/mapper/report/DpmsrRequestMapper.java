@@ -33,7 +33,7 @@ public class DpmsrRequestMapper {
                 .entityReference(req.entityReference())
                 .submissionDate(req.submissionDate())
                 .fiuRefNumber(req.fiuRefNumber())
-                .reportingPerson(reportingPerson(req.reportingPerson()))
+                .reportingPerson(req.reportingPerson() != null ? reportingPerson(req.reportingPerson()) : null)
                 .location(address(req.location()))
                 .reason(req.reason())
                 .action(req.action());

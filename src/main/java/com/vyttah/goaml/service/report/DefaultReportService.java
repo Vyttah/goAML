@@ -12,9 +12,11 @@ import com.vyttah.goaml.model.dto.report.DpmsrInputSource;
 import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
+import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.mapper.report.DpmsrRequestMapper;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.service.audit.AuditService;
 import lombok.RequiredArgsConstructor;
@@ -42,12 +44,14 @@ public class DefaultReportService implements ReportService {
     private final DpmsrReportBuilder reportBuilder;
     private final ReportRepository reportRepository;
     private final TenantGoamlConfigRepository configRepository;
+    private final TenantGoamlPersonRepository personRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
     @Override
     public ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId) {
-        return doCreate(of(request), request, tenantId, actorUserId);
+        DpmsrCreateRequest filled = withDefaultReportingPerson(request, tenantId);
+        return doCreate(of(filled), filled, tenantId, actorUserId);
     }
 
     @Override
@@ -57,14 +61,41 @@ public class DefaultReportService implements ReportService {
 
     @Override
     public ReportValidationResult validate(DpmsrCreateRequest request, UUID tenantId) {
-        ValidatedReport validated = buildAndValidate(of(request), tenantId);
+        ValidatedReport validated = buildAndValidate(of(withDefaultReportingPerson(request, tenantId)), tenantId);
         return new ReportValidationResult(statusOf(validated), mergeMessages(validated));
     }
 
     @Override
     public ReportPreview previewXml(DpmsrCreateRequest request, UUID tenantId) {
-        ValidatedReport validated = buildAndValidate(of(request), tenantId);
+        ValidatedReport validated = buildAndValidate(of(withDefaultReportingPerson(request, tenantId)), tenantId);
         return new ReportPreview(statusOf(validated), validated.xml(), mergeMessages(validated));
+    }
+
+    /**
+     * Fills the reporting person (the MLRO) from the tenant's active {@code tenant_goaml_person} when the
+     * caller omitted it — so the AML cockpit / CSV / accounting / screening feeds need not send it (the
+     * goAML-feeds-the-MLRO decision). The filled person is persisted as part of the report input (the
+     * system-of-record shows exactly what was filed). If no default is configured and none was supplied, the
+     * request is unchanged → null reporting person → INVALID ({@code reporting_person is mandatory}).
+     */
+    private DpmsrCreateRequest withDefaultReportingPerson(DpmsrCreateRequest request, UUID tenantId) {
+        if (request.reportingPerson() != null) {
+            return request;
+        }
+        return personRepository.findByTenantIdAndActiveTrue(tenantId)
+                .map(person -> withReportingPerson(request, toPerson(person)))
+                .orElse(request);
+    }
+
+    private static DpmsrCreateRequest withReportingPerson(DpmsrCreateRequest r, DpmsrCreateRequest.Person rp) {
+        return new DpmsrCreateRequest(r.rentityBranch(), r.entityReference(), r.submissionDate(),
+                r.fiuRefNumber(), r.reason(), r.action(), r.indicators(), rp, r.location(), r.parties(),
+                r.goods());
+    }
+
+    private static DpmsrCreateRequest.Person toPerson(TenantGoamlPerson p) {
+        return new DpmsrCreateRequest.Person(p.getGender(), p.getFirstName(), p.getLastName(), null, null,
+                p.getNationality(), null, p.getIdNumber(), null, p.getOccupation(), null, null, null);
     }
 
     /**
