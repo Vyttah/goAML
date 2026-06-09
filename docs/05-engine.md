@@ -252,4 +252,30 @@ goAML `OdataLookups` endpoint. They were reconciled with the XSD enums during th
 
 ---
 
+## The DPMSR contract — full-schema fidelity
+
+Two contracts feed the engine's `DpmsrReportInput`, both losslessly:
+
+- **`DpmsrReportPayload`** (the REST report API contract, `POST /api/v1/reports`) — binds the **xjc-generated
+  leaf types directly** (`TPersonRegistrationInReport`, `ReportPartyType` (all 6 subjects), `TTransItem`,
+  `TAddress`). Because the contract *is* the generated schema, it carries **every** goAML element 1:1 and can
+  never silently drift from the XSD. The generated `@XmlEnum` types bind by their schema `value()` via
+  `GeneratedEnumJacksonModule` (scoped to `domain.generated`). The JSON mirrors the XML wrapper shape
+  (`phones: { phone: [...] }`, inline `identification: [...]`, `personMyClient`).
+- **`DpmsrCreateRequest`** (a curated, flat, ergonomic builder used by the MCP tools, the accounting/screening
+  integrations, and the CSV importer) — maps to the same `DpmsrReportInput` via `DpmsrRequestMapper`. It
+  exposes the common subset plus the high-value goods fields (`disposed_value`, `status_comments`,
+  `registration_number`, `identification_number`); the accounting integration sets `registration_number` from
+  the invoice (source-document) number.
+
+**Server-applied (never caller-set, but present in output):** `rentity_id` (from `tenant_goaml_config`) and
+the DPMSR-fixed `submission_code=E` / `report_code=DPMSR` / `currency_code_local=AED`.
+
+**Notes from real third-party reports:** they use the inline `<identification>` form (not the
+`<identifications>` wrapper); and some nest `<employer_address_id>`/`<employer_phone_id>` inside
+`<director_id>`, which is **invalid** in `t_entity_person` per the official XSD — the XSD gate correctly
+rejects it. See `.planning/plans/full-schema-fidelity.md`.
+
+---
+
 **Next:** [06 — Multi-Tenancy & Security](06-multitenancy-and-security.md).

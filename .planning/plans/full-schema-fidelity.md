@@ -1,5 +1,21 @@
 # Plan — Full-schema fidelity for the DPMSR contract (1:1 with the official goAML XSD)
 
+> **STATUS: COMPLETE** (branch `feature/full-schema-fidelity`). Steps 0–6 done + gated + merged.
+> - **0** spike + fidelity harness · **1** full-fidelity contract + xjc-enum Jackson module ·
+>   **2** REST report API on the full contract (`DpmsrReportPayload`) · **3** curated DTO extended
+>   (goods `disposed_value`/`status_comments`/`registration_number`/`identification_number`; accounting
+>   maps the invoice no) · **4** SPA builder posts the full payload (adapter + new fields) ·
+>   **5** XSD round-trip lock · **6** docs + planning sync + merge.
+> - **Outcome:** a caller can supply (and the marshalled XML carries) every goAML element; only the
+>   server-applied header (`rentity_id`, `submission_code=E`, `report_code=DPMSR`, `currency=AED`) is injected.
+> - **Findings:** real third-party files use inline `<identification>` (not the wrapper) and nest
+>   `employer_address_id`/`employer_phone_id` inside `<director_id>` — the latter is **XSD-invalid** in
+>   `t_entity_person`; our XSD gate correctly rejects it.
+> - **Decision deviations:** kept the curated `DpmsrCreateRequest` as the internal ergonomic builder
+>   (extended, not deleted) per a mid-flight call; frontend done now (not deferred).
+
+
+
 > **Trigger:** a third real DPMSR (`assets/USG0000000297 299.xml`, from another vendor's software) exposed
 > ~13+ schema fields our JSON contract silently drops. User decision: the contract should be **full schema
 > 1:1** — a caller can supply (and the output XML must contain) **every** element the goAML schema defines,
