@@ -186,20 +186,29 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   `UidGeneratorService`; a filed deal is immutable). 4 unit tests over mocked repos. Built via Temurin 21 +
   IntelliJ Maven (`-pl customer-service -am`). The only `@SpringBootTest` is `@Disabled`, so V102 SQL is
   validated at runtime (entity column types aligned), as elsewhere in the AML repo.
-- **C.2 (AML)** — `customer-service` endpoints (mirror `ShareholderController`, `ApiResponse<T>`):
-  deal CRUD under `/api/v1/customers/{customerId}/goaml-deals`; **"File to goAML"** (`POST …/{dealId}/file`) —
-  assemble parties (reuse `GoamlCustomerPushService` assembly) + deal/goods + header → call goAML **C.4a** →
-  store `goamlReportId`+status; **status refresh**; a **goAML-lookup proxy** (`GET /api/v1/goaml/lookups/{set}`
-  → goAML `/api/v1/lookups/ae/{set}`, service-authed, returned in the `{id,name}`/`{code,label}` shape the
-  Tailwind `FormSelect` expects); a **report-download proxy** (`GET …/{dealId}/report.xml` → goAML **C.4b** →
-  streams the XML). Tests via MockRestServiceServer + mocked repos (the Slice-1 pattern).
-- **C.4b (goAML)** — service-assertion-authed **report read** (`GET …/filings/{ref}` for status + an XML-by-ref
-  read) so AML's download proxy can pull the generated XML server-to-server. Slice + E2E.
-- **C.3 (AML)** — Frontend_Customer **"goAML Filing"** screen: new route `(main)/goaml-filing/page.tsx` + a
-  Sidebar nav item; pick customer → parties auto-load (existing relations endpoint) → enter the deal (goods
-  list via the DataTable+modal pattern; header fields; indicators **multi-select** from the lookup proxy) →
-  **File to goAML** → show returned status + a **Download report (XML)** action. react-hook-form/yup + the
-  custom Tailwind form components (NOT Ant — that's goAML's own SPA).
+- **C.2 (AML)** ✅ **DONE** (`feature/goaml-integration`, `fa808ce`) — `customer-service` endpoints:
+  `GoamlTransactionController` (deal CRUD at `/api/v1/goaml-deals`, always on) + **"File to goAML"**
+  (`GoamlFilingController` `@ConditionalOnProperty` `POST /api/v1/goaml-deals/{id}/file` + `GoamlFilingService`):
+  loads a deal, reuses the extracted `GoamlCustomerPushService.assembleSubject` for the party bundle, maps the
+  deal → goods + header into `GoamlFilingPayload` (mirrors goAML `ScreeningFilingPayload` field-for-field),
+  POSTs to goAML's **C.4a** `/filings` (`GoamlScreeningClient.file` → `GoamlFilingResult`), and records the
+  report id + status on the deal (VALID → FILED, else FAILED). `filingRef` = the deal **uid**. 18 goaml tests
+  green (filing-service assemble+file+record / INVALID→FAILED / 404; a `file()` MockRestServiceServer case;
+  Slice-1 push/assertion/CRUD intact).
+  > **Re-sequenced (kept each step a coherent feature-pair):** the **goAML-lookup proxy** moved to **C.3** (its
+  > only consumer is the form, and it needs a goAML service-authed lookup endpoint — built together there); the
+  > **report-download proxy** moved to **C.4b** (built with its goAML XML-by-ref backend).
+- **C.4b (goAML)** — service-assertion-authed **report read**: `GET /filings/{ref}` for status + an
+  **XML-by-ref** read, **plus the AML-side download proxy** (`GET /api/v1/goaml-deals/{id}/report.xml` →
+  streams the XML inside the AML UI). The two halves of one feature ship together. Slice + E2E.
+- **C.3 (AML)** — **(a)** a goAML **service-authed lookup endpoint** (`/api/v1/integration/lookups/{jur}/{set}`
+  via `ServiceCredentialValidator`) + the AML **lookup proxy** (`GET /api/v1/goaml/lookups/{set}` →
+  `{code,label}` for the Tailwind `FormSelect`) — proxy + its only consumer ship together. **(b)** the
+  Frontend_Customer **"goAML Filing"** screen: new route `(main)/goaml-filing/page.tsx` + a Sidebar nav item;
+  pick customer → parties auto-load (existing relations endpoint) → enter the deal (goods list via the
+  DataTable+modal pattern; header fields; indicators **multi-select** from the lookup proxy — **≥1 required**) →
+  **File to goAML** → show returned status + the **Download report (XML)** action (C.4b). react-hook-form/yup +
+  the custom Tailwind form components (NOT Ant — that's goAML's own SPA).
 
 ### Phase D — Maker-checker (both planes) + "see it all in goAML"
 - **D.1 (AML)** — deal approval before filing, reusing the `CaseManagementDecisionLog` pattern (maker creates,

@@ -343,6 +343,17 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   untouched). **Next: C.2** — customer-service endpoints: deal CRUD + **"File to goAML"** (assemble parties via
   the Slice-1 `GoamlCustomerPushService` assembly + the deal goods + header → call goAML's C.4a filing
   endpoint) + the **goAML-lookup proxy** + the **report-download proxy**.
+- **2026-06-10 session (continued) — Phase C.2 (deal CRUD + "File to goAML") DONE.** AML repo
+  (`feature/goaml-integration`, `fa808ce`, NOT merged): `GoamlTransactionController` (deal CRUD at
+  `/api/v1/goaml-deals`) + **"File to goAML"** (`GoamlFilingController` `@ConditionalOnProperty` +
+  `GoamlFilingService`) — reuses the extracted `GoamlCustomerPushService.assembleSubject` for parties, maps the
+  deal → goods + header into `GoamlFilingPayload` (mirrors goAML `ScreeningFilingPayload`), POSTs to goAML's
+  C.4a `/filings` (`GoamlScreeningClient.file` → `GoamlFilingResult`), records report id + status on the deal
+  (VALID→FILED, else FAILED); `filingRef` = deal uid. 18 goaml tests green (Slice-1 push intact). Committed only
+  my files. **Re-sequenced two sub-pieces into coherent feature-pairs:** the goAML-lookup proxy → **C.3**
+  (proxy + form + the goAML service-authed lookup endpoint together), the report-download proxy → **C.4b**
+  (with its goAML XML-by-ref backend). **Next: C.4b** (goAML) — `GET /filings/{ref}` status + XML-by-ref read +
+  the AML download proxy.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
