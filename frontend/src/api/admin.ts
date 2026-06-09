@@ -4,6 +4,8 @@ import type {
   CreateUserRequest,
   GoamlConfigRequest,
   GoamlConfigView,
+  GoamlPersonRequest,
+  GoamlPersonView,
   TenantProvisioningRequest,
   TenantView,
   UserView,
@@ -51,4 +53,26 @@ export async function getGoamlConfig(): Promise<GoamlConfigView | null> {
 export async function upsertGoamlConfig(body: GoamlConfigRequest): Promise<GoamlConfigView> {
   const { data } = await apiClient.put<GoamlConfigView>(`${BASE}/goaml-config`, body);
   return data;
+}
+
+// ----- goAML reporting persons for the caller's tenant (TENANT_ADMIN) -----
+// The active person is the default goAML auto-injects into every report.
+
+export async function listGoamlPersons(): Promise<GoamlPersonView[]> {
+  const { data } = await apiClient.get<GoamlPersonView[]>(`${BASE}/goaml-persons`);
+  return data;
+}
+
+export async function createGoamlPerson(body: GoamlPersonRequest): Promise<GoamlPersonView> {
+  const { data } = await apiClient.post<GoamlPersonView>(`${BASE}/goaml-persons`, body);
+  return data;
+}
+
+export async function updateGoamlPerson(id: string, body: GoamlPersonRequest): Promise<GoamlPersonView> {
+  const { data } = await apiClient.put<GoamlPersonView>(`${BASE}/goaml-persons/${id}`, body);
+  return data;
+}
+
+export async function deleteGoamlPerson(id: string): Promise<void> {
+  await apiClient.delete(`${BASE}/goaml-persons/${id}`);
 }

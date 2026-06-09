@@ -7,7 +7,7 @@ import { renderWithProviders } from '../../test/render';
 import { setToken } from '../../auth/tokenStore';
 import { makeToken } from '../../test/util';
 import { AdminPage } from './AdminPage';
-import type { TenantView, UserView } from '../../types';
+import type { GoamlPersonView, TenantView, UserView } from '../../types';
 
 function tenant(slug: string): TenantView {
   return {
@@ -30,6 +30,17 @@ function user(email: string, roles: string[]): UserView {
     status: 'ACTIVE',
     roles,
     createdAt: '2026-06-01T10:00:00Z',
+  };
+}
+
+function person(): GoamlPersonView {
+  return {
+    id: 'gp-1',
+    firstName: 'Aisha',
+    lastName: 'Khan',
+    nationality: 'AE',
+    active: true,
+    updatedAt: '2026-06-09T10:00:00Z',
   };
 }
 
@@ -71,6 +82,7 @@ describe('AdminPage — TENANT_ADMIN', () => {
   it('lists users and shows "no config yet"', async () => {
     server.use(
       http.get('*/api/v1/admin/users', () => HttpResponse.json([user('mlro@t.test', ['MLRO'])])),
+      http.get('*/api/v1/admin/goaml-persons', () => HttpResponse.json([])),
       http.get('*/api/v1/admin/goaml-config', () => new HttpResponse(null, { status: 404 })),
     );
     render('TENANT_ADMIN');
@@ -87,6 +99,7 @@ describe('AdminPage — TENANT_ADMIN', () => {
         captured = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json(user('new@t.test', ['MLRO']), { status: 201 });
       }),
+      http.get('*/api/v1/admin/goaml-persons', () => HttpResponse.json([])),
       http.get('*/api/v1/admin/goaml-config', () => new HttpResponse(null, { status: 404 })),
     );
     render('TENANT_ADMIN');
@@ -108,6 +121,7 @@ describe('AdminPage — TENANT_ADMIN', () => {
   it('saves the goAML config', async () => {
     server.use(
       http.get('*/api/v1/admin/users', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/goaml-persons', () => HttpResponse.json([])),
       http.get('*/api/v1/admin/goaml-config', () => new HttpResponse(null, { status: 404 })),
       http.put('*/api/v1/admin/goaml-config', () =>
         HttpResponse.json({
@@ -129,5 +143,30 @@ describe('AdminPage — TENANT_ADMIN', () => {
     await userEvent.click(screen.getByRole('button', { name: /save configuration/i }));
 
     expect(await screen.findByText('Configuration saved')).toBeInTheDocument();
+  });
+
+  it('adds a goAML reporting person (the active default MLRO)', async () => {
+    let captured: Record<string, unknown> | null = null;
+    let created = false;
+    server.use(
+      http.get('*/api/v1/admin/users', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/goaml-config', () => new HttpResponse(null, { status: 404 })),
+      http.get('*/api/v1/admin/goaml-persons', () => HttpResponse.json(created ? [person()] : [])),
+      http.post('*/api/v1/admin/goaml-persons', async ({ request }) => {
+        captured = (await request.json()) as Record<string, unknown>;
+        created = true;
+        return HttpResponse.json(person(), { status: 201 });
+      }),
+    );
+    render('TENANT_ADMIN');
+
+    await userEvent.click(await screen.findByRole('button', { name: /add person/i }));
+    await userEvent.type(screen.getByLabelText('First name'), 'Aisha');
+    await userEvent.type(screen.getByLabelText('Last name'), 'Khan');
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    await waitFor(() => expect(captured).not.toBeNull());
+    expect(captured).toMatchObject({ firstName: 'Aisha', lastName: 'Khan', active: true });
+    expect(await screen.findByText('Aisha Khan')).toBeInTheDocument();
   });
 });
