@@ -136,7 +136,8 @@ public class CsvImporter {
     private Goods toGoods(CSVRecord rec) {
         return new Goods(req(rec, "good_item_type"), null, opt(rec, "good_description"), null,
                 opt(rec, "good_status_code"), parseMoney(req(rec, "good_estimated_value")),
-                opt(rec, "good_currency_code"), null, null, null);
+                opt(rec, "good_currency_code"), null, null, null,
+                null, null, opt(rec, "good_registration_number"), null);
     }
 
     /** Required cell — blank/absent throws (→ the row fails with a clear message). */

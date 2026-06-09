@@ -91,5 +91,9 @@ public record DpmsrCreateRequest(
             String currencyCode,
             BigDecimal size,
             String sizeUom,
-            OffsetDateTime registrationDate) {}
+            OffsetDateTime registrationDate,
+            BigDecimal disposedValue,
+            String statusComments,
+            String registrationNumber,
+            String identificationNumber) {}
 }

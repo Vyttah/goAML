@@ -179,6 +179,10 @@ public class DpmsrRequestMapper {
         i.setSize(dto.size());
         i.setSizeUom(dto.sizeUom());
         i.setRegistrationDate(dto.registrationDate());
+        i.setDisposedValue(dto.disposedValue());
+        i.setStatusComments(dto.statusComments());
+        i.setRegistrationNumber(dto.registrationNumber());
+        i.setIdentificationNumber(dto.identificationNumber());
         return i;
     }
 
