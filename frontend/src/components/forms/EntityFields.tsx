@@ -1,6 +1,6 @@
 import { Button, Card, Col, DatePicker, Divider, Form, Input, Row, Typography } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
-import { PhoneFields } from './CommonFields';
+import { AddressFields, PhoneFields } from './CommonFields';
 import { CodeSelect } from '../lookups/CodeSelect';
 
 type NamePath = (string | number)[];
@@ -38,10 +38,18 @@ export function EntityFields({ name }: { name: NamePath }) {
             <CodeSelect set="countries" placeholder="Country" />
           </Form.Item>
         </Col>
+        <Col span={8}>
+          <Form.Item label="Incorporation date" name={[...name, 'incorporationDate']}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+        </Col>
       </Row>
 
       <Typography.Text type="secondary">Phone</Typography.Text>
       <PhoneFields name={[...name, 'phone']} />
+
+      <Typography.Text type="secondary">Address</Typography.Text>
+      <AddressFields name={[...name, 'address']} />
 
       <Divider orientation="left" plain>
         Directors
@@ -111,6 +119,11 @@ export function EntityFields({ name }: { name: NamePath }) {
                   </Col>
                   <Col span={6}>
                     <Form.Item label="ID number" name={[field.name, 'idNumber']}>
+                      <Input />
+                    </Form.Item>
+                  </Col>
+                  <Col span={6}>
+                    <Form.Item label="SSN / Emirates ID" name={[field.name, 'ssn']}>
                       <Input />
                     </Form.Item>
                   </Col>

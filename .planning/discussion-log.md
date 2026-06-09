@@ -409,3 +409,22 @@ Branch `feature/phase-1.5c-screening` (`f0d4ccc`…1.5c.5, `--no-ff` to `main`).
   green (tsc/eslint/64 vitest/vite build).
 - **1.5c.5** JaCoCo += `service/screening`/`controller/screening` (added mapper edge-case tests to hold the
   ≥80% branch bar); docs (`docs/14`) + planning synced; `--no-ff` merge. **Phase 1.5 closed.**
+
+## Full-schema fidelity (DPMSR contract 1:1 with the official XSD)
+
+- **Trigger:** a third real DPMSR (`assets/USG0000000297 299.xml`, another vendor's software) exposed ~13
+  fields the curated `DpmsrCreateRequest` silently dropped. **Root cause:** loss was only in the hand-curated
+  DTO layer — the xjc-generated domain + engine input were already 1:1 with the XSD.
+- **Decision:** make the contract **full schema 1:1** by binding the JSON contract to the generated types
+  (`DpmsrReportPayload`) instead of hand-curating — self-maintaining, can't drift again. A scoped Jackson
+  module binds the xjc `@XmlEnum` types by their schema `value()`. Server still injects/forces the header
+  (`rentity_id`, `submission_code=E`, `report_code=DPMSR`, `currency=AED`).
+- **Mid-flight call:** kept the curated `DpmsrCreateRequest` as the internal ergonomic builder
+  (MCP/accounting/screening/CSV) and **extended** it (goods `disposed_value`/`status_comments`/
+  `registration_number`/`identification_number`; accounting maps the invoice no → `registration_number`)
+  rather than deleting it — lower churn, captures the real fidelity win. Frontend done now (not deferred).
+- **Findings:** real files use the inline `<identification>` (not the `<identifications>` wrapper); and they
+  nest `employer_address_id`/`employer_phone_id` inside `<director_id>`, which is **XSD-invalid** in
+  `t_entity_person` — our XSD gate correctly rejects it.
+- **PII:** `assets/USG…` + `assets/TR.2079.*` are real-PII and must not be committed (repo was history-purged
+  for push). Left on disk untracked; an **anonymized** copy lives at `src/test/resources/samples/USG-dpmsr-activity.xml`.

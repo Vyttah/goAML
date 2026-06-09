@@ -69,7 +69,7 @@ function renderBuilder() {
 }
 
 describe('DpmsrBuilderPage', () => {
-  it('builds the DpmsrCreateRequest payload and POSTs it on submit', async () => {
+  it('builds the full-fidelity DpmsrReportPayload and POSTs it on submit', async () => {
     stubLookups();
     const captured: Captured = { body: null };
     stubCreate(captured);
@@ -85,7 +85,8 @@ describe('DpmsrBuilderPage', () => {
     expect(typeof body.submissionDate).toBe('string');
     expect((body.reportingPerson as Record<string, unknown>).firstName).toBe('Jane');
     const parties = body.parties as Array<Record<string, unknown>>;
-    expect((parties[0].person as Record<string, unknown>).firstName).toBe('John');
+    // a person party maps to the schema's personMyClient slot (full-fidelity payload shape)
+    expect((parties[0].personMyClient as Record<string, unknown>).firstName).toBe('John');
     expect(parties[0]).not.toHaveProperty('entity');
     const goods = body.goods as Array<Record<string, unknown>>;
     expect(goods[0].itemType).toBe('Gold bar');

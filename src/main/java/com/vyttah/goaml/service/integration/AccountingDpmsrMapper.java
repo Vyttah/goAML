@@ -77,6 +77,8 @@ final class AccountingDpmsrMapper {
 
     private static List<DpmsrCreateRequest.Goods> goods(AccountingTxnPayload p) {
         String fallbackCurrency = p.transactionCurrency() != null ? p.transactionCurrency() : "AED";
+        // the source document number is the goAML good's registration_number (the invoice reference)
+        String registrationNumber = p.sourceDocument() != null ? p.sourceDocument().documentNumber() : null;
         return p.goods().stream()
                 .map(g -> new DpmsrCreateRequest.Goods(
                         CommodityMapping.toItemType(g.commodityType()),
@@ -88,6 +90,10 @@ final class AccountingDpmsrMapper {
                         g.currencyCode() != null ? g.currencyCode() : fallbackCurrency,
                         null,
                         null,
+                        null,
+                        null,
+                        null,
+                        registrationNumber,
                         null))
                 .toList();
     }

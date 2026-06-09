@@ -25,6 +25,7 @@ import { ValidationMessages } from '../../components/ValidationMessages';
 import { StatusTag } from '../../components/StatusTag';
 import { useCreateReport } from './useCreateReport';
 import { buildDpmsrPayload } from '../../lib/dpmsrForm';
+import { toDpmsrPayload } from '../../lib/dpmsrPayload';
 import { validateDpmsr } from '../../lib/dpmsrSchema';
 import { errorMessage } from '../../api/client';
 import type { CreateReportResponse } from '../../types';
@@ -63,7 +64,7 @@ export function DpmsrBuilderPage() {
     }
 
     try {
-      const response = await createReport.mutateAsync(payload as DpmsrCreateRequest);
+      const response = await createReport.mutateAsync(toDpmsrPayload(payload as DpmsrCreateRequest));
       setResult(response);
     } catch (err) {
       setSubmitError(errorMessage(err, 'Failed to create report'));

@@ -1,6 +1,7 @@
 package com.vyttah.goaml.service.report;
 
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
+import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.entity.report.Report;
 
 import java.util.List;
@@ -19,6 +20,15 @@ public interface ReportService {
      * @throws ReportExceptions.DuplicateEntityReferenceException if the {@code entity_reference} already exists
      */
     ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId);
+
+    /**
+     * Full-schema-fidelity create: same as {@link #create(DpmsrCreateRequest, UUID, UUID)} but from the
+     * {@link DpmsrReportPayload} contract, which carries every element the goAML schema defines (so nothing is
+     * dropped). This is the contract the REST report API accepts.
+     *
+     * @throws ReportExceptions.DuplicateEntityReferenceException if the {@code entity_reference} already exists
+     */
+    ReportResult create(DpmsrReportPayload payload, UUID tenantId, UUID actorUserId);
 
     /**
      * Build + validate a DPMSR from the request and return the verdict + messages, <strong>without</strong>

@@ -23,6 +23,12 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   Phase-12 plugin/MCP/CLI), plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD gate
   + DPMSR builder) and the **Vyttah layer-first refactor**. **Phase 1.5** (suite integration + federated auth)
   remains **deferred — decide later** (a separate track; see Recent Decisions).
+- **Full-schema fidelity (done, branch `feature/full-schema-fidelity`):** a third real DPMSR sample exposed
+  ~13 fields the curated `DpmsrCreateRequest` dropped. The REST report API now binds the full-fidelity
+  **`DpmsrReportPayload`** (the xjc-generated leaf types directly, via a scoped enum Jackson module) so a
+  caller can supply — and the marshalled XML carries — **every** goAML element; only the server-applied header
+  is injected. Curated DTO kept as the internal builder (extended: goods + accounting invoice→registration_no);
+  SPA builder posts the payload via a flat→wrapper adapter. Plan: `.planning/plans/full-schema-fidelity.md`.
 - **Last completed:** **Phase 12 (plugin / MCP / CLI) — the final phase.** A Spring AI MCP server (SSE at
   `/api/v1/mcp/**`) inside the app, a distributable Claude plugin (skill + commands + hook + marketplace), and
   a `--cli` run-mode of the same jar — all three delegating to the same engine/services (REST/MCP/CLI parity),

@@ -159,7 +159,7 @@ class DefaultReportServiceTest {
         DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party(
                 "Seller of gold above AED 55,000", null, entity, null);
         DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
-                "GOLD", null, "1kg gold bar", null, null, value, "AED", null, null, null);
+                "GOLD", null, "1kg gold bar", null, null, value, "AED", null, null, null, null, null, null, null);
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
                 null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
         return new DpmsrCreateRequest(null, ref, odt("2026-06-02T12:00:00"), null,

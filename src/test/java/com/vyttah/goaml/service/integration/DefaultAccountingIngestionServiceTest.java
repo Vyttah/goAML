@@ -4,6 +4,7 @@ import com.vyttah.goaml.ingestion.reportability.ReportabilityDetector;
 import com.vyttah.goaml.ingestion.reportability.ReportabilityVerdict;
 import com.vyttah.goaml.model.dto.integration.AccountingTxnPayload;
 import com.vyttah.goaml.model.dto.integration.AccountingTxnResponse;
+import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
 import com.vyttah.goaml.model.entity.federated.TenantExternalRef;
@@ -84,7 +85,7 @@ class DefaultAccountingIngestionServiceTest {
     }
 
     private void draftCreatesAs(String status) {
-        when(reportService.create(any(), eq(tenantId), eq(null)))
+        when(reportService.create(any(DpmsrCreateRequest.class), eq(tenantId), eq(null)))
                 .thenReturn(new ReportResult(reportId, status, List.of()));
     }
 

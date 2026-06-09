@@ -28,7 +28,8 @@ class DpmsrRequestMapperTest {
         DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Seller", "comment", entity, null);
         DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
                 "GOLD", "Emirates Gold", "1kg bar", "Buyer", "SOLD",
-                new BigDecimal("75000.00"), "AED", new BigDecimal("1000"), "GRAM", null);
+                new BigDecimal("75000.00"), "AED", new BigDecimal("1000"), "GRAM", null,
+                new BigDecimal("76000.00"), "Cash received", "INV-001", "REC-001");
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
                 "F", "Sara", "Khan", null, "AE", "AE", "AE", "784199012345678", null, "MLRO",
                 new DpmsrCreateRequest.Phone("BU", "L", "971", "44441234"),
@@ -44,6 +45,10 @@ class DpmsrRequestMapperTest {
         assertThat(input.parties().get(0).getEntity().getDirectorId()).hasSize(1);
         assertThat(input.goods()).hasSize(1);
         assertThat(input.goods().get(0).getItemType()).isEqualTo("GOLD");
+        assertThat(input.goods().get(0).getDisposedValue()).isEqualByComparingTo(new BigDecimal("76000.00"));
+        assertThat(input.goods().get(0).getStatusComments()).isEqualTo("Cash received");
+        assertThat(input.goods().get(0).getRegistrationNumber()).isEqualTo("INV-001");
+        assertThat(input.goods().get(0).getIdentificationNumber()).isEqualTo("REC-001");
         assertThat(input.reportingPerson().getFirstName()).isEqualTo("Sara");
     }
 
@@ -75,7 +80,8 @@ class DpmsrRequestMapperTest {
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
                 null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
         DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
-                "GOLD", null, null, null, null, new BigDecimal("90000.00"), "AED", null, null, null);
+                "GOLD", null, null, null, null, new BigDecimal("90000.00"), "AED", null, null, null,
+                null, null, null, null);
         return new DpmsrCreateRequest(null, "PAY-X", odt("2026-06-02T12:00:00"), null, "r", "a",
                 List.of("DPMSJ"), mlro, null, List.of(party), List.of(gold));
     }

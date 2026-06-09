@@ -43,6 +43,9 @@ const personSchema = z.object({
   nationality: optStr,
   residence: optStr,
   idNumber: optStr,
+  ssn: optStr,
+  passportNumber: optStr,
+  passportCountry: optStr,
   taxRegNumber: optStr,
   occupation: optStr,
   phone: phoneSchema,
@@ -58,10 +61,13 @@ const directorSchema = z.object({
   passportNumber: optStr,
   passportCountry: optStr,
   idNumber: optStr,
+  ssn: optStr,
   nationality: optStr,
   residence: optStr,
   role: optStr,
   phone: phoneSchema,
+  address: addressSchema,
+  identifications: z.array(identificationSchema).optional(),
 });
 
 const entitySchema = z.object({
@@ -70,7 +76,9 @@ const entitySchema = z.object({
   incorporationNumber: optStr,
   incorporationState: optStr,
   incorporationCountryCode: optStr,
+  incorporationDate: optStr,
   phone: phoneSchema,
+  address: addressSchema,
   directors: z.array(directorSchema).optional(),
 });
 
@@ -96,6 +104,10 @@ const goodsSchema = z.object({
   size: z.number().optional(),
   sizeUom: optStr,
   registrationDate: optStr,
+  disposedValue: z.number().optional(),
+  statusComments: optStr,
+  registrationNumber: optStr,
+  identificationNumber: optStr,
 });
 
 export const dpmsrSchema = z.object({

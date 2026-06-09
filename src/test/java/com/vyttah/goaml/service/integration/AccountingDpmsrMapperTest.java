@@ -48,6 +48,8 @@ class AccountingDpmsrMapperTest {
         assertThat(p.entity().incorporationCountryCode()).isEqualTo("AE");
         assertThat(r.goods().get(0).itemType()).isEqualTo("GOLD");
         assertThat(r.goods().get(0).estimatedValue()).isEqualByComparingTo("90000");
+        // the invoice (source document) number becomes the good's registration_number
+        assertThat(r.goods().get(0).registrationNumber()).isEqualTo("SAL-1");
     }
 
     @Test

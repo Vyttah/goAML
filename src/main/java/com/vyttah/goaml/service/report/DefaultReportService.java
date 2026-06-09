@@ -8,6 +8,9 @@ import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.engine.build.ValidatedReport;
 import com.vyttah.goaml.engine.validation.ValidationMessage;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
+import com.vyttah.goaml.model.dto.report.DpmsrInputSource;
+import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
+import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.mapper.report.DpmsrRequestMapper;
@@ -44,48 +47,76 @@ public class DefaultReportService implements ReportService {
 
     @Override
     public ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId) {
-        if (reportRepository.existsByEntityReference(request.entityReference())) {
-            throw new ReportExceptions.DuplicateEntityReferenceException(
-                    "A report already exists with entity_reference " + request.entityReference());
-        }
+        return doCreate(of(request), request, tenantId, actorUserId);
+    }
 
-        int rentityId = resolveRentityId(tenantId);
-        ValidatedReport validated = buildAndValidate(request, tenantId);
-
-        List<ValidationMessage> messages = mergeMessages(validated);
-        String status = statusOf(validated);
-
-        Report report = new Report(UUID.randomUUID(), request.entityReference(), REPORT_CODE,
-                rentityId, status, toJson(request), actorUserId);
-        report.setReportXml(validated.xml());
-        report.setValidationErrors(toJson(messages));
-        reportRepository.save(report);
-
-        auditService.record("REPORT.CREATE", actorUserId, null, TenantContext.get(),
-                REPORT_CODE + " " + request.entityReference() + " -> " + status);
-
-        return new ReportResult(report.getId(), status, messages);
+    @Override
+    public ReportResult create(DpmsrReportPayload payload, UUID tenantId, UUID actorUserId) {
+        return doCreate(payload, payload, tenantId, actorUserId);
     }
 
     @Override
     public ReportValidationResult validate(DpmsrCreateRequest request, UUID tenantId) {
-        ValidatedReport validated = buildAndValidate(request, tenantId);
+        ValidatedReport validated = buildAndValidate(of(request), tenantId);
         return new ReportValidationResult(statusOf(validated), mergeMessages(validated));
     }
 
     @Override
     public ReportPreview previewXml(DpmsrCreateRequest request, UUID tenantId) {
-        ValidatedReport validated = buildAndValidate(request, tenantId);
+        ValidatedReport validated = buildAndValidate(of(request), tenantId);
         return new ReportPreview(statusOf(validated), validated.xml(), mergeMessages(validated));
     }
 
-    /** The shared engine path: resolve the tenant's rentity_id + jurisdiction, map, build + validate. */
-    private ValidatedReport buildAndValidate(DpmsrCreateRequest request, UUID tenantId) {
+    /**
+     * Shared create path for both contracts: {@code src} drives the engine build; {@code persist} is the
+     * original contract object stored verbatim as the report's input JSONB.
+     */
+    private ReportResult doCreate(DpmsrInputSource src, Object persist, UUID tenantId, UUID actorUserId) {
+        if (reportRepository.existsByEntityReference(src.entityReference())) {
+            throw new ReportExceptions.DuplicateEntityReferenceException(
+                    "A report already exists with entity_reference " + src.entityReference());
+        }
+
+        int rentityId = resolveRentityId(tenantId);
+        ValidatedReport validated = buildAndValidate(src, tenantId);
+
+        List<ValidationMessage> messages = mergeMessages(validated);
+        String status = statusOf(validated);
+
+        Report report = new Report(UUID.randomUUID(), src.entityReference(), REPORT_CODE,
+                rentityId, status, toJson(persist), actorUserId);
+        report.setReportXml(validated.xml());
+        report.setValidationErrors(toJson(messages));
+        reportRepository.save(report);
+
+        auditService.record("REPORT.CREATE", actorUserId, null, TenantContext.get(),
+                REPORT_CODE + " " + src.entityReference() + " -> " + status);
+
+        return new ReportResult(report.getId(), status, messages);
+    }
+
+    /** The shared engine path: resolve the tenant's rentity_id + jurisdiction, build + validate. */
+    private ValidatedReport buildAndValidate(DpmsrInputSource src, UUID tenantId) {
         Optional<TenantGoamlConfig> config = configRepository.findByTenantId(tenantId);
         int rentityId = config.map(TenantGoamlConfig::getRentityId).orElse(0);
         String jurisdiction = config.map(c -> c.getJurisdictionCode().toLowerCase()).orElse("ae");
-        DpmsrReportInput input = requestMapper.toInput(request, rentityId);
+        DpmsrReportInput input = src.toInput(rentityId);
         return reportBuilder.buildAndValidate(input, jurisdiction);
+    }
+
+    /** Adapt the curated {@link DpmsrCreateRequest} to a {@link DpmsrInputSource} via the request mapper. */
+    private DpmsrInputSource of(DpmsrCreateRequest request) {
+        return new DpmsrInputSource() {
+            @Override
+            public String entityReference() {
+                return request.entityReference();
+            }
+
+            @Override
+            public DpmsrReportInput toInput(int rentityId) {
+                return requestMapper.toInput(request, rentityId);
+            }
+        };
     }
 
     private int resolveRentityId(UUID tenantId) {

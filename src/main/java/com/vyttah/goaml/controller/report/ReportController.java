@@ -1,6 +1,6 @@
 package com.vyttah.goaml.controller.report;
 
-import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
+import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.StatusView;
@@ -44,7 +44,7 @@ public class ReportController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
-    public ResponseEntity<CreateReportResponse> create(@Valid @RequestBody DpmsrCreateRequest request,
+    public ResponseEntity<CreateReportResponse> create(@Valid @RequestBody DpmsrReportPayload request,
                                                        @AuthenticationPrincipal UserPrincipal principal) {
         ReportResult result = reportService.create(request, principal.getTenantId(), principal.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(CreateReportResponse.from(result));
