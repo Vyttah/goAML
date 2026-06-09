@@ -1,5 +1,7 @@
 package com.vyttah.goaml.controller.integration;
 
+import com.vyttah.goaml.model.dto.integration.ScreeningFilingPayload;
+import com.vyttah.goaml.model.dto.integration.ScreeningFilingResponse;
 import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload;
 import com.vyttah.goaml.model.dto.integration.ScreeningSubjectResponse;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
@@ -31,6 +33,9 @@ import java.util.List;
  *   <li>{@code POST /subjects} — push a screened customer → 202 with the mapped goAML party set</li>
  *   <li>{@code GET  /subjects/{customerUid}?companyId=} — fetch one stored subject</li>
  *   <li>{@code GET  /subjects?companyId=} — all screened subjects from this company</li>
+ *   <li>{@code POST /filings} — one-shot file a complete DPMSR (parties + goods + header) → 202 with
+ *       the created report id + status (Phase C.4a, the AML "File to goAML")</li>
+ *   <li>{@code GET  /filings/{filingRef}?companyId=} — status of a previously-filed report</li>
  * </ul>
  */
 @RequiredArgsConstructor
@@ -65,5 +70,22 @@ public class ScreeningIntegrationController {
             @RequestParam String companyId) {
         credentialValidator.verify(SourceSystem.SCREENING, assertion);
         return ingestionService.list(companyId);
+    }
+
+    @PostMapping("/filings")
+    public ResponseEntity<ScreeningFilingResponse> file(
+            @RequestHeader(value = "X-Service-Assertion", required = false) String assertion,
+            @Valid @RequestBody ScreeningFilingPayload payload) {
+        credentialValidator.verify(SourceSystem.SCREENING, assertion);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(ingestionService.file(payload));
+    }
+
+    @GetMapping("/filings/{filingRef}")
+    public ScreeningFilingResponse filingStatus(
+            @RequestHeader(value = "X-Service-Assertion", required = false) String assertion,
+            @RequestParam String companyId,
+            @PathVariable String filingRef) {
+        credentialValidator.verify(SourceSystem.SCREENING, assertion);
+        return ingestionService.filingStatus(companyId, filingRef);
     }
 }
