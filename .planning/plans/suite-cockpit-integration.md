@@ -144,21 +144,51 @@ Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service
 - Deferred: party role / identification / contact / address code sets, and the live FIU-OData lookup sync
   (external follow-up; current values are the authoritative XSD enums, which is correct for structural validity).
 
-### Phase C — The Deal module (the cockpit build, AML-side) + the real feed
-- **C.1 (AML)** — `GoamlTransaction` (deal) entity in `aml-orm`: `companyId`, `customerId`/`customerKind`,
-  selected party refs, goods fields (itemType, make, description, estimatedValue, currency, statusCode/comments,
-  disposedValue, size/uom, registrationDate/number, identificationNumber), report fields (internalRef, date,
-  description, actionTaken, reason, indicators[]), workflow `status` (DRAFT→PENDING_APPROVAL→APPROVED→FILED),
-  `goamlReportId`, `goamlStatus`. Flyway + repo + service.
-- **C.2 (AML)** — `customer-service` endpoints: CRUD the deal, **"File to goAML"** (assemble full bundle incl.
-  deal → S1.3 call → store goamlReportId + the returned status), a status-pull/refresh, **and a report
-  download proxy** (`GET /api/v1/goaml-filings/{id}/report.xml` → calls goAML's authenticated XML-download
-  endpoint with the service assertion and streams it back) so the report is downloadable *inside* the AML UI,
-  not only via a link to goAML. Resolve `Master*`→codes in the mapper.
-- **C.3 (AML)** — Frontend_Customer screen (new route, e.g. `/goaml-filing`): pick customer → parties
-  auto-loaded → enter the deal → maker-checker → **File to goAML** → show returned status. Next.js/React.
-- **C.4 (goAML)** — extend the S1.3 intake to consume the deal → goods (`TTransItem`) + report header, producing
-  a fully VALID DPMSR (entity-party customers validate fully; person-party need the heavier field set per docs/15).
+### Phase C — The Deal module (the cockpit build, AML-side) + the real feed  (PLANNED — decisions locked 2026-06-09)
+
+> **Ground-truth from research (2026-06-09):** goAML's report-creation path **already accepts goods + a full
+> header** — `ScreeningSeedRequest.goods` (required) + `DpmsrCreateRequest.Goods` (14 item fields) →
+> `DpmsrRequestMapper.goods()` → `TTransItem` XML; `reportService.create()` validates+persists. So C.4 is
+> *wiring a service-authed entry point*, not new report logic. AML's `integration.goaml` package (Slice 1) pushes
+> **parties only** and is the thing to extend. AML entities extend `AuditableEntity` (Long id, `uid`, `companyId`,
+> `isDeleted`, audit); customer-service Flyway next = **V102**; Frontend_Customer = Next.js App Router +
+> react-hook-form/yup + custom Tailwind form components + axios auto-auth.
+>
+> **Locked decisions:** (1) **one-shot filing endpoint** on goAML (not two-step subject+seed); (2) the AML deal
+> form's item-type/status/indicator dropdowns come from a **customer-service proxy to goAML's lookup API** (no
+> code drift; Phase B's code+label flows through); (3) **maker-checker stays Phase D** — C delivers DRAFT→FILED
+> and proves the pipe first.
+
+**Step order: C.4a → C.1 → C.2 → C.4b → C.3.** Each = atomic commit + that repo's full gate + planning sync;
+goAML steps `--no-ff` to `main`, AML steps on `feature/goaml-integration`. The deal stores **goAML codes
+directly** (item type/status/indicators are goAML's domain, not AML masters); currency reuses `MasterCurrency`.
+
+- **C.4a (goAML)** — service-assertion-authed **filing endpoint** `POST /api/v1/integration/screening/filings`:
+  accepts the customer **party bundle + a deal/goods block + header** in one call → `ScreeningPartyMapper`
+  (parties) + goods + header → `DpmsrCreateRequest` → `reportService.create` → `{ goamlReportId, status,
+  reportable }`. **Idempotent** on `FIL-<companyId>-<filingRef>`. MLRO auto-injected (Phase A). MockMvc E2E.
+  (Mirrors the accounting `/integration/accounting/transactions` pattern.)
+- **C.1 (AML)** — `GoamlTransaction` (deal) entity in `aml-orm` (extends `AuditableEntity`): `customerId`/
+  `customerKind`, goods fields (itemType, itemMake, description, estimatedValue, currencyCode, statusCode/
+  statusComments, disposedValue, size/sizeUom, registrationDate/registrationNumber, identificationNumber,
+  presentlyRegisteredTo), report fields (internalRef, dealDate, description, actionTaken, reason, indicators[]),
+  workflow `status` (DRAFT→FILED; PENDING_APPROVAL→APPROVED added in D), `goamlReportId`, `goamlStatus`. Flyway
+  **V102** in customer-service + repo (`findByIdAndIsDeletedFalseAndCompanyId`) + service (CRUD,
+  `currentUserService.requireCompanyId()`).
+- **C.2 (AML)** — `customer-service` endpoints (mirror `ShareholderController`, `ApiResponse<T>`):
+  deal CRUD under `/api/v1/customers/{customerId}/goaml-deals`; **"File to goAML"** (`POST …/{dealId}/file`) —
+  assemble parties (reuse `GoamlCustomerPushService` assembly) + deal/goods + header → call goAML **C.4a** →
+  store `goamlReportId`+status; **status refresh**; a **goAML-lookup proxy** (`GET /api/v1/goaml/lookups/{set}`
+  → goAML `/api/v1/lookups/ae/{set}`, service-authed, returned in the `{id,name}`/`{code,label}` shape the
+  Tailwind `FormSelect` expects); a **report-download proxy** (`GET …/{dealId}/report.xml` → goAML **C.4b** →
+  streams the XML). Tests via MockRestServiceServer + mocked repos (the Slice-1 pattern).
+- **C.4b (goAML)** — service-assertion-authed **report read** (`GET …/filings/{ref}` for status + an XML-by-ref
+  read) so AML's download proxy can pull the generated XML server-to-server. Slice + E2E.
+- **C.3 (AML)** — Frontend_Customer **"goAML Filing"** screen: new route `(main)/goaml-filing/page.tsx` + a
+  Sidebar nav item; pick customer → parties auto-load (existing relations endpoint) → enter the deal (goods
+  list via the DataTable+modal pattern; header fields; indicators **multi-select** from the lookup proxy) →
+  **File to goAML** → show returned status + a **Download report (XML)** action. react-hook-form/yup + the
+  custom Tailwind form components (NOT Ant — that's goAML's own SPA).
 
 ### Phase D — Maker-checker (both planes) + "see it all in goAML"
 - **D.1 (AML)** — deal approval before filing, reusing the `CaseManagementDecisionLog` pattern (maker creates,
@@ -184,7 +214,7 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 | Service trust | RS256 signed assertion | `ServiceCredentialValidator` + `trusted_service` (built) | **S1.1** keypair + signer (new) |
 | Tenant resolution | `company_id` → `external_org_ref` | built | send `company_id` |
 | Party feed | AML-native bundle, resolved codes | `ScreeningPartyMapper` + S1.3 intake | resolve `Master*`→codes |
-| Deal / goods | bundle carries the deal | C.4 maps → `TTransItem` + header | **C.1–C.3** deal module (new) |
+| Deal / goods | one-shot filing call carries parties+goods+header | **C.4a** filing endpoint → `TTransItem` + header | **C.1–C.3** deal module (new) |
 | Reporting person | goAML tenant default | **Phase A** | sends nothing |
 | Approval | two-tier | **D.2** MLRO review | **D.1** business checker |
 | Submit → FIU | B2B REST + poll | built | — |
@@ -198,4 +228,5 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 - **Standalone-safe:** Phases A–B + goAML's SPA keep goAML usable alone; the seam is additive.
 
 ## Suggested order
-**Slice 1 (+ Phase A in parallel) → B → Phase C (deal module) → C.4 → D**, with **E in parallel** throughout.
+~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → **Phase C (deal module): C.4a → C.1 → C.2 → C.4b → C.3** →
+**D** (maker-checker both planes + "see it all in goAML"), with **E** (live B2B proof) in parallel throughout.
