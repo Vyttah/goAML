@@ -5,13 +5,16 @@ import com.vyttah.goaml.config.tenant.TenantContext;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
+import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.audit.AuditService;
@@ -19,6 +22,7 @@ import com.vyttah.goaml.service.tenant.TenantProvisioningService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +47,7 @@ public class DefaultAdminService implements AdminService {
     private final AppUserRepository appUserRepository;
     private final RoleRepository roleRepository;
     private final TenantGoamlConfigRepository configRepository;
+    private final TenantGoamlPersonRepository personRepository;
     private final JurisdictionRegistry jurisdictionRegistry;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
@@ -110,6 +115,88 @@ public class DefaultAdminService implements AdminService {
         auditService.record("ADMIN.GOAML_CONFIG_SET", null, null, TenantContext.get(),
                 "set goAML config (rentity " + request.rentityId() + ", " + request.jurisdictionCode() + ")");
         return config;
+    }
+
+    @Override
+    public List<TenantGoamlPerson> listGoamlPersons(UUID tenantId) {
+        return personRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+    }
+
+    @Override
+    @Transactional
+    public TenantGoamlPerson createGoamlPerson(UUID tenantId, GoamlPersonRequest request) {
+        boolean active = request.active() == null || request.active();
+        if (active) {
+            deactivateOthers(tenantId, null);
+        }
+        TenantGoamlPerson person = new TenantGoamlPerson(
+                UUID.randomUUID(), tenantId, request.firstName(), request.lastName());
+        apply(person, request);
+        person.setActive(active);
+        personRepository.saveAndFlush(person);
+        auditService.record("ADMIN.GOAML_PERSON_CREATE", null, null, TenantContext.get(),
+                "added goAML person " + person.getFirstName() + " " + person.getLastName()
+                        + (active ? " (active)" : ""));
+        return person;
+    }
+
+    @Override
+    @Transactional
+    public TenantGoamlPerson updateGoamlPerson(UUID tenantId, UUID personId, GoamlPersonRequest request) {
+        TenantGoamlPerson person = personRepository.findById(personId)
+                .filter(p -> p.getTenantId().equals(tenantId))
+                .orElseThrow(() -> new AdminExceptions.GoamlPersonNotFoundException(
+                        "No goAML person " + personId + " in this tenant"));
+        boolean active = request.active() == null ? person.isActive() : request.active();
+        if (active) {
+            deactivateOthers(tenantId, personId);
+        }
+        apply(person, request);
+        person.setActive(active);
+        personRepository.saveAndFlush(person);
+        auditService.record("ADMIN.GOAML_PERSON_UPDATE", null, null, TenantContext.get(),
+                "updated goAML person " + personId + (active ? " (active)" : ""));
+        return person;
+    }
+
+    @Override
+    @Transactional
+    public void deleteGoamlPerson(UUID tenantId, UUID personId) {
+        TenantGoamlPerson person = personRepository.findById(personId)
+                .filter(p -> p.getTenantId().equals(tenantId))
+                .orElseThrow(() -> new AdminExceptions.GoamlPersonNotFoundException(
+                        "No goAML person " + personId + " in this tenant"));
+        personRepository.delete(person);
+        auditService.record("ADMIN.GOAML_PERSON_DELETE", null, null, TenantContext.get(),
+                "deleted goAML person " + personId);
+    }
+
+    /** Copy the editable fields from the request onto the entity (names are already set on create). */
+    private static void apply(TenantGoamlPerson person, GoamlPersonRequest request) {
+        person.setFirstName(request.firstName());
+        person.setLastName(request.lastName());
+        person.setGender(request.gender());
+        person.setSsn(request.ssn());
+        person.setIdNumber(request.idNumber());
+        person.setNationality(request.nationality());
+        person.setEmail(request.email());
+        person.setOccupation(request.occupation());
+    }
+
+    /**
+     * Clear the active flag on the tenant's other persons before activating one — at most one active per
+     * tenant (the partial unique index). Flushed so the UPDATEs land before the activation INSERT/UPDATE.
+     */
+    private void deactivateOthers(UUID tenantId, UUID keepId) {
+        List<TenantGoamlPerson> changed = personRepository.findByTenantIdOrderByCreatedAtDesc(tenantId).stream()
+                .filter(TenantGoamlPerson::isActive)
+                .filter(p -> keepId == null || !p.getId().equals(keepId))
+                .toList();
+        if (!changed.isEmpty()) {
+            changed.forEach(p -> p.setActive(false));
+            personRepository.saveAll(changed);
+            personRepository.flush();
+        }
     }
 
     /**

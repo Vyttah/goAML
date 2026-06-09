@@ -11,9 +11,11 @@ import com.vyttah.goaml.engine.validation.ReportValidator;
 import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
+import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.mapper.report.DpmsrRequestMapper;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.service.audit.AuditService;
 import org.junit.jupiter.api.Test;
@@ -43,6 +45,7 @@ class DefaultReportServiceTest {
 
     private final ReportRepository reportRepository = mock(ReportRepository.class);
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
+    private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
     private final AuditService auditService = mock(AuditService.class);
     private final ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
 
@@ -53,7 +56,8 @@ class DefaultReportServiceTest {
             new ReportMarshaller());
 
     private final DefaultReportService service = new DefaultReportService(
-            new DpmsrRequestMapper(), builder, reportRepository, configRepository, auditService, objectMapper);
+            new DpmsrRequestMapper(), builder, reportRepository, configRepository, personRepository,
+            auditService, objectMapper);
 
     private final UUID tenantId = UUID.randomUUID();
     private final UUID actor = UUID.randomUUID();
@@ -145,6 +149,48 @@ class DefaultReportServiceTest {
     }
 
     @Test
+    void omittedReportingPersonInjectsTenantDefault() {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+        TenantGoamlPerson def = new TenantGoamlPerson(UUID.randomUUID(), tenantId, "Tenant", "Mlro");
+        when(personRepository.findByTenantIdAndActiveTrue(tenantId)).thenReturn(Optional.of(def));
+
+        ReportResult result = service.create(minimalRequestNoMlro("PAY-A", new BigDecimal("90000.00")), tenantId, actor);
+
+        assertThat(result.status()).isEqualTo("VALID");
+        ArgumentCaptor<Report> saved = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(saved.capture());
+        // the injected default is persisted as part of the report input (system-of-record fidelity)
+        assertThat(saved.getValue().getInput()).contains("Tenant").contains("Mlro");
+        assertThat(saved.getValue().getReportXml()).contains("<first_name>Tenant</first_name>");
+    }
+
+    @Test
+    void omittedReportingPersonWithNoTenantDefaultIsInvalid() {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+        when(personRepository.findByTenantIdAndActiveTrue(tenantId)).thenReturn(Optional.empty());
+
+        ReportResult result = service.create(minimalRequestNoMlro("PAY-B", new BigDecimal("90000.00")), tenantId, actor);
+
+        assertThat(result.status()).isEqualTo("INVALID");
+        assertThat(result.validationMessages())
+                .anyMatch(m -> m.code().equals("MANDATORY") && m.path().contains("reporting_person"));
+    }
+
+    @Test
+    void explicitReportingPersonIsNotOverriddenByDefault() {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        // request carries "Sara Khan"; create with a default present would still keep the explicit one
+        service.create(minimalRequest("PAY-C", new BigDecimal("90000.00")), tenantId, actor);
+
+        // the tenant-default lookup is never consulted when the caller supplied a reporting person
+        verify(personRepository, never()).findByTenantIdAndActiveTrue(any());
+    }
+
+    @Test
     void getMissingThrows() {
         when(reportRepository.findById(any())).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.get(UUID.randomUUID()))
@@ -164,6 +210,18 @@ class DefaultReportServiceTest {
                 null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
         return new DpmsrCreateRequest(null, ref, odt("2026-06-02T12:00:00"), null,
                 "DPMS threshold met", "Filed", List.of("DPMSJ"), mlro, null, List.of(party), List.of(gold));
+    }
+
+    /** Same as {@link #minimalRequest} but with no reporting person — exercises the tenant-default injection. */
+    private static DpmsrCreateRequest minimalRequestNoMlro(String ref, BigDecimal value) {
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "Minimal Trading FZE", null, "123456", null, "AE", null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party(
+                "Seller of gold above AED 55,000", null, entity, null);
+        DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
+                "GOLD", null, "1kg gold bar", null, null, value, "AED", null, null, null, null, null, null, null);
+        return new DpmsrCreateRequest(null, ref, odt("2026-06-02T12:00:00"), null,
+                "DPMS threshold met", "Filed", List.of("DPMSJ"), null, null, List.of(party), List.of(gold));
     }
 
     private static OffsetDateTime odt(String isoLocal) {

@@ -20,4 +20,11 @@ public final class AdminExceptions {
             super(message);
         }
     }
+
+    /** No goAML reporting person with that id in the caller's tenant. → {@code 404}. */
+    public static class GoamlPersonNotFoundException extends RuntimeException {
+        public GoamlPersonNotFoundException(String message) {
+            super(message);
+        }
+    }
 }

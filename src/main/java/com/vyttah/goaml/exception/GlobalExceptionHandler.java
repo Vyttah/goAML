@@ -68,6 +68,7 @@ public class GlobalExceptionHandler {
             IngestionExceptions.ImportJobNotFoundException.class,
             LookupExceptions.LookupNotFoundException.class,
             AdminExceptions.GoamlConfigNotFoundException.class,
+            AdminExceptions.GoamlPersonNotFoundException.class,
             AuthExceptions.AuthModeDisabledException.class,
             IntegrationExceptions.UnmappedOrgException.class,
             IntegrationExceptions.ScreenedSubjectNotFoundException.class

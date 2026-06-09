@@ -181,3 +181,34 @@ export interface GoamlConfigView {
   authMode: string;
   updatedAt: string;
 }
+
+/**
+ * goAML reporting person (the filing MLRO) upsert — mirrors `AdminViews.GoamlPersonRequest`. The active one
+ * is the tenant default goAML auto-injects into every report. Only first/last name are required.
+ */
+export interface GoamlPersonRequest {
+  firstName: string;
+  lastName: string;
+  gender?: string;
+  ssn?: string;
+  idNumber?: string;
+  nationality?: string;
+  email?: string;
+  occupation?: string;
+  active?: boolean;
+}
+
+/** goAML reporting person view — mirrors `AdminViews.GoamlPersonView`. */
+export interface GoamlPersonView {
+  id: string;
+  firstName: string;
+  lastName: string;
+  gender?: string;
+  ssn?: string;
+  idNumber?: string;
+  nationality?: string;
+  email?: string;
+  occupation?: string;
+  active: boolean;
+  updatedAt: string;
+}

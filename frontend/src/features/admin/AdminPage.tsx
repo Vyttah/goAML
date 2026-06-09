@@ -4,6 +4,7 @@ import { ROLES } from '../../auth/roles';
 import { TenantsPanel } from './TenantsPanel';
 import { UsersPanel } from './UsersPanel';
 import { GoamlConfigPanel } from './GoamlConfigPanel';
+import { GoamlPersonsPanel } from './GoamlPersonsPanel';
 
 /**
  * Administration — role-branched over the 13.2 admin API:
@@ -21,6 +22,7 @@ export function AdminPage() {
       {can(ROLES.TENANT_ADMIN) && (
         <>
           <UsersPanel />
+          <GoamlPersonsPanel />
           <GoamlConfigPanel />
         </>
       )}

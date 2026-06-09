@@ -2,6 +2,7 @@ package com.vyttah.goaml.model.dto.admin;
 
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
+import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import jakarta.validation.constraints.Email;
@@ -53,6 +54,26 @@ public final class AdminViews {
         public static GoamlConfigView from(TenantGoamlConfig c) {
             return new GoamlConfigView(c.getTenantId(), c.getJurisdictionCode(), c.getRentityId(),
                     c.getBaseUrl(), c.getSecretsPath(), c.getAuthMode(), c.getUpdatedAt());
+        }
+    }
+
+    /**
+     * Create/update a tenant goAML reporting person (the filing MLRO; mirrors LexAML's "GoAML Person"). Only
+     * {@code firstName}/{@code lastName} are required (the goAML reporting_person mandates only those); the
+     * rest are optional. {@code active} (default true on create) makes this the tenant's default — at most one
+     * is active, so setting it active deactivates the others.
+     */
+    public record GoamlPersonRequest(@NotBlank String firstName, @NotBlank String lastName,
+                                     String gender, String ssn, String idNumber, String nationality,
+                                     @Email String email, String occupation, Boolean active) {}
+
+    public record GoamlPersonView(UUID id, String firstName, String lastName, String gender, String ssn,
+                                  String idNumber, String nationality, String email, String occupation,
+                                  boolean active, OffsetDateTime updatedAt) {
+        public static GoamlPersonView from(TenantGoamlPerson p) {
+            return new GoamlPersonView(p.getId(), p.getFirstName(), p.getLastName(), p.getGender(), p.getSsn(),
+                    p.getIdNumber(), p.getNationality(), p.getEmail(), p.getOccupation(), p.isActive(),
+                    p.getUpdatedAt());
         }
     }
 }

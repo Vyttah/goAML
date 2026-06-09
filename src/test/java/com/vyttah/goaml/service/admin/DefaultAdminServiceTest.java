@@ -3,11 +3,14 @@ package com.vyttah.goaml.service.admin;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
+import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.audit.AuditService;
@@ -16,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,14 +42,15 @@ class DefaultAdminServiceTest {
     private final AppUserRepository appUserRepository = mock(AppUserRepository.class);
     private final RoleRepository roleRepository = mock(RoleRepository.class);
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
+    private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final AuditService auditService = mock(AuditService.class);
 
     private final JurisdictionRegistry jurisdictionRegistry = new JurisdictionRegistry();
 
     private final DefaultAdminService service = new DefaultAdminService(provisioning, tenantRepository,
-            appUserRepository, roleRepository, configRepository, jurisdictionRegistry, passwordEncoder,
-            auditService);
+            appUserRepository, roleRepository, configRepository, personRepository, jurisdictionRegistry,
+            passwordEncoder, auditService);
 
     private final UUID tenantId = UUID.randomUUID();
 
@@ -152,5 +157,85 @@ class DefaultAdminServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("jurisdictionCode");
         verify(configRepository, never()).save(any());
+    }
+
+    // ----- goAML reporting person -----
+
+    private static GoamlPersonRequest personReq(String first, String last, Boolean active) {
+        return new GoamlPersonRequest(first, last, "M", "SSN-1", "ID-9", "AE", "mlro@t.test", "Officer", active);
+    }
+
+    @Test
+    void createGoamlPersonActiveDeactivatesOthersThenSaves() {
+        TenantGoamlPerson existingActive = new TenantGoamlPerson(UUID.randomUUID(), tenantId, "Old", "Mlro");
+        when(personRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)).thenReturn(List.of(existingActive));
+
+        service.createGoamlPerson(tenantId, personReq("New", "Mlro", true));
+
+        assertThat(existingActive.isActive()).isFalse();          // the prior default was cleared
+        verify(personRepository).saveAll(any());
+        verify(personRepository).flush();
+        ArgumentCaptor<TenantGoamlPerson> saved = ArgumentCaptor.forClass(TenantGoamlPerson.class);
+        verify(personRepository).saveAndFlush(saved.capture());
+        assertThat(saved.getValue().getFirstName()).isEqualTo("New");
+        assertThat(saved.getValue().getNationality()).isEqualTo("AE");
+        assertThat(saved.getValue().isActive()).isTrue();
+    }
+
+    @Test
+    void createGoamlPersonInactiveLeavesOthersUntouched() {
+        service.createGoamlPerson(tenantId, personReq("Spare", "Mlro", false));
+
+        verify(personRepository, never()).findByTenantIdOrderByCreatedAtDesc(tenantId);
+        verify(personRepository, never()).saveAll(any());
+        verify(personRepository).saveAndFlush(any());
+    }
+
+    @Test
+    void updateGoamlPersonAppliesFieldsAndActivates() {
+        UUID pid = UUID.randomUUID();
+        TenantGoamlPerson person = new TenantGoamlPerson(pid, tenantId, "Old", "Name");
+        when(personRepository.findById(pid)).thenReturn(Optional.of(person));
+        when(personRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)).thenReturn(List.of(person));
+
+        service.updateGoamlPerson(tenantId, pid, personReq("New", "Name", true));
+
+        assertThat(person.getFirstName()).isEqualTo("New");
+        assertThat(person.getIdNumber()).isEqualTo("ID-9");
+        assertThat(person.isActive()).isTrue();
+        verify(personRepository).saveAndFlush(person);
+    }
+
+    @Test
+    void updateGoamlPersonRejectsUnknownOrOtherTenant() {
+        UUID pid = UUID.randomUUID();
+        when(personRepository.findById(pid)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.updateGoamlPerson(tenantId, pid, personReq("A", "B", null)))
+                .isInstanceOf(AdminExceptions.GoamlPersonNotFoundException.class);
+
+        TenantGoamlPerson otherTenant = new TenantGoamlPerson(pid, UUID.randomUUID(), "A", "B");
+        when(personRepository.findById(pid)).thenReturn(Optional.of(otherTenant));
+        assertThatThrownBy(() -> service.updateGoamlPerson(tenantId, pid, personReq("A", "B", null)))
+                .isInstanceOf(AdminExceptions.GoamlPersonNotFoundException.class);
+        verify(personRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void deleteGoamlPersonRemovesWhenOwnedElseThrows() {
+        UUID pid = UUID.randomUUID();
+        when(personRepository.findById(pid)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.deleteGoamlPerson(tenantId, pid))
+                .isInstanceOf(AdminExceptions.GoamlPersonNotFoundException.class);
+
+        TenantGoamlPerson person = new TenantGoamlPerson(pid, tenantId, "Del", "Me");
+        when(personRepository.findById(pid)).thenReturn(Optional.of(person));
+        service.deleteGoamlPerson(tenantId, pid);
+        verify(personRepository).delete(person);
+    }
+
+    @Test
+    void listGoamlPersonsDelegatesToRepo() {
+        when(personRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)).thenReturn(List.of());
+        assertThat(service.listGoamlPersons(tenantId)).isEmpty();
     }
 }
