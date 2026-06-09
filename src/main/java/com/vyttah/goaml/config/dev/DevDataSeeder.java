@@ -17,6 +17,7 @@ import com.vyttah.goaml.service.tenant.TenantProvisioningService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,9 +55,6 @@ public class DevDataSeeder implements CommandLineRunner {
     private static final String ANALYST_EMAIL = "analyst@demo.local";
     private static final String DEMO_SLUG = "demo";
 
-    /** The AML dev company id that maps to the demo tenant (the screening push resolves the tenant from it). */
-    private static final String DEMO_SCREENING_COMPANY_ID = "1001";
-
     /**
      * Fixed DEV-ONLY RSA public key for the AML screening service assertion (the private half is in the AML
      * customer-service dev config). Local-only; regenerate both halves together if rotated. NOT a secret.
@@ -79,6 +77,13 @@ public class DevDataSeeder implements CommandLineRunner {
     private final TrustedServiceRepository trustedServices;
     private final TenantExternalRefRepository tenantExternalRefs;
     private final TenantGoamlPersonRepository goamlPersons;
+
+    /**
+     * The AML company id mapped to the demo tenant (screening-push tenant resolution). Defaults to {@code 1001};
+     * set {@code GOAML_DEV_SCREENING_COMPANY_ID} to your real AML company id (a UUID) for an end-to-end test.
+     */
+    @Value("${goaml.dev.screening-company-id:1001}")
+    private String screeningCompanyId;
 
     @Override
     public void run(String... args) {
@@ -121,10 +126,10 @@ public class DevDataSeeder implements CommandLineRunner {
             log.info("[dev-seed] registered SCREENING trusted_service (dev public key)");
         }
         if (tenantExternalRefs.findBySourceSystemAndExternalOrgRef(
-                SourceSystem.SCREENING, DEMO_SCREENING_COMPANY_ID).isEmpty()) {
+                SourceSystem.SCREENING, screeningCompanyId).isEmpty()) {
             tenantExternalRefs.save(new TenantExternalRef(UUID.randomUUID(), tenantId,
-                    SourceSystem.SCREENING, DEMO_SCREENING_COMPANY_ID));
-            log.info("[dev-seed] mapped SCREENING company {} -> demo tenant", DEMO_SCREENING_COMPANY_ID);
+                    SourceSystem.SCREENING, screeningCompanyId));
+            log.info("[dev-seed] mapped SCREENING company {} -> demo tenant", screeningCompanyId);
         }
         if (goamlPersons.findByTenantIdAndActiveTrue(tenantId).isEmpty()) {
             TenantGoamlPerson person = new TenantGoamlPerson(UUID.randomUUID(), tenantId, "Demo", "Mlro");
@@ -163,6 +168,6 @@ public class DevDataSeeder implements CommandLineRunner {
                  NEVER enable goaml.dev.seed in a deployed environment.
                 ============================================================""",
                 PASSWORD, SUPER_ADMIN_EMAIL, TENANT_ADMIN_EMAIL, MLRO_EMAIL, ANALYST_EMAIL, DEMO_SLUG,
-                DEMO_SCREENING_COMPANY_ID);
+                screeningCompanyId);
     }
 }

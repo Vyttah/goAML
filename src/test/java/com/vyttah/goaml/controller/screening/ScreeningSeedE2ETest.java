@@ -70,7 +70,7 @@ class ScreeningSeedE2ETest {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbcTemplate;
 
-    private static final int COMPANY_ID = 601;
+    private static final String COMPANY_ID = "601";
     private static KeyPair keys;
     private Tenant tenant;
 
@@ -95,7 +95,7 @@ class ScreeningSeedE2ETest {
         trustedServices.save(new TrustedService(UUID.randomUUID(), SourceSystem.SCREENING,
                 "screening", pem(keys.getPublic()), false, "ACTIVE"));
         tenantExternalRefs.save(new TenantExternalRef(UUID.randomUUID(), tenant.getId(),
-                SourceSystem.SCREENING, String.valueOf(COMPANY_ID)));
+                SourceSystem.SCREENING, COMPANY_ID));
     }
 
     @Test
@@ -108,7 +108,7 @@ class ScreeningSeedE2ETest {
                         .header("X-Service-Assertion", assertion())
                         .contentType(APPLICATION_JSON).content("""
                                 {
-                                  "companyId": %d, "customerUid": "LEG-9", "subjectType": "LEGAL",
+                                  "companyId": "%s", "customerUid": "LEG-9", "subjectType": "LEGAL",
                                   "legal": {"legalName":"Seeded Trading FZE","incorporationNumber":"INC-7",
                                             "incorporationCountry":"AE"},
                                   "shareholders": [

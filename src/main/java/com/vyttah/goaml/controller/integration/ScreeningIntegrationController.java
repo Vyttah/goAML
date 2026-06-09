@@ -53,7 +53,7 @@ public class ScreeningIntegrationController {
     @GetMapping("/subjects/{customerUid}")
     public ScreeningSubjectResponse get(
             @RequestHeader(value = "X-Service-Assertion", required = false) String assertion,
-            @RequestParam int companyId,
+            @RequestParam String companyId,
             @PathVariable String customerUid) {
         credentialValidator.verify(SourceSystem.SCREENING, assertion);
         return ingestionService.get(companyId, customerUid);
@@ -62,7 +62,7 @@ public class ScreeningIntegrationController {
     @GetMapping("/subjects")
     public List<ScreeningSubjectResponse> list(
             @RequestHeader(value = "X-Service-Assertion", required = false) String assertion,
-            @RequestParam int companyId) {
+            @RequestParam String companyId) {
         credentialValidator.verify(SourceSystem.SCREENING, assertion);
         return ingestionService.list(companyId);
     }
