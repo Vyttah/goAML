@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Anonymized copy of a real third-party DPMSR (assets/USG0000000297 299.xml). All PII (names, Emirates IDs,
+  passport, phones, addresses, company/invoice/receipt refs, amounts) replaced with synthetic values; the
+  structure + element set is preserved verbatim so it exercises the full activity/goods/party field surface.
+  Used by the full-schema-fidelity round-trip tests. DO NOT replace with the real file.
+-->
+<report>
+  <rentity_id>99999</rentity_id>
+  <rentity_branch>SAMPLE BULLION TRADING L.L.C.</rentity_branch>
+  <submission_code>E</submission_code>
+  <report_code>DPMSR</report_code>
+  <entity_reference>4000004</entity_reference>
+  <submission_date>2025-01-13T05:06:30</submission_date>
+  <currency_code_local>AED</currency_code_local>
+  <reporting_person>
+    <first_name>SAMPLEFIRST SAMPLEMIDDLE</first_name>
+    <last_name>SAMPLELASTRP</last_name>
+    <birthdate>1990-01-01T00:00:00</birthdate>
+    <ssn>784199000000001</ssn>
+    <passport_number>S0000001</passport_number>
+    <passport_country>IN</passport_country>
+    <nationality1>IN</nationality1>
+    <phones>
+      <phone>
+        <tph_contact_type>OFFIC</tph_contact_type>
+        <tph_communication_type>M</tph_communication_type>
+        <tph_number>0500000001</tph_number>
+      </phone>
+    </phones>
+    <addresses>
+      <address>
+        <address_type>OFFIC</address_type>
+        <address>OFFICE NO 1 SAMPLE TOWER DEIRA</address>
+        <city>DUBAI</city>
+        <country_code>AE</country_code>
+        <state>Dubai</state>
+      </address>
+    </addresses>
+  </reporting_person>
+  <location>
+    <address_type>OFFIC</address_type>
+    <address>OFFICE NO 1 SAMPLE TOWER DEIRA</address>
+    <city>DUBAI</city>
+    <country_code>AE</country_code>
+    <state>Dubai</state>
+  </location>
+  <reason>Reporting DPMSR to the FIU as per MOE's mandate to register the Sale of GOLD worth AED 10000000.00 - Invoice No. - SAMPLE0000001)</reason>
+  <action>Filing a DPMSR as per the mandate</action>
+  <activity>
+    <report_parties>
+      <report_party>
+        <entity>
+          <name>SAMPLE JEWELLERY L.L.C</name>
+          <commercial_name>SAMPLE JEWELLERY L.L.C</commercial_name>
+          <incorporation_number>1000001</incorporation_number>
+          <phones>
+            <phone>
+              <tph_contact_type>OFFIC</tph_contact_type>
+              <tph_communication_type>M</tph_communication_type>
+              <tph_number>971500000001</tph_number>
+            </phone>
+          </phones>
+          <addresses>
+            <address>
+              <address_type>OFFIC</address_type>
+              <address>OFFICE NO. 1, SAMPLE BUILDING, AL RAS, DUBAI</address>
+              <city>DUBAI</city>
+              <country_code>AE</country_code>
+              <state>Dubai</state>
+            </address>
+          </addresses>
+          <incorporation_country_code>AE</incorporation_country_code>
+          <director_id>
+            <first_name>SAMPLEDIR</first_name>
+            <last_name>SAMPLELASTDIR</last_name>
+            <birthdate>1980-01-01T00:00:00</birthdate>
+            <ssn>784198000000001</ssn>
+            <id_number>784198000000001</id_number>
+            <nationality1>IN</nationality1>
+            <phones>
+              <phone>
+                <tph_contact_type>OFFIC</tph_contact_type>
+                <tph_communication_type>M</tph_communication_type>
+                <tph_number>971500000001</tph_number>
+              </phone>
+            </phones>
+            <addresses>
+              <address>
+                <address_type>OFFIC</address_type>
+                <address>AL RAS DUBAI</address>
+                <city>DUBAI</city>
+                <country_code>AE</country_code>
+                <state>Dubai</state>
+              </address>
+            </addresses>
+            <employer_address_id>
+              <address_type>OFFIC</address_type>
+              <address>AL RAS DUBAI</address>
+              <city>DUBAI</city>
+              <country_code>AE</country_code>
+              <state>Dubai</state>
+            </employer_address_id>
+            <employer_phone_id>
+              <tph_contact_type>OFFIC</tph_contact_type>
+              <tph_communication_type>M</tph_communication_type>
+              <tph_number>971500000001</tph_number>
+            </employer_phone_id>
+            <identification>
+              <type>EID</type>
+              <number>784198000000001</number>
+              <issue_date>2023-06-09T00:00:00</issue_date>
+              <expiry_date>2025-06-08T00:00:00</expiry_date>
+              <issue_country>AE</issue_country>
+            </identification>
+            <role>PRTNR</role>
+          </director_id>
+          <incorporation_date>2023-06-05T00:00:00</incorporation_date>
+        </entity>
+        <reason>Sale of GOLD worth AED 10000000.00</reason>
+        <comments>
+        </comments>
+      </report_party>
+    </report_parties>
+    <goods_services>
+      <item>
+        <item_type>GOLD</item_type>
+        <item_make>
+        </item_make>
+        <description>Sale of GOLD</description>
+        <estimated_value>10000000.00</estimated_value>
+        <status_comments>CASH RECEIVED AGAINST 95KG GOLD SOLD</status_comments>
+        <disposed_value>10050000.00</disposed_value>
+        <currency_code>AED</currency_code>
+        <registration_number>SAMPLE0000001</registration_number>
+        <identification_number>REC0000000001</identification_number>
+      </item>
+    </goods_services>
+  </activity>
+  <report_indicators>
+    <indicator>DPMSJ</indicator>
+  </report_indicators>
+</report>
