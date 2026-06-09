@@ -174,13 +174,18 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   (tenant_goaml_config) and a filing needs **≥1 report indicator** — so the AML deal form must require
   indicators, and the tenant must be FIU-configured. (Also pinned the test JVM heap to 2g — `40851a4` — the
   full gate was OOMing intermittently.)
-- **C.1 (AML)** — `GoamlTransaction` (deal) entity in `aml-orm` (extends `AuditableEntity`): `customerId`/
-  `customerKind`, goods fields (itemType, itemMake, description, estimatedValue, currencyCode, statusCode/
-  statusComments, disposedValue, size/sizeUom, registrationDate/registrationNumber, identificationNumber,
-  presentlyRegisteredTo), report fields (internalRef, dealDate, description, actionTaken, reason, indicators[]),
-  workflow `status` (DRAFT→FILED; PENDING_APPROVAL→APPROVED added in D), `goamlReportId`, `goamlStatus`. Flyway
-  **V102** in customer-service + repo (`findByIdAndIsDeletedFalseAndCompanyId`) + service (CRUD,
-  `currentUserService.requireCompanyId()`).
+- **C.1 (AML)** ✅ **DONE** (`feature/goaml-integration`, `077bef5`) — `GoamlTransaction` (deal) entity in
+  `aml-orm` (extends `AuditableEntity`) + `GoamlFilingStatus` enum (DRAFT → PENDING_APPROVAL/APPROVED [D] →
+  FILED/FAILED): `customerId`/`customerKind`, goods fields (itemType, itemMake, description,
+  presentlyRegisteredTo, statusCode/statusComments, estimatedValue, disposedValue, currencyCode, size/sizeUom,
+  registrationDate/registrationNumber, identificationNumber), report fields (internalRef, dealDate, reason,
+  actionTaken, indicators[] via a `goaml_transaction_indicator` child table). **Goods + indicator values stored
+  as goAML codes directly** (no AML master FK), so the push needs no resolution; MLRO + submission date owned by
+  goAML. Flyway **V102** (customer-service) + `GoamlTransactionRepository` (tenant-scoped, soft-delete) + DTOs
+  + hand-written mapper + `GoamlTransactionService` (CRUD, `currentUserService.requireCompanyId()`, `uid` via
+  `UidGeneratorService`; a filed deal is immutable). 4 unit tests over mocked repos. Built via Temurin 21 +
+  IntelliJ Maven (`-pl customer-service -am`). The only `@SpringBootTest` is `@Disabled`, so V102 SQL is
+  validated at runtime (entity column types aligned), as elsewhere in the AML repo.
 - **C.2 (AML)** — `customer-service` endpoints (mirror `ShareholderController`, `ApiResponse<T>`):
   deal CRUD under `/api/v1/customers/{customerId}/goaml-deals`; **"File to goAML"** (`POST …/{dealId}/file`) —
   assemble parties (reuse `GoamlCustomerPushService` assembly) + deal/goods + header → call goAML **C.4a** →

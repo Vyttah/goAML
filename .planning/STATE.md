@@ -331,6 +331,18 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   tests; not a code defect). Full gate green (1m55s). **Two real DPMSR rules surfaced for the AML deal form:**
   a filing needs **≥1 report indicator** and the tenant needs a positive `rentity_id`. **Next: C.1** — the
   `GoamlTransaction` deal entity in `aml-orm` (Flyway V102) + repo + service, then C.2 (AML endpoints).
+- **2026-06-10 session (continued) — Phase C.1 (AML deal entity) DONE.** On the AML repo
+  (`dev/AML/Backend_Java`, branch `feature/goaml-integration`, commit `077bef5` — NOT merged): the
+  `GoamlTransaction` (DPMSR "deal") entity in `aml-orm` (extends `AuditableEntity`) + `GoamlFilingStatus` enum,
+  Flyway **V102** (`goaml_transaction` + `goaml_transaction_indicator` child), `GoamlTransactionRepository`
+  (tenant-scoped, soft-delete), request/response DTOs, a hand-written mapper, and `GoamlTransactionService`
+  (CRUD; companyId via `CurrentUserService`, uid via `UidGeneratorService`; a filed deal is immutable). Goods +
+  indicator values are stored as **goAML codes directly** (no AML master FK) so the C.2 push needs no
+  resolution; MLRO + submission date are owned by goAML. 4 unit tests green (mocked repos + real mapper) via
+  the Temurin 21 + IntelliJ Maven toolchain. Committed only my files (the user's modified poms/yml left
+  untouched). **Next: C.2** — customer-service endpoints: deal CRUD + **"File to goAML"** (assemble parties via
+  the Slice-1 `GoamlCustomerPushService` assembly + the deal goods + header → call goAML's C.4a filing
+  endpoint) + the **goAML-lookup proxy** + the **report-download proxy**.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
