@@ -292,6 +292,20 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   bridge on the AML side + `trusted_service`/tenant mapping + push one customer's parties → goAML draft), then
   the AML **deal module** (Phase C). Key AML-stack facts: it has **no transaction/deal model** and **does not
   call goAML yet**; auth is **HS256** (goAML needs an **RS256** assertion). Memory: `aml-software-stack`.
+- **2026-06-09 session (continued) — Slice 1 (prove the pipe) CODE-COMPLETE across both repos.** goAML
+  (`main`): dev-seed suite fixtures (trusted_service + company→tenant + active MLRO, `40f0fdd`) and screening
+  `companyId` Integer→String to carry the AML UUID (`f03b199`). **AML software** (`dev/AML/Backend_Java`, its
+  own git repo, branch `feature/goaml-integration` — not merged): S1.1 RS256 service-assertion signer
+  (`18af3a3`), S1.4a goAML push client + payload contract (`364472e`), S1.4b customer-load +
+  `MasterCodeResolver` + `GoamlCustomerPushService` + `POST /api/v1/customers/{id}/push-to-goaml` (`74a0949`).
+  **Build resolved with no install/Docker:** the AML repo is Maven/Java-21 — build via the existing
+  **Temurin 21** (`~/.gradle/jdks/eclipse_adoptium-21-aarch64-os_x.2/...`) + **IntelliJ's bundled Maven**
+  (`/Applications/IntelliJ IDEA CE.app/Contents/plugins/maven/lib/maven3/bin/mvn`), e.g.
+  `JAVA_HOME=<temurin21> <mvn> -pl customer-service -am test -Dtest=... -Dsurefire.failIfNoSpecifiedTests=false`.
+  Local AML→goAML test helper: `dev-local/push-screening-smoke.sh` (gitignored; dev RSA keypair — public in
+  `DevDataSeeder`, private at `dev-local/screening-dev-key.pem`). Stale local demo-tenant schema (pre-`V6`)
+  500s the push → recreate the demo tenant (fresh DB) to test. **Next:** Phase C — the AML **deal module**
+  (the DPMSR goods/transaction the screening push can't carry), then C.4 maps it → goods on the goAML side.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

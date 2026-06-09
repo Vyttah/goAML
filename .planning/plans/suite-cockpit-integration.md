@@ -90,8 +90,21 @@ Requiredness per field: goAML `docs/15-dpmsr-field-requirements.md` (note person
 Standing workflow (both repos): each step = **atomic commit** + that repo's full gate + planning sync +
 `--no-ff` merge. goAML gate = `./gradlew test jacocoTestCoverageVerification` (+ frontend gate for SPA).
 
-### ⭐ Slice 1 — Prove the pipe end-to-end (no UI)  ← START HERE
-Goal: one onboarded AML customer → a goAML DPMSR draft, tenant-scoped, over a signed service call.
+### ⭐ Slice 1 — Prove the pipe end-to-end (no UI)  ✅ CODE-COMPLETE (both repos)
+Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service call.
+
+> **Done.** goAML side on `main`: dev-seed trusted_service + company→tenant + active MLRO (`40f0fdd`),
+> `companyId` Integer→String (`f03b199`). AML side on `Backend_Java` `feature/goaml-integration`:
+> **S1.1** RS256 assertion signer (`18af3a3`), **S1.4a** push client + payload contract (`364472e`),
+> **S1.4b** customer-load + `MasterCodeResolver` + `GoamlCustomerPushService` +
+> `POST /api/v1/customers/{id}/push-to-goaml` (`74a0949`). Build via Temurin 21 + IntelliJ Maven
+> (no install/Docker). goAML's receive→persist path was already proven by `ScreeningIntegrationE2ETest`;
+> the AML side has unit tests (signer, client via MockRestServiceServer, assembler via mocked repos).
+> Toolchain note: AML repo is `Backend_Java` (Maven, Java 21); build with
+> `JAVA_HOME=~/.gradle/jdks/eclipse_adoptium-21-*/Contents/Home <IntelliJ>/maven3/bin/mvn -pl customer-service -am test`.
+> **Remaining for a faithful report:** the goAML screening push stores a *subject* + maps *parties* (no goods),
+> so it seeds a DPMSR draft; the **deal/goods** come from the AML deal module (Phase C). Representatives not
+> pushed yet. Sanctions verdict not yet included in the push (optional).
 
 - **S1.1 (AML)** — RS256 service-assertion capability in `user-service` (RSA keypair via env/secret +
   `ServiceAssertionService` that signs a short-lived assertion: iss=AML source, aud=goAML, exp). Expose the
