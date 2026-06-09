@@ -163,11 +163,17 @@ Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service
 goAML steps `--no-ff` to `main`, AML steps on `feature/goaml-integration`. The deal stores **goAML codes
 directly** (item type/status/indicators are goAML's domain, not AML masters); currency reuses `MasterCurrency`.
 
-- **C.4a (goAML)** — service-assertion-authed **filing endpoint** `POST /api/v1/integration/screening/filings`:
-  accepts the customer **party bundle + a deal/goods block + header** in one call → `ScreeningPartyMapper`
-  (parties) + goods + header → `DpmsrCreateRequest` → `reportService.create` → `{ goamlReportId, status,
-  reportable }`. **Idempotent** on `FIL-<companyId>-<filingRef>`. MLRO auto-injected (Phase A). MockMvc E2E.
-  (Mirrors the accounting `/integration/accounting/transactions` pattern.)
+- **C.4a (goAML)** ✅ **DONE** (`feature/phase-c-filing`, `500c7ca`) — service-assertion-authed **filing
+  endpoint** `POST /api/v1/integration/screening/filings`: accepts the customer **party bundle
+  (`ScreeningPartyPayload`) + deal goods (`DpmsrCreateRequest.Goods`) + header** in one call →
+  `ScreeningPartyMapper` (parties) + goods + header → `DpmsrCreateRequest` → `reportService.create` →
+  `{ filingRef, reportId, status, validationMessages }`. **Idempotent** on `FIL-<companyId>-<filingRef>`.
+  MLRO auto-injected (Phase A); `submissionDate` server-stamped. `GET /filings/{filingRef}` for status.
+  MockMvc+Testcontainers E2E proves a legal-customer + gold deal seeds a **VALID** DPMSR + idempotency + auth.
+  **Two real DPMSR rules surfaced (carry into C.1–C.3):** the tenant needs a positive `rentity_id`
+  (tenant_goaml_config) and a filing needs **≥1 report indicator** — so the AML deal form must require
+  indicators, and the tenant must be FIU-configured. (Also pinned the test JVM heap to 2g — `40851a4` — the
+  full gate was OOMing intermittently.)
 - **C.1 (AML)** — `GoamlTransaction` (deal) entity in `aml-orm` (extends `AuditableEntity`): `customerId`/
   `customerKind`, goods fields (itemType, itemMake, description, estimatedValue, currencyCode, statusCode/
   statusComments, disposedValue, size/sizeUom, registrationDate/registrationNumber, identificationNumber,

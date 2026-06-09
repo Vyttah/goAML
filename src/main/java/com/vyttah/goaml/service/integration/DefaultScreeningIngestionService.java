@@ -3,18 +3,26 @@ package com.vyttah.goaml.service.integration;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.model.dto.integration.ScreeningFilingPayload;
+import com.vyttah.goaml.model.dto.integration.ScreeningFilingResponse;
 import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload;
 import com.vyttah.goaml.model.dto.integration.ScreeningSubjectResponse;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
+import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.entity.screening.ScreenedSubject;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
+import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.screening.ScreenedSubjectRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.service.report.ReportResult;
+import com.vyttah.goaml.service.report.ReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,6 +39,8 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
     private final TenantExternalRefRepository tenantExternalRefs;
     private final TenantRepository tenants;
     private final ScreenedSubjectRepository screenedSubjects;
+    private final ReportRepository reportRepository;
+    private final ReportService reportService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -93,6 +103,58 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
         }
     }
 
+    @Override
+    public ScreeningFilingResponse file(ScreeningFilingPayload payload) {
+        ResolvedTenant tenant = resolveTenant(payload.companyId());
+        String ref = filingReference(payload.companyId(), payload.filingRef());
+
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            // Idempotent: a retried "File to goAML" for the same deal returns the existing report.
+            Report existing = reportRepository.findByEntityReference(ref).orElse(null);
+            if (existing != null) {
+                return new ScreeningFilingResponse(ref, existing.getId(), existing.getStatus(), List.of());
+            }
+
+            List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(payload.subject());
+            DpmsrCreateRequest request = new DpmsrCreateRequest(
+                    null,                                   // rentityBranch
+                    ref,                                    // entityReference (idempotency anchor)
+                    OffsetDateTime.now(ZoneOffset.UTC),     // submissionDate (server-stamped)
+                    null,                                   // fiuRefNumber
+                    payload.reason(),                       // reason
+                    payload.action(),                       // action
+                    payload.indicators(),                   // indicators
+                    null,                                   // reportingPerson — tenant default (Phase A)
+                    payload.location(),                     // location
+                    parties,                                // parties (from the customer bundle)
+                    payload.goods());                       // goods (the precious-metals deal)
+            // System actor (createdBy=null), like the accounting push.
+            ReportResult result = reportService.create(request, tenant.tenantId(), null);
+            return new ScreeningFilingResponse(ref, result.reportId(), result.status(),
+                    result.validationMessages());
+        } finally {
+            restore(previous);
+        }
+    }
+
+    @Override
+    public ScreeningFilingResponse filingStatus(String companyId, String filingRef) {
+        ResolvedTenant tenant = resolveTenant(companyId);
+        String ref = filingReference(companyId, filingRef);
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            Report r = reportRepository.findByEntityReference(ref)
+                    .orElseThrow(() -> new com.vyttah.goaml.service.report.ReportExceptions
+                            .ReportNotFoundException("No goAML report for filing " + filingRef));
+            return new ScreeningFilingResponse(ref, r.getId(), r.getStatus(), List.of());
+        } finally {
+            restore(previous);
+        }
+    }
+
     private ScreeningSubjectResponse response(String ref, ScreeningPartyPayload payload) {
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(payload);
         return new ScreeningSubjectResponse(ref, payload.subjectType().name(),
@@ -135,6 +197,11 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
 
     private static String referencePrefix(String companyId) {
         return "SCR-" + companyId + "-";
+    }
+
+    /** Filing idempotency anchor (also the report's {@code entity_reference}): {@code FIL-<companyId>-<filingRef>}. */
+    private static String filingReference(String companyId, String filingRef) {
+        return "FIL-" + companyId + "-" + filingRef;
     }
 
     private static void restore(String previous) {

@@ -319,6 +319,18 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   `GOLD`, not free text). Both gates green each step. **Feeds Phase C.3** (the AML deal form hits the same
   lookup API). **Next: Phase C — the AML deal module** (deal entity + "File to goAML" + Frontend screen), then
   **C.4** (goAML maps deal → goods → a fully VALID DPMSR).
+- **2026-06-10 session — Phase C STARTED; C.4a (goAML one-shot filing endpoint) DONE, merged to `main`.**
+  Wrote+reviewed the Phase C plan (3 decisions locked: one-shot filing endpoint, AML-side lookup proxy to
+  goAML, maker-checker deferred to D) — parallel Explore agents confirmed goAML's report path already accepts
+  goods+header, so C.4 is wiring a service-authed entry point, not new report logic. Built **C.4a** on
+  `feature/phase-c-filing` (`--no-ff`): `POST /api/v1/integration/screening/filings` (service-assertion authed)
+  takes a party bundle (`ScreeningPartyPayload`) + deal goods (`DpmsrCreateRequest.Goods`) + header → builds a
+  VALID DPMSR via `reportService.create` in one call; idempotent on `FIL-<companyId>-<filingRef>`; MLRO
+  auto-injected (Phase A); `GET /filings/{ref}` status. Commit `500c7ca` + a test-infra fix `40851a4` (pinned
+  the test JVM heap to 2g — the full gate was intermittently OOMing on context-load, cascading to unrelated
+  tests; not a code defect). Full gate green (1m55s). **Two real DPMSR rules surfaced for the AML deal form:**
+  a filing needs **≥1 report indicator** and the tenant needs a positive `rentity_id`. **Next: C.1** — the
+  `GoamlTransaction` deal entity in `aml-orm` (Flyway V102) + repo + service, then C.2 (AML endpoints).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

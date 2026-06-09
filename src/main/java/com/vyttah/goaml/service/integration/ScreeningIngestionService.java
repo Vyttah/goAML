@@ -1,5 +1,7 @@
 package com.vyttah.goaml.service.integration;
 
+import com.vyttah.goaml.model.dto.integration.ScreeningFilingPayload;
+import com.vyttah.goaml.model.dto.integration.ScreeningFilingResponse;
 import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload;
 import com.vyttah.goaml.model.dto.integration.ScreeningSubjectResponse;
 
@@ -21,4 +23,14 @@ public interface ScreeningIngestionService {
 
     /** All screened subjects originating from this screening company. */
     List<ScreeningSubjectResponse> list(String companyId);
+
+    /**
+     * One-shot filing (Phase C.4a): build + validate + persist a DPMSR from a complete bundle (parties + goods
+     * + header) and return the report id + status. Idempotent on {@code FIL-<companyId>-<filingRef>} — a retried
+     * "File to goAML" returns the existing report rather than creating a duplicate.
+     */
+    ScreeningFilingResponse file(ScreeningFilingPayload payload);
+
+    /** Status of a previously-filed report (by AML company + filing ref). */
+    ScreeningFilingResponse filingStatus(String companyId, String filingRef);
 }
