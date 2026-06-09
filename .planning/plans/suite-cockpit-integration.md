@@ -140,7 +140,10 @@ Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service
   description, actionTaken, reason, indicators[]), workflow `status` (DRAFT→PENDING_APPROVAL→APPROVED→FILED),
   `goamlReportId`, `goamlStatus`. Flyway + repo + service.
 - **C.2 (AML)** — `customer-service` endpoints: CRUD the deal, **"File to goAML"** (assemble full bundle incl.
-  deal → S1.3 call → store goamlReportId), and a status-pull/refresh. Resolve `Master*`→codes in the mapper.
+  deal → S1.3 call → store goamlReportId + the returned status), a status-pull/refresh, **and a report
+  download proxy** (`GET /api/v1/goaml-filings/{id}/report.xml` → calls goAML's authenticated XML-download
+  endpoint with the service assertion and streams it back) so the report is downloadable *inside* the AML UI,
+  not only via a link to goAML. Resolve `Master*`→codes in the mapper.
 - **C.3 (AML)** — Frontend_Customer screen (new route, e.g. `/goaml-filing`): pick customer → parties
   auto-loaded → enter the deal → maker-checker → **File to goAML** → show returned status. Next.js/React.
 - **C.4 (goAML)** — extend the S1.3 intake to consume the deal → goods (`TTransItem`) + report header, producing
@@ -153,7 +156,10 @@ Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service
   configurable (standalone can skip). REST approve/reject + E2E + SPA review queue.
 - **D.3 (goAML)** — "Transaction & Report" view: a read endpoint + SPA page rendering the stored `input`
   (parties/directors/UBO/goods/deal) + status + XML — a goAML login shows the whole thing.
-- **D.4 (AML)** — show goAML status + link in the case UI (poll/refresh).
+- **D.4 (AML)** — in the case/filing UI: show goAML status (poll/refresh), a link to open the report in goAML,
+  **and a "Download report (XML)" action** backed by the C.2 download proxy — so an AML user sees *and downloads*
+  the generated DPMSR without leaving the AML software. (End-state parity goal: the report is viewable +
+  downloadable in **both** apps.)
 
 ### Phase E — Live B2B proof (parallel, external — NOT a code phase)
 Secure a client RE + SACM registration → per-tenant FIU B2B URL + creds → submit a real DPMSR → confirm FIU
@@ -171,7 +177,7 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 | Reporting person | goAML tenant default | **Phase A** | sends nothing |
 | Approval | two-tier | **D.2** MLRO review | **D.1** business checker |
 | Submit → FIU | B2B REST + poll | built | — |
-| Status / SoR view | notifications + read view | **D.3** | **D.4** display |
+| Status / SoR view | notifications + read view | **D.3** + XML download endpoint (built) | **D.4** display + **download proxy** (C.2) |
 
 ## Risks / constraints
 - **🔴 Live B2B unproven & externally gated** (SACM/real RE) — the differentiator; Phase E de-risks in parallel.
