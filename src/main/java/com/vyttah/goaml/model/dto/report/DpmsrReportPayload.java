@@ -37,9 +37,10 @@ public record DpmsrReportPayload(
         String action,
         List<String> indicators,
         @NotNull List<ReportPartyType> parties,
-        @NotNull List<TTransItem> goods) {
+        @NotNull List<TTransItem> goods) implements DpmsrInputSource {
 
     /** Map onto the engine input, injecting the server-resolved {@code rentity_id}. */
+    @Override
     public DpmsrReportInput toInput(int rentityId) {
         DpmsrReportInput.Builder b = DpmsrReportInput.builder()
                 .rentityId(rentityId)

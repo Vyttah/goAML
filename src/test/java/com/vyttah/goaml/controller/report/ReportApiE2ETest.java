@@ -1,9 +1,14 @@
 package com.vyttah.goaml.controller.report;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyttah.goaml.GoamlApplication;
 import com.vyttah.goaml.b2b.GoamlB2bClient;
 import com.vyttah.goaml.b2b.ReportStatus;
+import com.vyttah.goaml.domain.generated.ActivityType;
+import com.vyttah.goaml.domain.generated.Report;
+import com.vyttah.goaml.engine.marshal.ReportMarshaller;
+import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
@@ -30,6 +35,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.io.InputStream;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -52,6 +59,8 @@ class ReportApiE2ETest {
     @MockBean GoamlB2bClient b2bClient;
 
     @Autowired TestRestTemplate rest;
+    @Autowired ObjectMapper objectMapper;
+    private final ReportMarshaller marshaller = new ReportMarshaller();
     @Autowired TenantProvisioningService provisioningService;
     @Autowired AppUserRepository userRepository;
     @Autowired RoleRepository roleRepository;
@@ -164,6 +173,46 @@ class ReportApiE2ETest {
                 .isEqualTo(HttpStatus.CREATED);
         assertThat(post("/api/v1/reports", String.format(DPMSR_JSON, "PAY-DUP"), mlro).getStatusCode())
                 .isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void fullFidelityPayloadPersistsEveryFieldIntoTheXml() throws Exception {
+        String mlro = user("full", "MLRO");
+
+        // build the full-fidelity payload from the real (anonymized) third-party DPMSR sample
+        Report sample = marshaller.unmarshal(readResource("samples/USG-dpmsr-activity.xml"));
+        ActivityType activity = sample.getReportActivity();
+        DpmsrReportPayload payload = new DpmsrReportPayload(
+                sample.getRentityBranch(), "PAY-FULL-1", sample.getSubmissionDate(), sample.getFiuRefNumber(),
+                sample.getReportingPerson(), sample.getLocation(), sample.getReason(), sample.getAction(),
+                List.of("DPMSJ"), activity.getReportParties().getReportParty(),
+                activity.getGoodsServices().getItem());
+
+        ResponseEntity<JsonNode> created =
+                post("/api/v1/reports", objectMapper.writeValueAsString(payload), mlro);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String reportId = created.getBody().get("reportId").asText();
+
+        // the marshalled goAML XML carries every field that the curated contract used to drop
+        ResponseEntity<String> xml = rest.exchange("/api/v1/reports/" + reportId + "/xml",
+                HttpMethod.GET, new HttpEntity<>(headers(mlro)), String.class);
+        assertThat(xml.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(xml.getBody())
+                .contains("<disposed_value>10050000.00</disposed_value>")
+                .contains("<registration_number>SAMPLE0000001</registration_number>")
+                .contains("<identification_number>REC0000000001</identification_number>")
+                .contains("<status_comments>CASH RECEIVED AGAINST 95KG GOLD SOLD</status_comments>")
+                .contains("<ssn>784199000000001</ssn>")
+                .contains("<passport_number>S0000001</passport_number>")
+                .contains("<incorporation_date>2023-06-05")
+                .contains("<role>PRTNR</role>");
+    }
+
+    private static byte[] readResource(String path) throws Exception {
+        try (InputStream in = Thread.currentThread().getContextClassLoader().getResourceAsStream(path)) {
+            assertThat(in).as("resource %s present", path).isNotNull();
+            return in.readAllBytes();
+        }
     }
 
     // ----- helpers -----

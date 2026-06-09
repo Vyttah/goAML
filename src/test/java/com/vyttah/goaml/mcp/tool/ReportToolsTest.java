@@ -136,14 +136,14 @@ class ReportToolsTest {
     void createDelegatesToServiceAndReturnsId() {
         authenticate(List.of("MLRO"));
         UUID reportId = UUID.randomUUID();
-        when(reportService.create(any(), eq(TENANT_ID), eq(USER_ID)))
+        when(reportService.create(any(DpmsrCreateRequest.class),eq(TENANT_ID), eq(USER_ID)))
                 .thenReturn(new ReportResult(reportId, "VALID", List.of()));
 
         CreateReportResponse result = tools.createDpmsr(minimalRequest("C-1", new BigDecimal("90000")));
 
         assertThat(result.reportId()).isEqualTo(reportId);
         assertThat(result.status()).isEqualTo("VALID");
-        verify(reportService).create(any(), eq(TENANT_ID), eq(USER_ID));
+        verify(reportService).create(any(DpmsrCreateRequest.class),eq(TENANT_ID), eq(USER_ID));
     }
 
     @Test
@@ -154,7 +154,7 @@ class ReportToolsTest {
 
         assertThat(result.reportId()).isNull();
         assertThat(result.status()).isEqualTo("INVALID");
-        verify(reportService, never()).create(any(), any(), any());
+        verify(reportService, never()).create(any(DpmsrCreateRequest.class),any(), any());
     }
 
     @Test

@@ -52,7 +52,7 @@ class CsvImporterTest {
 
     @Test
     void twoGoodPersonRowsCreateTwoReports() {
-        when(reportService.create(any(), eq(tenantId), eq(actor)))
+        when(reportService.create(any(DpmsrCreateRequest.class),eq(tenantId), eq(actor)))
                 .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()),
                         new ReportResult(UUID.randomUUID(), "VALID", List.of()));
 
@@ -64,12 +64,12 @@ class CsvImporterTest {
         assertThat(results).hasSize(2);
         assertThat(results).allMatch(r -> r.status().equals("VALID") && r.reportCreated());
         assertThat(results).extracting(ImportRowResult::entityReference).containsExactly("REF-1", "REF-2");
-        verify(reportService, times(2)).create(any(), eq(tenantId), eq(actor));
+        verify(reportService, times(2)).create(any(DpmsrCreateRequest.class),eq(tenantId), eq(actor));
     }
 
     @Test
     void personRowMapsFieldsOntoRequest() {
-        when(reportService.create(any(), any(), any()))
+        when(reportService.create(any(DpmsrCreateRequest.class),any(), any()))
                 .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()));
 
         importer(500).importCsv(csv(
@@ -94,7 +94,7 @@ class CsvImporterTest {
 
     @Test
     void entityRowMapsEntityParty() {
-        when(reportService.create(any(), any(), any()))
+        when(reportService.create(any(DpmsrCreateRequest.class),any(), any()))
                 .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()));
 
         importer(500).importCsv(csv(
@@ -111,7 +111,7 @@ class CsvImporterTest {
 
     @Test
     void badNumberRowFailsButOthersContinue() {
-        when(reportService.create(any(), any(), any()))
+        when(reportService.create(any(DpmsrCreateRequest.class),any(), any()))
                 .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()));
 
         List<ImportRowResult> results = importer(500).importCsv(csv(
@@ -122,12 +122,12 @@ class CsvImporterTest {
         assertThat(results.get(0).status()).isEqualTo("FAILED");
         assertThat(results.get(0).errors().get(0)).contains("good_estimated_value");
         assertThat(results.get(1).status()).isEqualTo("VALID");
-        verify(reportService, times(1)).create(any(), any(), any()); // only the good row reached create
+        verify(reportService, times(1)).create(any(DpmsrCreateRequest.class),any(), any()); // only the good row reached create
     }
 
     @Test
     void duplicateRowFails() {
-        when(reportService.create(any(), any(), any()))
+        when(reportService.create(any(DpmsrCreateRequest.class),any(), any()))
                 .thenThrow(new ReportExceptions.DuplicateEntityReferenceException("dup"));
 
         List<ImportRowResult> results = importer(500).importCsv(csv(
@@ -147,7 +147,7 @@ class CsvImporterTest {
         assertThatThrownBy(() -> importer(500).importCsv(bad, tenantId, actor))
                 .isInstanceOf(ImportRejectedException.class)
                 .hasMessageContaining("missing required columns");
-        verify(reportService, never()).create(any(), any(), any());
+        verify(reportService, never()).create(any(DpmsrCreateRequest.class),any(), any());
     }
 
     @Test
@@ -162,7 +162,7 @@ class CsvImporterTest {
                 .isInstanceOf(ImportRejectedException.class)
                 .hasMessageContaining("indicators")
                 .hasMessageContaining("party_reason");
-        verify(reportService, never()).create(any(), any(), any());
+        verify(reportService, never()).create(any(DpmsrCreateRequest.class),any(), any());
     }
 
     @Test
@@ -173,6 +173,6 @@ class CsvImporterTest {
         ), tenantId, actor))
                 .isInstanceOf(ImportRejectedException.class)
                 .hasMessageContaining("maximum is 1");
-        verify(reportService, never()).create(any(), any(), any());
+        verify(reportService, never()).create(any(DpmsrCreateRequest.class),any(), any());
     }
 }
