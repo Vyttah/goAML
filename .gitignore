@@ -33,3 +33,7 @@ frontend/.vite/
 
 # Helm packaging
 helm/*.tgz
+
+# Real report drops are local-only — never commit report XML (may contain real PII).
+# Anonymized samples for tests live under src/test/resources/samples/. The goAML XSDs in assets/ stay tracked.
+assets/*.xml
