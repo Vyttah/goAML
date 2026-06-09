@@ -130,6 +130,12 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    // The suite caches several full Spring contexts (Testcontainers integration tests) in one forked test
+    // JVM; the JVM's default max heap is too small under load and OOMs intermittently (a context-load
+    // failure then cascades to whichever test runs next). Pin an explicit, ample heap so the gate is
+    // deterministic locally and in CI.
+    maxHeapSize = '2g'
+    jvmArgs '-XX:MaxMetaspaceSize=512m'
     testLogging {
         events 'passed', 'skipped', 'failed'
         showStandardStreams = false
