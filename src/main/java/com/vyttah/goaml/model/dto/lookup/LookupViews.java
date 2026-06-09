@@ -28,6 +28,12 @@ public final class LookupViews {
     /** The lookup-set names available for a jurisdiction (e.g. countries, currencies, fund types). */
     public record LookupSetsView(String jurisdiction, List<String> sets) {}
 
-    /** The codes in one lookup set (sorted), e.g. all ISO country codes for {@code ae}. */
-    public record LookupSetView(String jurisdiction, String set, List<String> codes) {}
+    /** A single lookup choice: FIU {@code code} + its human {@code label} (label == code when none defined). */
+    public record CodeLabel(String code, String label) {}
+
+    /**
+     * One lookup set. {@code codes} (sorted) is kept for backward compatibility; {@code entries} adds the
+     * human label per code (in source order) so dropdowns can show "CODE — description".
+     */
+    public record LookupSetView(String jurisdiction, String set, List<String> codes, List<CodeLabel> entries) {}
 }

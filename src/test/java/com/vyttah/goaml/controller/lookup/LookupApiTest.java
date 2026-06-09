@@ -66,7 +66,21 @@ class LookupApiTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.set").value("countries"))
                 .andExpect(jsonPath("$.codes").isArray())
-                .andExpect(jsonPath("$.codes[0]").exists());
+                .andExpect(jsonPath("$.codes[0]").exists())
+                // entries carry the human label alongside the code
+                .andExpect(jsonPath("$.entries").isArray())
+                .andExpect(jsonPath("$.entries[?(@.code=='AE')].label").value("United Arab Emirates"));
+    }
+
+    @Test
+    void servesGoodsLookupSetsWithLabelsFromTheXsd() throws Exception {
+        // Phase B — the DPMSR goods/indicator sets derived from the XSD enums, with schema labels.
+        mvc.perform(get("/api/v1/lookups/ae/item_types").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries[?(@.code=='GOLD')]").exists());
+        mvc.perform(get("/api/v1/lookups/ae/report_indicators").header("Authorization", "Bearer " + token()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.entries[0].label").exists());
     }
 
     @Test

@@ -10,11 +10,11 @@ import {
   Input,
   Radio,
   Row,
-  Select,
   Space,
   Typography,
 } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
+import { CodeSelect } from '../../components/lookups/CodeSelect';
 import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { PersonFields } from '../../components/forms/PersonFields';
@@ -118,8 +118,12 @@ export function DpmsrBuilderPage() {
               </Form.Item>
             </Col>
             <Col span={24}>
-              <Form.Item label="Indicators" name="indicators" tooltip="Type and press enter to add">
-                <Select mode="tags" tokenSeparators={[',']} placeholder="Add indicators" />
+              <Form.Item
+                label="Indicators"
+                name="indicators"
+                tooltip="Search and select goAML report indicators"
+              >
+                <CodeSelect set="report_indicators" multiple placeholder="Select indicators" />
               </Form.Item>
             </Col>
           </Row>

@@ -4,6 +4,7 @@ import com.vyttah.goaml.controller.lookup.LookupExceptions.LookupNotFoundExcepti
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionConfig;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.engine.lookup.LookupService;
+import com.vyttah.goaml.model.dto.lookup.LookupViews.CodeLabel;
 import com.vyttah.goaml.model.dto.lookup.LookupViews.JurisdictionView;
 import com.vyttah.goaml.model.dto.lookup.LookupViews.LookupSetView;
 import com.vyttah.goaml.model.dto.lookup.LookupViews.LookupSetsView;
@@ -61,8 +62,11 @@ public class LookupController {
             throw new LookupNotFoundException(
                     "No lookup set '" + set + "' for jurisdiction '" + jurisdiction + "'");
         }
+        List<CodeLabel> entries = lookupService.entries(jurisdiction, set).stream()
+                .map(e -> new CodeLabel(e.code(), e.label()))
+                .toList();
         return ResponseEntity.ok(new LookupSetView(jurisdiction.toLowerCase(), set.toLowerCase(),
-                codes.stream().sorted().toList()));
+                codes.stream().sorted().toList(), entries));
     }
 
     private void requireJurisdiction(String jurisdiction) {

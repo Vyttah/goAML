@@ -7,7 +7,7 @@ export function GoodsFields({ name }: { name: number }) {
     <Row gutter={12}>
       <Col span={8}>
         <Form.Item label="Item type" name={[name, 'itemType']} rules={[{ required: true }]}>
-          <Input />
+          <CodeSelect set="item_types" placeholder="Item type" />
         </Form.Item>
       </Col>
       <Col span={8}>
@@ -17,7 +17,7 @@ export function GoodsFields({ name }: { name: number }) {
       </Col>
       <Col span={8}>
         <Form.Item label="Status code" name={[name, 'statusCode']}>
-          <Input />
+          <CodeSelect set="item_status" placeholder="Status" />
         </Form.Item>
       </Col>
       <Col span={24}>
