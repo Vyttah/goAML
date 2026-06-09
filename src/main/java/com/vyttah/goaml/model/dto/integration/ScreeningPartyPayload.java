@@ -28,7 +28,7 @@ import java.util.List;
  * @param sanctions    the sanctions-screening verdict (risk flag + hits), recorded as party/report context
  */
 public record ScreeningPartyPayload(
-        @NotNull Integer companyId,
+        @NotBlank String companyId,
         @NotBlank String customerUid,
         @NotNull SubjectType subjectType,
         NaturalCustomer natural,

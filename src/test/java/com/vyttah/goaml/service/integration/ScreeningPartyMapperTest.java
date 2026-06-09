@@ -32,7 +32,7 @@ class ScreeningPartyMapperTest {
                 new Address("1 St", "Dubai", "AE", null),
                 List.of(new Identification("PASSPORT", "P123", null, LocalDate.of(2030, 1, 1), "IN")),
                 true);
-        ScreeningPartyPayload p = new ScreeningPartyPayload(7, "CUST-1", SubjectType.NATURAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "CUST-1", SubjectType.NATURAL,
                 nat, null, null, null, null, null);
 
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(p);
@@ -55,7 +55,7 @@ class ScreeningPartyMapperTest {
         NaturalCustomer nat = new NaturalCustomer(null, "Jane", "Smith", null, null, "AE", null, null,
                 "784-1990-1234567-1", null, null, null, null,
                 List.of(new Identification("PASSPORT", "P999", null, null, "GB")), false);
-        ScreeningPartyPayload p = new ScreeningPartyPayload(7, "CUST-2", SubjectType.NATURAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "CUST-2", SubjectType.NATURAL,
                 nat, null, null, null, null, null);
 
         DpmsrCreateRequest.Party party = ScreeningPartyMapper.toParties(p).get(0);
@@ -71,7 +71,7 @@ class ScreeningPartyMapperTest {
         RelatedParty director = new RelatedParty("NATURAL", "Ravi Patel", null, null,
                 LocalDate.of(1970, 5, 5), "IN", "AE", false, null, "PASSPORT", "D-1", "IN",
                 null, null, null, null);
-        ScreeningPartyPayload p = new ScreeningPartyPayload(7, "LEG-1", SubjectType.LEGAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "LEG-1", SubjectType.LEGAL,
                 null, legal, List.of(director), null, null, null);
 
         DpmsrCreateRequest.Party party = ScreeningPartyMapper.toParties(p).get(0);
@@ -90,7 +90,7 @@ class ScreeningPartyMapperTest {
     void incorporationNumberFallsBackToLicenseNumber() {
         LegalCustomer legal = new LegalCustomer("Beta LLC", null, null, null, "AE", null,
                 "LIC-77", null, null, null);
-        ScreeningPartyPayload p = new ScreeningPartyPayload(7, "LEG-2", SubjectType.LEGAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "LEG-2", SubjectType.LEGAL,
                 null, legal, null, null, null, null);
 
         DpmsrCreateRequest.Party party = ScreeningPartyMapper.toParties(p).get(0);
@@ -109,7 +109,7 @@ class ScreeningPartyMapperTest {
                 false, new BigDecimal("60"), null, null, null, "Holdco Ltd", "H-1", "GB", null);
         RelatedParty ubo = new RelatedParty("NATURAL", "Sam Owner", null, null, null, "US", null,
                 false, null, "PASSPORT", "U-1", "US", null, null, null, null);
-        ScreeningPartyPayload p = new ScreeningPartyPayload(7, "LEG-3", SubjectType.LEGAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "LEG-3", SubjectType.LEGAL,
                 null, legal, null, List.of(shNatural, shLegal), List.of(ubo), null);
 
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(p);
@@ -135,7 +135,7 @@ class ScreeningPartyMapperTest {
     }
 
     private static DpmsrCreateRequest.Person personOf(NaturalCustomer nat) {
-        ScreeningPartyPayload p = new ScreeningPartyPayload(1, "U", SubjectType.NATURAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("1", "U", SubjectType.NATURAL,
                 nat, null, null, null, null, null);
         return ScreeningPartyMapper.toParties(p).get(0).person();
     }
@@ -150,12 +150,12 @@ class ScreeningPartyMapperTest {
     @Test
     void missingCustomerNamesFallBackToUnknown() {
         // subjectType LEGAL but no legal block, and NATURAL with no natural block → defensive "Unknown"
-        ScreeningPartyPayload legalNoBody = new ScreeningPartyPayload(1, "X", SubjectType.LEGAL,
+        ScreeningPartyPayload legalNoBody = new ScreeningPartyPayload("1", "X", SubjectType.LEGAL,
                 null, null, null, null, null, null);
         assertThat(ScreeningPartyMapper.toParties(legalNoBody).get(0).entity().name()).isEqualTo("Unknown");
         assertThat(ScreeningPartyMapper.displayName(legalNoBody)).isEqualTo("Unknown");
 
-        ScreeningPartyPayload naturalNoBody = new ScreeningPartyPayload(1, "X", SubjectType.NATURAL,
+        ScreeningPartyPayload naturalNoBody = new ScreeningPartyPayload("1", "X", SubjectType.NATURAL,
                 null, null, null, null, null, null);
         assertThat(ScreeningPartyMapper.toParties(naturalNoBody).get(0).person().firstName()).isEqualTo("Unknown");
         assertThat(ScreeningPartyMapper.displayName(naturalNoBody)).isEqualTo("Unknown");
@@ -166,7 +166,7 @@ class ScreeningPartyMapperTest {
         RelatedParty oneName = new RelatedParty("NATURAL", "Cher", null, null, null, "AE", null,
                 false, null, null, null, null, null, null, null, null);
         LegalCustomer legal = new LegalCustomer("Clean FZE", null, "INC", null, "AE", null, null, null, null, null);
-        ScreeningPartyPayload p = new ScreeningPartyPayload(1, "C", SubjectType.LEGAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("1", "C", SubjectType.LEGAL,
                 null, legal, null, List.of(oneName), null, null);
 
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(p);
@@ -181,7 +181,7 @@ class ScreeningPartyMapperTest {
         // PEP but no sanctions → "PEP." only
         NaturalCustomer pep = new NaturalCustomer(null, "P", "Q", null, null, null, null, null, null, null,
                 null, null, null, null, true);
-        assertThat(ScreeningPartyMapper.sanctionsContext(new ScreeningPartyPayload(1, "P", SubjectType.NATURAL,
+        assertThat(ScreeningPartyMapper.sanctionsContext(new ScreeningPartyPayload("1", "P", SubjectType.NATURAL,
                 pep, null, null, null, null, null))).isEqualTo("PEP.");
 
         // >5 hits → "+N more"
@@ -190,7 +190,7 @@ class ScreeningPartyMapperTest {
             hits.add(new Sanctions.Hit("H" + i, i, null, null, null, null));
         }
         LegalCustomer legal = new LegalCustomer("Z FZE", null, "I", null, "AE", null, null, null, null, null);
-        String ctx = ScreeningPartyMapper.sanctionsContext(new ScreeningPartyPayload(1, "Z", SubjectType.LEGAL,
+        String ctx = ScreeningPartyMapper.sanctionsContext(new ScreeningPartyPayload("1", "Z", SubjectType.LEGAL,
                 null, legal, null, null, null, new Sanctions(true, hits)));
         assertThat(ctx).contains("7 hit(s)").contains("+2 more");
     }
@@ -201,7 +201,7 @@ class ScreeningPartyMapperTest {
         Sanctions s = new Sanctions(true, List.of(
                 new Sanctions.Hit("Risky FZE", 95, "OFAC", "SANCTIONS", "PART", "match"),
                 new Sanctions.Hit("Risky F", 80, "UN", "SANCTIONS", "PART", "match")));
-        ScreeningPartyPayload p = new ScreeningPartyPayload(7, "LEG-4", SubjectType.LEGAL,
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "LEG-4", SubjectType.LEGAL,
                 null, legal, null, null, null, s);
 
         String comments = ScreeningPartyMapper.toParties(p).get(0).comments();

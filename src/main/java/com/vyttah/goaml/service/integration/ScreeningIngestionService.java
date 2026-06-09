@@ -17,8 +17,8 @@ public interface ScreeningIngestionService {
     ScreeningSubjectResponse ingest(ScreeningPartyPayload payload);
 
     /** Fetch a previously-stored subject (by screening company + customer uid). */
-    ScreeningSubjectResponse get(int companyId, String customerUid);
+    ScreeningSubjectResponse get(String companyId, String customerUid);
 
     /** All screened subjects originating from this screening company. */
-    List<ScreeningSubjectResponse> list(int companyId);
+    List<ScreeningSubjectResponse> list(String companyId);
 }

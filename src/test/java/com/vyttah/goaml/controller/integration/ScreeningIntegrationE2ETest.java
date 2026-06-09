@@ -58,7 +58,7 @@ class ScreeningIntegrationE2ETest {
     @Autowired TrustedServiceRepository trustedServices;
     @Autowired TenantExternalRefRepository tenantExternalRefs;
 
-    private static final int COMPANY_ID = 501;
+    private static final String COMPANY_ID = "501";
     private static KeyPair keys;
 
     @BeforeEach
@@ -77,7 +77,7 @@ class ScreeningIntegrationE2ETest {
         trustedServices.save(new TrustedService(UUID.randomUUID(), SourceSystem.SCREENING,
                 "screening", pem(keys.getPublic()), false, "ACTIVE"));
         tenantExternalRefs.save(new TenantExternalRef(UUID.randomUUID(), tenant.getId(),
-                SourceSystem.SCREENING, String.valueOf(COMPANY_ID)));
+                SourceSystem.SCREENING, COMPANY_ID));
     }
 
     @Test
@@ -102,7 +102,7 @@ class ScreeningIntegrationE2ETest {
         push(legalPayload(COMPANY_ID, "LEG-1"));
         MvcResult listRes = mvc.perform(get("/api/v1/integration/screening/subjects")
                         .header("X-Service-Assertion", assertion())
-                        .param("companyId", String.valueOf(COMPANY_ID)))
+                        .param("companyId", COMPANY_ID))
                 .andExpect(status().isOk()).andReturn();
         assertThat(objectMapper.readTree(listRes.getResponse().getContentAsString())).hasSize(1);
     }
@@ -110,7 +110,7 @@ class ScreeningIntegrationE2ETest {
     @Test
     void naturalSubjectMapsToPerson() throws Exception {
         JsonNode res = push("""
-                {"companyId": %d, "customerUid": "NAT-1", "subjectType": "NATURAL",
+                {"companyId": "%s", "customerUid": "NAT-1", "subjectType": "NATURAL",
                  "natural": {"firstName":"Jane","lastName":"Doe","nationality":"AE","emiratesId":"784-1","pep":true}}
                 """.formatted(COMPANY_ID));
         assertThat(res.get("subjectType").asText()).isEqualTo("NATURAL");
@@ -130,7 +130,7 @@ class ScreeningIntegrationE2ETest {
     void unmappedCompanyIsNotFound() throws Exception {
         mvc.perform(post("/api/v1/integration/screening/subjects")
                         .header("X-Service-Assertion", assertion())
-                        .contentType(APPLICATION_JSON).content(legalPayload(999, "LEG-3")))
+                        .contentType(APPLICATION_JSON).content(legalPayload("999", "LEG-3")))
                 .andExpect(status().isNotFound());
     }
 
@@ -138,7 +138,7 @@ class ScreeningIntegrationE2ETest {
     void fetchingUnknownSubjectIsNotFound() throws Exception {
         mvc.perform(get("/api/v1/integration/screening/subjects/NOPE")
                         .header("X-Service-Assertion", assertion())
-                        .param("companyId", String.valueOf(COMPANY_ID)))
+                        .param("companyId", COMPANY_ID))
                 .andExpect(status().isNotFound());
     }
 
@@ -155,15 +155,15 @@ class ScreeningIntegrationE2ETest {
     private JsonNode getJson(String path) throws Exception {
         MvcResult r = mvc.perform(get(path)
                         .header("X-Service-Assertion", assertion())
-                        .param("companyId", String.valueOf(COMPANY_ID)))
+                        .param("companyId", COMPANY_ID))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(r.getResponse().getContentAsString());
     }
 
-    private static String legalPayload(int companyId, String uid) {
+    private static String legalPayload(String companyId, String uid) {
         return """
                 {
-                  "companyId": %d, "customerUid": "%s", "subjectType": "LEGAL",
+                  "companyId": "%s", "customerUid": "%s", "subjectType": "LEGAL",
                   "legal": {"legalName":"Risky Trading FZE","incorporationNumber":"INC-1","incorporationCountry":"AE"},
                   "shareholders": [
                     {"partyType":"NATURAL","fullName":"Mona Ali","nationality":"AE","pep":true,"shareholdingPercent":55}

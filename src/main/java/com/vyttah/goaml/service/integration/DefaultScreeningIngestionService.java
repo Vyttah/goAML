@@ -62,7 +62,7 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
     }
 
     @Override
-    public ScreeningSubjectResponse get(int companyId, String customerUid) {
+    public ScreeningSubjectResponse get(String companyId, String customerUid) {
         ResolvedTenant tenant = resolveTenant(companyId);
         String ref = reference(companyId, customerUid);
         String previous = TenantContext.get();
@@ -78,7 +78,7 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
     }
 
     @Override
-    public List<ScreeningSubjectResponse> list(int companyId) {
+    public List<ScreeningSubjectResponse> list(String companyId) {
         ResolvedTenant tenant = resolveTenant(companyId);
         String prefix = referencePrefix(companyId);
         String previous = TenantContext.get();
@@ -101,9 +101,9 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
                 parties, ScreeningPartyMapper.sanctionsContext(payload));
     }
 
-    private ResolvedTenant resolveTenant(int companyId) {
+    private ResolvedTenant resolveTenant(String companyId) {
         UUID tenantId = tenantExternalRefs
-                .findBySourceSystemAndExternalOrgRef(SourceSystem.SCREENING, String.valueOf(companyId))
+                .findBySourceSystemAndExternalOrgRef(SourceSystem.SCREENING, companyId)
                 .map(ref -> ref.getTenantId())
                 .orElseThrow(() -> new IntegrationExceptions.UnmappedOrgException(
                         "No goAML tenant mapped to screening company " + companyId));
@@ -129,11 +129,11 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
         }
     }
 
-    private static String reference(int companyId, String customerUid) {
+    private static String reference(String companyId, String customerUid) {
         return referencePrefix(companyId) + customerUid;
     }
 
-    private static String referencePrefix(int companyId) {
+    private static String referencePrefix(String companyId) {
         return "SCR-" + companyId + "-";
     }
 
