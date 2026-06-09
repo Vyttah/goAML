@@ -1,0 +1,254 @@
+[
+  {
+    "code": "-",
+    "label": "Unknown"
+  },
+  {
+    "code": "ACTNT",
+    "label": "Accountancy (consultancy)"
+  },
+  {
+    "code": "APA",
+    "label": "Apartment"
+  },
+  {
+    "code": "BROKC",
+    "label": "Broker Commission"
+  },
+  {
+    "code": "CAUDT",
+    "label": "Compliance Audit"
+  },
+  {
+    "code": "CHQSS",
+    "label": "Cheque"
+  },
+  {
+    "code": "CIGAR",
+    "label": "Cigar"
+  },
+  {
+    "code": "CIGRT",
+    "label": "Cigarette"
+  },
+  {
+    "code": "CMRCB",
+    "label": "Commercial building"
+  },
+  {
+    "code": "CONA",
+    "label": "Construction Audit"
+  },
+  {
+    "code": "CP",
+    "label": "Chemical products"
+  },
+  {
+    "code": "CRDTC",
+    "label": "Credit Card"
+  },
+  {
+    "code": "CRNCY",
+    "label": "Currency"
+  },
+  {
+    "code": "DCNTR",
+    "label": "distribution center"
+  },
+  {
+    "code": "DIMND",
+    "label": "Diamond"
+  },
+  {
+    "code": "EDUCT",
+    "label": "Eduction (consultancy)"
+  },
+  {
+    "code": "ELECD",
+    "label": "Electronic Devices"
+  },
+  {
+    "code": "EQUPM",
+    "label": "Equipment"
+  },
+  {
+    "code": "FANDB",
+    "label": "Food & Beverage"
+  },
+  {
+    "code": "FINA",
+    "label": "Financial Audit"
+  },
+  {
+    "code": "FINNC",
+    "label": "Finance (consultancy)"
+  },
+  {
+    "code": "FRNTR",
+    "label": "Furniture"
+  },
+  {
+    "code": "FRUIT",
+    "label": "Fruit"
+  },
+  {
+    "code": "FUELO",
+    "label": "Fuel oil"
+  },
+  {
+    "code": "GEM",
+    "label": "Precious Gemstones"
+  },
+  {
+    "code": "GOLD",
+    "label": "Gold"
+  },
+  {
+    "code": "GRAIN",
+    "label": "Grain"
+  },
+  {
+    "code": "GSOLN",
+    "label": "Gasoline"
+  },
+  {
+    "code": "HOTEL",
+    "label": "Hotel"
+  },
+  {
+    "code": "HRC",
+    "label": "Human resource (consultancy)"
+  },
+  {
+    "code": "IAUDT",
+    "label": "Investigative Audit"
+  },
+  {
+    "code": "INTEL",
+    "label": "Intellectual Property"
+  },
+  {
+    "code": "ISA",
+    "label": "Information system Audit"
+  },
+  {
+    "code": "JEWEL",
+    "label": "Jewellery"
+  },
+  {
+    "code": "LAND",
+    "label": "land"
+  },
+  {
+    "code": "LAW",
+    "label": "Law (consultancy)"
+  },
+  {
+    "code": "MACHN",
+    "label": "Machine"
+  },
+  {
+    "code": "MKTC",
+    "label": "Marketing (consultancy)"
+  },
+  {
+    "code": "MNGMT",
+    "label": "Management (consultancy)"
+  },
+  {
+    "code": "MOBPH",
+    "label": "Mobile phones"
+  },
+  {
+    "code": "NRSNH",
+    "label": "Nursing home"
+  },
+  {
+    "code": "OAUDT",
+    "label": "Operational Audit"
+  },
+  {
+    "code": "ORP",
+    "label": "orphanage"
+  },
+  {
+    "code": "PLTNM",
+    "label": "Platinum"
+  },
+  {
+    "code": "PROPY",
+    "label": "Property"
+  },
+  {
+    "code": "PTBCO",
+    "label": "Pipe Tobacco"
+  },
+  {
+    "code": "PYMNT",
+    "label": "Payment Orders"
+  },
+  {
+    "code": "RBLDG",
+    "label": "Residential building"
+  },
+  {
+    "code": "SCINC",
+    "label": "Science (consultancy)"
+  },
+  {
+    "code": "SECDE",
+    "label": "Security devices"
+  },
+  {
+    "code": "SHOPM",
+    "label": "Shopping Mall"
+  },
+  {
+    "code": "SLVER",
+    "label": "Silver"
+  },
+  {
+    "code": "SRVOF",
+    "label": "Serviced Office"
+  },
+  {
+    "code": "SSERV",
+    "label": "Security services"
+  },
+  {
+    "code": "SSOFT",
+    "label": "Security software"
+  },
+  {
+    "code": "TAUDT",
+    "label": "Tax Audit"
+  },
+  {
+    "code": "TBACO",
+    "label": "Tobacco"
+  },
+  {
+    "code": "TXTLE",
+    "label": "Textiles"
+  },
+  {
+    "code": "VGTBL",
+    "label": "Vegetable"
+  },
+  {
+    "code": "VHCLE",
+    "label": "Vehicle"
+  },
+  {
+    "code": "WAREH",
+    "label": "Warehouse"
+  },
+  {
+    "code": "WATCH",
+    "label": "Watch"
+  },
+  {
+    "code": "WEPON",
+    "label": "Weapon"
+  }
+]

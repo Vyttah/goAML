@@ -37,6 +37,21 @@ class LookupXsdConsistencyTest {
         assertLookupSubsetOfEnum("lookups/ae/currencies.json", "currency_type");
     }
 
+    @Test
+    void itemTypesLookupIsSubsetOfTransItemType() throws Exception {
+        assertLookupSubsetOfEnum("lookups/ae/item_types.json", "trans_item_type");
+    }
+
+    @Test
+    void itemStatusLookupIsSubsetOfTransItemStatus() throws Exception {
+        assertLookupSubsetOfEnum("lookups/ae/item_status.json", "trans_item_status");
+    }
+
+    @Test
+    void reportIndicatorsLookupIsSubsetOfReportIndicatorType() throws Exception {
+        assertLookupSubsetOfEnum("lookups/ae/report_indicators.json", "report_indicator_type");
+    }
+
     private void assertLookupSubsetOfEnum(String lookupResource, String simpleTypeName) throws Exception {
         Set<String> codes = lookupCodes(lookupResource);
         Set<String> enumValues = xsdEnumValues(simpleTypeName);
