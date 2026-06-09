@@ -3,6 +3,8 @@ package com.vyttah.goaml.controller.admin;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigView;
+import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.TenantView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.UserView;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
@@ -14,7 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Platform + tenant administration (Phase 13.2). Tenant provisioning/listing is **SUPER_ADMIN**; user
@@ -88,5 +93,41 @@ public class AdminController {
                                                              @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(GoamlConfigView.from(
                 adminService.upsertGoamlConfig(principal.getTenantId(), request)));
+    }
+
+    // ----- goAML reporting person(s) for the caller's tenant (TENANT_ADMIN) -----
+    // The active person is the default goAML auto-injects into every report (so feeds need not send the MLRO).
+
+    @GetMapping("/goaml-persons")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public ResponseEntity<List<GoamlPersonView>> listGoamlPersons(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(adminService.listGoamlPersons(principal.getTenantId())
+                .stream().map(GoamlPersonView::from).toList());
+    }
+
+    @PostMapping("/goaml-persons")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public ResponseEntity<GoamlPersonView> createGoamlPerson(@Valid @RequestBody GoamlPersonRequest request,
+                                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(GoamlPersonView.from(
+                adminService.createGoamlPerson(principal.getTenantId(), request)));
+    }
+
+    @PutMapping("/goaml-persons/{id}")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public ResponseEntity<GoamlPersonView> updateGoamlPerson(@PathVariable UUID id,
+                                                             @Valid @RequestBody GoamlPersonRequest request,
+                                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(GoamlPersonView.from(
+                adminService.updateGoamlPerson(principal.getTenantId(), id, request)));
+    }
+
+    @DeleteMapping("/goaml-persons/{id}")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public ResponseEntity<Void> deleteGoamlPerson(@PathVariable UUID id,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        adminService.deleteGoamlPerson(principal.getTenantId(), id);
+        return ResponseEntity.noContent().build();
     }
 }

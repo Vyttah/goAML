@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -118,6 +119,59 @@ class AdminApiE2ETest {
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/admin/users").header("Authorization", "Bearer " + analystToken))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void tenantAdminManagesGoamlReportingPersonsWithOneActiveDefault() throws Exception {
+        Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
+                "gp-" + UUID.randomUUID().toString().substring(0, 8), "GoAML Person FZE", "AE",
+                "gp-admin-" + UUID.randomUUID() + "@e2e.test", "P@ssw0rd!", "G", "P"));
+        String taToken = userInTenant(tenant.getId(), "TENANT_ADMIN");
+
+        // create an active reporting person
+        MvcResult p1 = mvc.perform(post("/api/v1/admin/goaml-persons").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"firstName\":\"Aisha\",\"lastName\":\"Khan\",\"gender\":\"F\","
+                                + "\"nationality\":\"AE\",\"active\":true}"))
+                .andExpect(status().isCreated()).andReturn();
+        String id1 = json(p1).get("id").asText();
+        assertThat(json(p1).get("active").asBoolean()).isTrue();
+
+        // a second active person → the first is demoted (one active per tenant, the partial unique index)
+        MvcResult p2 = mvc.perform(post("/api/v1/admin/goaml-persons").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"firstName\":\"Omar\",\"lastName\":\"Saeed\",\"active\":true}"))
+                .andExpect(status().isCreated()).andReturn();
+        String id2 = json(p2).get("id").asText();
+
+        JsonNode list = json(mvc.perform(get("/api/v1/admin/goaml-persons")
+                .header("Authorization", "Bearer " + taToken)).andExpect(status().isOk()).andReturn());
+        int active = 0;
+        String activeId = null;
+        for (JsonNode n : list) {
+            if (n.get("active").asBoolean()) {
+                active++;
+                activeId = n.get("id").asText();
+            }
+        }
+        assertThat(active).isEqualTo(1);
+        assertThat(activeId).isEqualTo(id2);
+
+        // reactivate the first via update (demotes the second)
+        mvc.perform(put("/api/v1/admin/goaml-persons/" + id1).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"firstName\":\"Aisha\",\"lastName\":\"Khan\",\"active\":true}"))
+                .andExpect(status().isOk());
+
+        // delete the second
+        mvc.perform(delete("/api/v1/admin/goaml-persons/" + id2)
+                .header("Authorization", "Bearer " + taToken)).andExpect(status().isNoContent());
+
+        // update a non-existent person → 404
+        mvc.perform(put("/api/v1/admin/goaml-persons/" + UUID.randomUUID()).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"firstName\":\"X\",\"lastName\":\"Y\"}"))
+                .andExpect(status().isNotFound());
     }
 
     // ----- helpers -----
