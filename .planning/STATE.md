@@ -306,6 +306,19 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   `DevDataSeeder`, private at `dev-local/screening-dev-key.pem`). Stale local demo-tenant schema (pre-`V6`)
   500s the push → recreate the demo tenant (fresh DB) to test. **Next:** Phase C — the AML **deal module**
   (the DPMSR goods/transaction the screening push can't carry), then C.4 maps it → goods on the goAML side.
+- **2026-06-09 session (continued) — Phase B (expanded lookups) DONE, merged to `main`.** Resumed the
+  step-by-step plan→review→implement→review rhythm. First a plan edit: folded "download the report **inside**
+  the AML software" into the suite plan's C.2 (a goAML XML-download proxy) + D.4 (`ebb16e3`) — end-state parity
+  goal is the DPMSR is viewable+downloadable in **both** apps. Then **Phase B** on `feature/phase-b-lookups`
+  (`--no-ff`): **B.1+B.2** (`908ec3e`) — three `ae` lookup sets derived directly from the 5.0.2 XSD enums
+  (codes **and** labels from the per-enum schema comments): `item_types` (63), `item_status` (20),
+  `report_indicators` (423); `LookupXsdConsistencyTest` guards them (lookup ⊆ XSD enum). **B.3** (`2bd7ab9`) —
+  the lookup API now serves `entries` `[{code,label}]` alongside `codes` (additive; `LookupService.entries()`),
+  SPA `CodeSelect` shows "CODE — label" + supports multi-select + forwards the Form.Item `id` (was dropped),
+  and the DPMSR builder's item type / status / indicators are now lookup-backed (item type → a real code like
+  `GOLD`, not free text). Both gates green each step. **Feeds Phase C.3** (the AML deal form hits the same
+  lookup API). **Next: Phase C — the AML deal module** (deal entity + "File to goAML" + Frontend screen), then
+  **C.4** (goAML maps deal → goods → a fully VALID DPMSR).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

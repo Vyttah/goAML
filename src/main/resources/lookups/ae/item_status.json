@@ -1,0 +1,82 @@
+[
+  {
+    "code": "-",
+    "label": "UNKNOWN"
+  },
+  {
+    "code": "ACTUC",
+    "label": "Active Under Contract"
+  },
+  {
+    "code": "ACTVO",
+    "label": "Active Option"
+  },
+  {
+    "code": "CNL",
+    "label": "Cancelled"
+  },
+  {
+    "code": "CONT",
+    "label": "Active Contingent"
+  },
+  {
+    "code": "DONTD",
+    "label": "Donated"
+  },
+  {
+    "code": "DSTRY",
+    "label": "Destroyed"
+  },
+  {
+    "code": "EXCHD",
+    "label": "Exchanged"
+  },
+  {
+    "code": "FRZN",
+    "label": "Frozen/Confiscated/Impound"
+  },
+  {
+    "code": "INHTD",
+    "label": "Inherited"
+  },
+  {
+    "code": "LET",
+    "label": "Let"
+  },
+  {
+    "code": "LSD",
+    "label": "Leased"
+  },
+  {
+    "code": "MORTG",
+    "label": "Mortgaged"
+  },
+  {
+    "code": "PNDNG",
+    "label": "Pending"
+  },
+  {
+    "code": "PRCHS",
+    "label": "Purchased"
+  },
+  {
+    "code": "SOLD",
+    "label": "Sold"
+  },
+  {
+    "code": "TOM",
+    "label": "Temporarily off the Market"
+  },
+  {
+    "code": "UAPPL",
+    "label": "Under Application"
+  },
+  {
+    "code": "UNCLM",
+    "label": "Unclaimed"
+  },
+  {
+    "code": "WTH",
+    "label": "Withdrawn"
+  }
+]

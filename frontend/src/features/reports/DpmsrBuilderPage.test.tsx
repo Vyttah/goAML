@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/msw/server';
@@ -17,6 +17,33 @@ function stubLookups() {
     ),
     http.get('*/api/v1/lookups/ae/currencies', () =>
       HttpResponse.json({ jurisdiction: 'ae', set: 'currencies', codes: ['AED', 'USD'] }),
+    ),
+    http.get('*/api/v1/lookups/ae/item_types', () =>
+      HttpResponse.json({
+        jurisdiction: 'ae',
+        set: 'item_types',
+        codes: ['GOLD', 'DIMND'],
+        entries: [
+          { code: 'GOLD', label: 'Gold' },
+          { code: 'DIMND', label: 'Diamond' },
+        ],
+      }),
+    ),
+    http.get('*/api/v1/lookups/ae/item_status', () =>
+      HttpResponse.json({
+        jurisdiction: 'ae',
+        set: 'item_status',
+        codes: ['SOLD'],
+        entries: [{ code: 'SOLD', label: 'Sold' }],
+      }),
+    ),
+    http.get('*/api/v1/lookups/ae/report_indicators', () =>
+      HttpResponse.json({
+        jurisdiction: 'ae',
+        set: 'report_indicators',
+        codes: ['ACTRC'],
+        entries: [{ code: 'ACTRC', label: 'Customer acting as undisclosed agent' }],
+      }),
     ),
   );
 }
@@ -53,13 +80,24 @@ async function typeById(id: string, value: string) {
   await userEvent.type(el, value);
 }
 
+async function selectItemType(code: string, label: string) {
+  // item type is a lookup-backed Select; open it (mouseDown opens AntD selects), filter by typing,
+  // then click the single matching option
+  const input = screen.getByLabelText('Item type');
+  fireEvent.mouseDown(input);
+  await userEvent.type(input, code);
+  await userEvent.click(
+    await screen.findByText(`${code} — ${label}`, { selector: '.ant-select-item-option-content' }),
+  );
+}
+
 async function fillMinimalValidForm() {
   await typeById('entityReference', 'REF-1');
   await typeById('reportingPerson_firstName', 'Jane');
   await typeById('reportingPerson_lastName', 'Roe');
   await typeById('parties_0_person_firstName', 'John');
   await typeById('parties_0_person_lastName', 'Doe');
-  await typeById('goods_0_itemType', 'Gold bar');
+  await selectItemType('GOLD', 'Gold');
   await typeById('goods_0_estimatedValue', '60000');
 }
 
@@ -89,7 +127,7 @@ describe('DpmsrBuilderPage', () => {
     expect((parties[0].personMyClient as Record<string, unknown>).firstName).toBe('John');
     expect(parties[0]).not.toHaveProperty('entity');
     const goods = body.goods as Array<Record<string, unknown>>;
-    expect(goods[0].itemType).toBe('Gold bar');
+    expect(goods[0].itemType).toBe('GOLD');
     expect(goods[0].estimatedValue).toBe(60000);
   });
 

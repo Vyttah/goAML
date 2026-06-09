@@ -18,10 +18,18 @@ export interface LookupSetsView {
   sets: string[];
 }
 
+/** A single lookup choice: the FIU code plus its human label (label === code when none is defined). */
+export interface CodeLabel {
+  code: string;
+  label: string;
+}
+
 export interface LookupSetView {
   jurisdiction: string;
   set: string;
   codes: string[];
+  /** code+label entries (source order); present on the backend, optional here for older fixtures. */
+  entries?: CodeLabel[];
 }
 
 const BASE = `${API_PREFIX}/lookups`;

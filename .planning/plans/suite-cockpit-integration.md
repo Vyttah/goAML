@@ -128,10 +128,21 @@ Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service
 - A.3 ✅ admin REST `GET/POST/PUT/DELETE /api/v1/admin/goaml-persons` (TENANT_ADMIN; activating one demotes the rest).
 - A.4 ✅ SPA "goAML reporting person (MLRO)" admin panel (table + add/edit + make-active + delete). → AML never sends the MLRO.
 
-### Phase B (goAML) — Expanded lookups / dropdowns
-- B.1 add item types, item status codes, DPMSR indicators, party role / identification / contact / address code
-  sets (from the 5.0.2 XSD enums + known UAE codes); extend `LookupService`. B.2 wire SPA dropdowns. (Live
-  FIU-OData lookup sync stays a later external follow-up; values provisional.)
+### Phase B (goAML) — Expanded lookups / dropdowns  ✅ DONE (`feature/phase-b-lookups`)
+> Commits `908ec3e` (B.1+B.2), `2bd7ab9` (B.3). Backend gate (test+jacoco) + frontend gate
+> (typecheck/lint/68 vitest/build) green at each step.
+- B.1+B.2 ✅ three new `ae` lookup sets derived **directly from the 5.0.2 XSD enums** (codes + labels from the
+  per-enum schema comments): `item_types.json` (63, `trans_item_type`), `item_status.json` (20,
+  `trans_item_status`), `report_indicators.json` (423, `report_indicator_type`). `LookupService` auto-loads
+  them (no service change). `LookupXsdConsistencyTest` cases added so they can never drift from the schema.
+  No `ReportValidator` change — the XSD gate already enforces these enums.
+- B.3 ✅ lookup API now serves `entries` `[{code,label}]` alongside `codes` (additive; `LookupService.entries()`
+  retains the label per code). SPA `CodeSelect` shows "CODE — label", supports multi-select, and forwards the
+  Form.Item id (was dropped). DPMSR builder: item type → `item_types`, status → `item_status`, indicators →
+  multi `report_indicators`; item type is now a real goAML code (e.g. `GOLD`), not free text.
+- **Feeds Phase C.3:** the AML deal form calls the same lookup API, so it gets code+label dropdowns for free.
+- Deferred: party role / identification / contact / address code sets, and the live FIU-OData lookup sync
+  (external follow-up; current values are the authoritative XSD enums, which is correct for structural validity).
 
 ### Phase C — The Deal module (the cockpit build, AML-side) + the real feed
 - **C.1 (AML)** — `GoamlTransaction` (deal) entity in `aml-orm`: `companyId`, `customerId`/`customerKind`,

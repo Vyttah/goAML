@@ -16,6 +16,22 @@ export function useLookupCodes(set: string, jurisdiction = DEFAULT_JURISDICTION)
   });
 }
 
+/**
+ * Code+label entries for one lookup set, so dropdowns can show "CODE — description". Falls back to
+ * code-only entries if the backend omits labels. Cached per (jurisdiction, set).
+ */
+export function useLookupEntries(set: string, jurisdiction = DEFAULT_JURISDICTION) {
+  return useQuery({
+    queryKey: ['lookups', jurisdiction, set, 'entries'],
+    queryFn: () =>
+      getLookupSet(set, jurisdiction).then(
+        (r) => r.entries ?? r.codes.map((code) => ({ code, label: code })),
+      ),
+    enabled: Boolean(set) && Boolean(jurisdiction),
+    staleTime: 5 * 60_000,
+  });
+}
+
 /** All jurisdictions (for the lookups browser, 13.9). */
 export function useJurisdictions() {
   return useQuery({ queryKey: ['lookups', 'jurisdictions'], queryFn: listJurisdictions });
