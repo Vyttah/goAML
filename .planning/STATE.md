@@ -280,6 +280,18 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   backend gate green on the rewritten tree. ⚠️ **All commit SHAs changed.** A pre-purge backup bundle (with
   PII) is at `dev/goaml-prePII-backup.bundle` — **delete it once satisfied; never push it.** The repo is now
   safe to add a remote + push.
+- **2026-06-09 session (later still) — Suite-cockpit track STARTED; Phase A DONE.** After a LexAML competitive
+  teardown + reading the real AML stack at `dev/AML` (SpringBoot4 customer/admin/user services + Next.js
+  Frontend_Customer cockpit + Python scraper), wrote the grounded **suite-cockpit integration plan**
+  ([plans/suite-cockpit-integration.md](plans/suite-cockpit-integration.md)) — AML software is the cockpit
+  (owns masters + the new deal module), goAML = report generator + system-of-record. Built **Phase A** on
+  `feature/tenant-goaml-person` (`68db70b`/`9e8ec9b`/`0e76ead`, merged `--no-ff`): goAML now stores the
+  **reporting person (MLRO) as a tenant default** (`tenant_goaml_person`, one active/tenant) and auto-injects it
+  when a report is created without one — so the AML cockpit / CSV / accounting / screening feeds need not send
+  it. Admin REST (`/api/v1/admin/goaml-persons`) + SPA panel. **Next: Slice 1** (prove the pipe — RS256 auth
+  bridge on the AML side + `trusted_service`/tenant mapping + push one customer's parties → goAML draft), then
+  the AML **deal module** (Phase C). Key AML-stack facts: it has **no transaction/deal model** and **does not
+  call goAML yet**; auth is **HS256** (goAML needs an **RS256** assertion). Memory: `aml-software-stack`.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

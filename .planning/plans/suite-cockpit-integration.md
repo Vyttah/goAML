@@ -105,10 +105,15 @@ Goal: one onboarded AML customer → a goAML DPMSR draft, tenant-scoped, over a 
 - **S1.4 (AML)** — Minimal integration client in `customer-service`: given a customer, resolve `Master*`→codes,
   assemble the bundle, sign (S1.1), POST to goAML (S1.3). Prove a real customer → a goAML draft.
 
-### Phase A (goAML) — Reporting-person as a tenant default, auto-fed  (cheap; do alongside Slice 1)
-- A.1 per-tenant `goaml_person` table (first/last/gender/ssn/id_number/nationality/email/occupation + is_active).
-- A.2 auto-inject on report build when the payload omits `reportingPerson`; `reportingPerson` becomes optional.
-- A.3 admin REST + SPA screen (like LexAML's "GoAML Person"). → AML never sends the MLRO.
+### Phase A (goAML) — Reporting-person as a tenant default, auto-fed  ✅ DONE (`feature/tenant-goaml-person`)
+> Commits `68db70b` (A.1+A.2), `9e8ec9b` (A.3), `0e76ead` (A.4). Backend gate (test+jacoco) + frontend gate
+> (typecheck/lint/68 vitest/build) green at each step.
+- A.1 ✅ per-tenant `goaml_person` table (first/last/gender/ssn/id_number/nationality/email/occupation + is_active;
+  one active per tenant via a partial unique index) + entity + repo.
+- A.2 ✅ auto-inject on the curated create/validate/preview path when `reportingPerson` is omitted (now optional);
+  injected person persisted in the report input; no default + none supplied → INVALID. Mapper made null-safe.
+- A.3 ✅ admin REST `GET/POST/PUT/DELETE /api/v1/admin/goaml-persons` (TENANT_ADMIN; activating one demotes the rest).
+- A.4 ✅ SPA "goAML reporting person (MLRO)" admin panel (table + add/edit + make-active + delete). → AML never sends the MLRO.
 
 ### Phase B (goAML) — Expanded lookups / dropdowns
 - B.1 add item types, item status codes, DPMSR indicators, party role / identification / contact / address code
