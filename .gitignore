@@ -37,3 +37,6 @@ helm/*.tgz
 # Real report drops are local-only — never commit report XML (may contain real PII).
 # Anonymized samples for tests live under src/test/resources/samples/. The goAML XSDs in assets/ stay tracked.
 assets/*.xml
+
+# Local-only dev helpers (dev keys, smoke scripts) — never commit.
+dev-local/
