@@ -6,6 +6,49 @@
 
 ---
 
+## Session 2026-06-09 (later) — Competitive teardown (LexAML) + suite-cockpit plan
+
+Participants: developer (rajat.gajera) + Claude. No code yet — strategy + planning.
+Ask: the developer walked Claude (via screenshots) through **LexAML** (liveexshield.com), a deployed UAE AML
+suite with paying clients, and asked for a thorough comparison + "can we be better as planned?" + a plan for
+**both** Vyttah products.
+
+### What LexAML is
+One monolith: Customer Onboarding → Sanction Screening → RBA → Transaction (pick customer + enter deal) →
+Transaction Approval (maker-checker) → GoAML Xml (generate) → **manual upload to the goAML portal**. It even
+generates the older "goAML XML **Schema v2**" variant (+ a "Gold" XML). Stores a reusable customer master with
+shareholder/director/UBO/bank sub-records; a per-tenant "GoAML Person" (reporting person) setting gates XML.
+
+### The comparison (grounded in our code)
+The breadth LexAML bundles — customer master, screening, RBA, case/ISTR — **already exists live in Vyttah's AML
+software**. goAML supplies what LexAML's last mile only fakes: **B2B REST auto-submission + status poll**
+(LexAML = manual upload), multi-tenant SaaS, REST/MCP/CLI, and **5.0.2 schema fidelity** (LexAML's output is the
+older v2). Phase 1.5 already wired AML↔goAML at the data layer (federated SSO + screening party feed + accounting
+push). Gaps vs LexAML are all small/ours: lookups, tenant-default MLRO, maker-checker, finishing the seam.
+
+**Verdict:** the **suite** (AML software + goAML) beats LexAML — on breadth (tie→win via depth) and decisively on
+automation — **iff live B2B submission is proven**. That an incumbent with clients chose manual upload is the
+loudest signal B2B needs validating; it's externally gated (SACM/real RE) so it runs in parallel.
+
+### Decisions (drive `plans/suite-cockpit-integration.md`)
+1. **Cockpit = the AML software** (owns all masters + transactions). **goAML = report generator +
+   system-of-record**: stores the whole payload (parties + goods + transaction details + master snapshot) + XML +
+   FIU status so a goAML login shows the full transaction *and* its report — but **no separate editable masters**.
+2. **Maker-checker on both planes** — AML business sign-off upstream; goAML adds its own MLRO/compliance review
+   stage before FIU submit (two-tier, not redundant).
+3. **Priority = demo-ready suite first** (seam + lookups + tenant MLRO + maker-checker); chase a client RE → live
+   B2B proof in parallel.
+4. **MLRO fed by goAML, not AML** — goAML stores the reporting person as a tenant default and auto-injects it;
+   the AML software sends none.
+
+Key code fact that simplified the plan: `report.input` (JSONB) + `report.report_xml` already persist the full
+report — so "store the whole transaction" is mostly a read/view concern (Phase D.2), not new storage.
+
+Plan: [plans/suite-cockpit-integration.md](plans/suite-cockpit-integration.md) (goAML Phases A–E + AML-software
+integration requirements + the seam contract). Order: A → B → D.2 → C → D.1/D.3, E in parallel.
+
+---
+
 ## Session 2026-06-08 — Pre–Phase-1.5 full verification + hardening pass
 
 Participants: developer (rajat.gajera) + Claude. Branch: `hardening/post-verification` → merged to `main`.
