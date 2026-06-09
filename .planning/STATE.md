@@ -262,10 +262,20 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   person-seeded reports are analyst-completed drafts while **entity**-party customers seed fully VALID reports.
   **(1.5c.4)** SPA **Screening** page (browse subjects + seed modal → navigate to the report); frontend gate
   green (tsc/eslint/64 vitest/build). **(1.5c.5)** JaCoCo += `service/screening`/`controller/screening`;
-  docs + planning synced. **Phase 1.5 is complete; all standalone + suite-integration work is done.** ⚠️ Push
-  still gated on the PII-sample history purge.
+  docs + planning synced. **Phase 1.5 is complete; all standalone + suite-integration work is done.**
+- **2026-06-09 session (later still) — real-PII git-history purge COMPLETE (the push blocker is cleared).**
+  The real filer's PII (company Example Jewellery LLC [ex–Kanji Bullion], people, Emirates ID, passport,
+  email, phone, address, amounts) was spread across **10 files** (the 2 test samples, 2 `assets/` duplicates,
+  3 test fixtures that assert on the values, 3 planning `steps/` docs, + an XSD comment) **and one commit
+  message** — not just the 2 samples. Anonymized globally with a consistent token map (fixtures + assertions
+  replaced in lockstep, so tests stay green) via `git filter-branch` over **all branches** (`--tree-filter`
+  for file content + `--msg-filter` for the commit message), then pruned (`refs/original` dropped, reflogs
+  expired, `gc --prune=now`). **Verified: 0 PII-bearing objects** remain across every blob/commit/tag; full
+  backend gate green on the rewritten tree. ⚠️ **All commit SHAs changed.** A pre-purge backup bundle (with
+  PII) is at `dev/goaml-prePII-backup.bundle` — **delete it once satisfied; never push it.** The repo is now
+  safe to add a remote + push.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
-  (suite integration + federated auth) are all done. Remaining are go-live externals (PII-history purge
-  before any remote push, per-tenant FIU creds, real lookups/BRRs) — see Blockers.
+  (suite integration + federated auth) are all done, and the PII-history purge is done. Remaining are
+  go-live externals (per-tenant FIU creds, real lookups/BRRs) — see Blockers.
