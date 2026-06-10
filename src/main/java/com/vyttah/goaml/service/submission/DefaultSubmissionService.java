@@ -58,9 +58,12 @@ public class DefaultSubmissionService implements SubmissionService {
     public SubmissionResult submit(UUID reportId, UUID tenantId, UUID actorUserId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ReportExceptions.ReportNotFoundException("Report not found: " + reportId));
-        if (!"VALID".equals(report.getStatus())) {
+        // Phase D.2: when the tenant's review gate is on, the report must be APPROVED (VALID → PENDING_REVIEW →
+        // APPROVED); otherwise the direct path applies and VALID is submittable.
+        String required = reviewRequired(tenantId) ? "APPROVED" : "VALID";
+        if (!required.equals(report.getStatus())) {
             throw new SubmissionExceptions.ReportNotSubmittableException(
-                    "Report " + reportId + " is " + report.getStatus() + " — must be VALID to submit");
+                    "Report " + reportId + " is " + report.getStatus() + " — must be " + required + " to submit");
         }
 
         B2bTenantConfig cfg = b2bConfig(tenantId);
@@ -176,6 +179,13 @@ public class DefaultSubmissionService implements SubmissionService {
                         "No tenant_goaml_config for tenant " + tenantId));
         return new B2bTenantConfig(tenantId.toString(), config.getBaseUrl(), config.getSecretsPath(),
                 B2bAuthMode.valueOf(config.getAuthMode()));
+    }
+
+    /** Phase D.2: whether this tenant requires the MLRO review gate before a report can be submitted. */
+    private boolean reviewRequired(UUID tenantId) {
+        return configRepository.findByTenantId(tenantId)
+                .map(TenantGoamlConfig::isReviewRequired)
+                .orElse(false);
     }
 
     private void saveFailed(Submission submission, String errors) {
