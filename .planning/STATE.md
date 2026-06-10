@@ -403,6 +403,23 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   on 22, passes on 18); **not** introduced here. **Run the goAML SPA tests on Node 18.** **Next: D.3** — the
   goAML "Transaction & Report" read view (read endpoint + SPA page over stored input + status + XML), then
   D.1 (AML deal approval) + D.4 (AML status+download).
+- **2026-06-10 session (continued) — Phase D.3 (goAML "Transaction & Report" read view) DONE — both halves.**
+  **D.3a** (goAML `main`, merged `6626375`): `GET /api/v1/reports/{id}/detail` → `ReportDetailView` =
+  summary + the stored filing `input` parsed back to a JSON tree + the persisted validation messages + the D.2
+  review trail (reviewedBy/reviewedAt/reviewRemark) + `hasXml`. `ReportService.detail`/`ReportDetail`; closes
+  the long-noted gap (no endpoint returned a stored report's input or validation). E2E added to
+  `ReportApiE2ETest` (6) + `ReportReviewE2ETest` (review trail in /detail after approve). Full backend gate
+  green (2m05s). **D.3b** (goAML `frontend/`, merged `0174e91`): `ReportDetailPage` now loads `/detail`
+  (`useReportFull`) and adds **Filing details** (new `ReportFilingDetails` — typed DPMSR sections: header /
+  reporting person / parties / goods, + collapsible raw-JSON fallback; probes both the full-fidelity
+  `DpmsrReportPayload` and the curated shape), **Validation** (messages table — closes the SPA validation-
+  re-fetch gap), and **Review** (status/reviewer/remark/when) panels; `getReportDetail` + `ReportDetailView`
+  type + detail query-key invalidation on submit/status/review. Tests: `ReportFilingDetails.test` (3) + a
+  review/validation case on the detail page (detail-page stubs moved to `/detail`). **Full frontend gate green
+  on Node 18: lint/tsc/76 vitest/build** (still run the SPA on Node 18 — Node 22 breaks the unrelated
+  ImportPage upload specs). **All goAML-side Phase D is now complete (D.2 + D.3). Next: the AML plane — D.1**
+  (deal approval before "File", reusing `CaseManagementDecisionLog`) **+ D.4** (show goAML status + link +
+  Download in the AML filing UI).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

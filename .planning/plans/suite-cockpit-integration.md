@@ -233,7 +233,12 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   `ReportDetailPage` "Submit for review" on VALID + submit enabled for VALID|APPROVED; `ReviewQueuePage.test`
   (4); full frontend gate green on Node 18 (lint/tsc/72 vitest/build). **D.2 COMPLETE.**
 - **D.3 (goAML)** — "Transaction & Report" view: a read endpoint + SPA page rendering the stored `input`
-  (parties/directors/UBO/goods/deal) + status + XML — a goAML login shows the whole thing.
+  (parties/directors/UBO/goods/deal) + status + XML — a goAML login shows the whole thing. ✅ **DONE.**
+  **D.3a** (merged `6626375`) — `GET /reports/{id}/detail` → `ReportDetailView` (summary + parsed input +
+  persisted validation + the D.2 review trail + hasXml); closed the gap where no endpoint returned a stored
+  report's input/validation. **D.3b** (merged `0174e91`) — `ReportDetailPage` now loads `/detail` and adds
+  **Filing details** (typed DPMSR sections from the input + raw-JSON fallback, both input shapes), **Validation**
+  (messages table), and **Review** (status/reviewer/remark/when) panels; `ReportFilingDetails` + tests.
 - **D.4 (AML)** — in the case/filing UI: show goAML status (poll/refresh), a link to open the report in goAML,
   **and a "Download report (XML)" action** backed by the C.2 download proxy — so an AML user sees *and downloads*
   the generated DPMSR without leaving the AML software. (End-state parity goal: the report is viewable +
@@ -267,7 +272,8 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 ## Suggested order
 ~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → ~~**Phase C (deal module)**~~ ✅ (C.4a → C.1 → C.2 → C.4b →
 C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML") — **D.2 (goAML review gate) ✅ DONE**
-(D.2a backend + D.2b SPA review queue); next **D.3** (goAML read view) → D.1 (AML deal approval) → D.4 (AML
-status+download) — with **E** (live B2B proof) in parallel throughout. **The full deal→file→download pipe is
-built end-to-end; the goAML review gate (VALID→PENDING_REVIEW→APPROVED→submit, opt-in per tenant) is now in,
-backend + SPA.**
+(D.2a + D.2b), **D.3 (goAML read view) ✅ DONE** (D.3a + D.3b); next **D.1** (AML deal approval) → D.4 (AML
+status+download) — with **E** (live B2B proof) in parallel throughout. **All goAML-side Phase-D work is done:
+the review gate (VALID→PENDING_REVIEW→APPROVED→submit, opt-in per tenant) + the full "see it all" read view
+(stored input + validation + review trail). Remaining Phase D is the AML-plane: D.1 deal approval + D.4
+status/download display.**
