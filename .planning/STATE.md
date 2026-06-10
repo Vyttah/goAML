@@ -376,6 +376,20 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   **Phase C done across all three repos.** Unmerged integration branches: goAML pieces are merged to `main`;
   AML `Backend_Java` + `Frontend_Customer` both on `feature/goaml-integration`. **Next: Phase D** (maker-checker
   on both planes + the "see it all in goAML" read view) and **Phase E** (live FIU B2B submission — external).
+- **2026-06-10 session (continued) — Phase D STARTED; D.2a (goAML report review gate) DONE, merged to `main`.**
+  Wrote+reviewed the Phase D plan (3 decisions locked: **MLRO approves + submits** — maker≠checker holds at
+  create-vs-approve, no new role; **review opt-in everywhere** — `review_required` defaults false for all
+  tenants, a TENANT_ADMIN turns it on; **build D.2 first**). Split D.2 into **D.2a** (goAML backend) + **D.2b**
+  (SPA review queue). Built D.2a on `feature/phase-d2-report-review` (`--no-ff` merge `1d16989`): per-tenant
+  `tenant_goaml_config.review_required` (shared **V5**) + report `reviewed_by/reviewed_at/review_remark`
+  (tenant **V7**); `ReportReviewService` (`submitForReview`/`approve`/`reject`/`reviewQueue`, audited) drives
+  `VALID → PENDING_REVIEW → APPROVED` (reject → VALID, remark required); the submit gate now requires
+  **APPROVED when review is on, VALID when off** (standalone unchanged); REST
+  `POST /reports/{id}/submit-for-review|approve|reject` + `GET /reports/review-queue` (submit-for-review =
+  ANALYST/MLRO, approve/reject = MLRO-only); invalid transition → 409, no-remark reject → 400.
+  `ReportReviewE2ETest` 4 cases (full flow, submit-before-approve 409, reject+remark/RBAC, review-disabled
+  guard). Full gate green (2m42s). **Next: D.2b** — the goAML SPA review queue page (list PENDING_REVIEW +
+  approve/reject actions), then D.3 (goAML read view), D.1 (AML deal approval), D.4 (AML status+download).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

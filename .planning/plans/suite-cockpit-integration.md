@@ -224,7 +224,11 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
 - **D.1 (AML)** — deal approval before filing, reusing the `CaseManagementDecisionLog` pattern (maker creates,
   checker approves → only then "File" is enabled).
 - **D.2 (goAML)** — report review stage: `VALID → PENDING_REVIEW → APPROVED → (MLRO) SUBMITTED`, RBAC + audit,
-  configurable (standalone can skip). REST approve/reject + E2E + SPA review queue.
+  configurable (standalone can skip). REST approve/reject + E2E + SPA review queue. **Split:** **D.2a** backend
+  ✅ DONE (merged `1d16989`) — `tenant_goaml_config.review_required` (default false, opt-in everywhere) + report
+  review columns; `ReportReviewService` (submit-for-review/approve/reject/queue, MLRO approves+submits, no new
+  role); submit gate requires APPROVED when review on; REST `/submit-for-review|approve|reject|review-queue`;
+  `ReportReviewE2ETest` (4). **D.2b** the SPA review queue page — next.
 - **D.3 (goAML)** — "Transaction & Report" view: a read endpoint + SPA page rendering the stored `input`
   (parties/directors/UBO/goods/deal) + status + XML — a goAML login shows the whole thing.
 - **D.4 (AML)** — in the case/filing UI: show goAML status (poll/refresh), a link to open the report in goAML,
@@ -259,6 +263,7 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 
 ## Suggested order
 ~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → ~~**Phase C (deal module)**~~ ✅ (C.4a → C.1 → C.2 → C.4b →
-C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML"), with **E** (live B2B proof) in
-parallel throughout. **The full deal→file→download pipe is built end-to-end (both repos + the AML cockpit
-screen); next is Phase D (the two-plane approval gate) and Phase E (live FIU submission, external).**
+C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML") — **D.2a (goAML review backend) ✅
+DONE**; next **D.2b** (SPA review queue) → D.3 (goAML read view) → D.1 (AML deal approval) → D.4 (AML
+status+download) — with **E** (live B2B proof) in parallel throughout. **The full deal→file→download pipe is
+built end-to-end; the goAML review gate (VALID→PENDING_REVIEW→APPROVED→submit, opt-in per tenant) is now in.**
