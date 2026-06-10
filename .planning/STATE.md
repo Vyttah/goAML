@@ -6,6 +6,14 @@
 
 ---
 
+> **Live dev stack (2026-06-10 frontend-direct test):** goAML `:8090` runs branch `feature/goaml-frontend-direct`
+> against **`goaml_e2e`** (5544) with `GOAML_AUTH_MODE=both` + `GOAML_ALLOWED_ORIGINS=http://localhost:3001`
+> + dev seed; its SCREENING `trusted_service` is `jit=true, default_role=MLRO` and `tenant_goaml_config.rentity_id=3177`
+> (demo tenant `0853bc6d-…`). customer-service `:8081` runs **module-only** `mvn -pl customer-service spring-boot:run`
+> (NOT `-am` → that targets the parent, no main class) with `GOAML_INTEGRATION_BASE_URL=http://localhost:8090`
+> + `GOAML_INTEGRATION_SOURCE=SCREENING` + the dev key. Frontend `:3001` needs
+> `NEXT_PUBLIC_API_GOAML_SERVICE_URL=http://localhost:8090/api/v1` in `.env`. Smoke: `dev-local/goaml-direct-verify.sh`.
+
 ## Project Reference
 
 **What:** Multi-tenant RegTech platform that builds, validates, submits, and tracks goAML AML reports to
