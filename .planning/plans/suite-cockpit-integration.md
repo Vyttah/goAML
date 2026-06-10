@@ -221,8 +221,15 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   — note: `next build` needs **Node ≥18.18** (used nvm Node 22; the env default 18.16 is too old).
 
 ### Phase D — Maker-checker (both planes) + "see it all in goAML"
-- **D.1 (AML)** — deal approval before filing, reusing the `CaseManagementDecisionLog` pattern (maker creates,
-  checker approves → only then "File" is enabled).
+- **D.1 (AML)** — deal approval before filing. ✅ **DONE** (AML `Backend_Java`, `feature/goaml-integration`
+  `00be99a`, unmerged). A **workflow stage gate, not SoD / not role-gated** (product decision: any authenticated
+  company user creates AND approves — mirrors goAML's MLRO-approves+submits). `GoamlApprovalAction` +
+  `GoamlFilingApprovalLog` (Flyway **V103**, mirrors `case_management_decision_log`; `goaml_transaction`
+  unchanged — its `filing_status` enum already had PENDING_APPROVAL/APPROVED); `GoamlDealApprovalService`
+  (DRAFT→PENDING_APPROVAL→APPROVED, reject→DRAFT w/ required remark, append-only audit); 3 endpoints
+  (`/api/v1/goaml-deals/{id}/submit-for-approval|approve|reject`); **`GoamlFilingService.file()` now 409s unless
+  APPROVED**; deals editable only while DRAFT. Tests green (approval 8, filing-gate parametrized). Built via
+  understand→implement→adversarial-review workflows; confirmed review findings applied.
 - **D.2 (goAML)** — report review stage: `VALID → PENDING_REVIEW → APPROVED → (MLRO) SUBMITTED`, RBAC + audit,
   configurable (standalone can skip). REST approve/reject + E2E + SPA review queue. **Split:** **D.2a** backend
   ✅ DONE (merged `1d16989`) — `tenant_goaml_config.review_required` (default false, opt-in everywhere) + report
@@ -272,8 +279,8 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 ## Suggested order
 ~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → ~~**Phase C (deal module)**~~ ✅ (C.4a → C.1 → C.2 → C.4b →
 C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML") — **D.2 (goAML review gate) ✅ DONE**
-(D.2a + D.2b), **D.3 (goAML read view) ✅ DONE** (D.3a + D.3b); next **D.1** (AML deal approval) → D.4 (AML
-status+download) — with **E** (live B2B proof) in parallel throughout. **All goAML-side Phase-D work is done:
-the review gate (VALID→PENDING_REVIEW→APPROVED→submit, opt-in per tenant) + the full "see it all" read view
-(stored input + validation + review trail). Remaining Phase D is the AML-plane: D.1 deal approval + D.4
-status/download display.**
+(D.2a + D.2b), **D.3 (goAML read view) ✅ DONE** (D.3a + D.3b), **D.1 (AML deal approval gate) ✅ DONE**
+(`feature/goaml-integration`, unmerged); next **D.4** (AML: show goAML status + link + Download in the filing
+UI — the last Phase-D slice) — with **E** (live B2B proof) in parallel throughout. **Both approval planes now
+exist: goAML report review gate + AML deal approval gate (deal must be APPROVED before File). Remaining: D.4
+(AML UI display) closes Phase D.**

@@ -420,6 +420,25 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   ImportPage upload specs). **All goAML-side Phase D is now complete (D.2 + D.3). Next: the AML plane — D.1**
   (deal approval before "File", reusing `CaseManagementDecisionLog`) **+ D.4** (show goAML status + link +
   Download in the AML filing UI).
+- **2026-06-10 session (continued) — Phase D.1 (AML goAML-deal approval gate) DONE.** AML `Backend_Java`,
+  branch `feature/goaml-integration`, commit `00be99a` (**NOT merged**; only my 11 files committed via explicit
+  pathspecs — the user's modified poms/yml/properties left untouched). **Product decision (asked):** the gate
+  is a **workflow stage, NOT segregation-of-duties and NOT role-gated** — any authenticated company user can
+  create AND approve (the AML backend has no SoD/clear compliance-role model; mirrors goAML's
+  MLRO-approves+submits). Built: `GoamlApprovalAction` (SUBMIT/APPROVE/REJECT) + `GoamlFilingApprovalLog`
+  entity (aml-orm) + Flyway **V103** `goaml_filing_approval_log` (mirrors `case_management_decision_log`;
+  **`goaml_transaction` unchanged** — its `filing_status` enum already had PENDING_APPROVAL/APPROVED);
+  `GoamlDealApprovalService` (DRAFT→PENDING_APPROVAL→APPROVED, reject→DRAFT w/ required remark, tenant-scoped,
+  append-only audit w/ acting user); 3 endpoints on `/api/v1/goaml-deals/{id}`
+  (`submit-for-approval`/`approve`/`reject`); **`GoamlFilingService.file()` now 409s unless APPROVED**;
+  `GoamlTransactionService` makes a deal editable/deletable only while DRAFT. Tests green via Temurin21+IntelliJ
+  Maven (`mvn -pl customer-service -am test`): `GoamlDealApprovalServiceTest` (8 — incl. tenant isolation +
+  blank-remark normalization), `GoamlFilingServiceTest` (9, parametrized gate over non-APPROVED states),
+  `GoamlTransactionServiceTest` (4). **Process (ultracode):** 3 background workflows — parallel AML-codebase
+  **understand** map → direct implement → **adversarial multi-lens review** (4 lenses × per-finding verify;
+  5/9 confirmed applied, 4 correctly dismissed). **Both approval planes now exist. Next: D.4** — the AML
+  `Frontend_Customer` filing UI: show goAML/approval status + a link to open the report in goAML + the
+  **Download report (XML)** action (C.4b proxy built) — closes Phase D.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
