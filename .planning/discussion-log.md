@@ -572,3 +572,15 @@ Full plan:
   `77147b2` (UI restyle), `af10573` (app select icon), `7f1add0` (T1). **Next: T2** — switch the cockpit to
   POST the full `DpmsrReportPayload` so every KYC/user field round-trips to the XML (banks as account party,
   rich director/UBO detail, PEP, multi-ID, nationality2).
+
+- **✅ T2 done (2026-06-11):** cockpit now posts the **full-fidelity `DpmsrReportPayload`** to `POST /api/v1/reports`
+  (ported adapter `dpmsrPayload.ts` mirrors goAML's SPA: camelCase, phones/addresses wrappers, `directorId[]`,
+  inline `identification[]`, `nationality1`, `personMyClient`). **goAML change:** `reportingPerson` relaxed to
+  optional + `create(DpmsrReportPayload)` injects the tenant MLRO from `tenant_goaml_person` (mirrors the
+  curated path) — commit `a44892c`, EmbeddedConsumerE2ETest covers it, full gate green. **Frontend:** commit
+  `e42eb11`; also fixed two real XSD bugs found via the persisted `validation_errors`: alpha-3→alpha-2 country
+  codes (`b5e60d3`) and the phone `tph_contact_type`/digit-prefix; plus the **identification `type` enum** fix
+  (AML id-type name → `identifier_type` EID/PASSP/…; an identification is emitted only when type+number+both
+  dates+issue_country all resolve, else omitted — XML can't be invalidated by a partial ID). **Remaining T2
+  item:** banks are captured/displayed but not yet filed as a structured `account_my_client` party (required
+  enum fields — status_code/currency/account_name — need live validation); flagged for the combined test.
