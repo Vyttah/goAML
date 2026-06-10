@@ -541,3 +541,24 @@ Full plan:
   **Remaining:** the user's live cockpit pass (plan §10) + Phase E (real per-tenant FIU creds, external).
   **Code-set fidelity caveat:** AML masters' nationality/occupation/country codes vs goAML's sets — confirm in
   the live pass.
+
+---
+
+## 2026-06-10 — Rich Transaction Builder (LiveExShield parity) track opened
+
+- **Ask:** make the cockpit Create Transaction match (and beat) LiveExShield — collapsible
+  **Customer / Shareholder / Director-Representative / Bank / UBO** sections, each a selectable relation table
+  that expands to the relation's full KYC (incl. an ID-documents "Detail" sub-table), plus a deep
+  **Transaction Details** block. Also UI restyle to 100% match Customer Onboarding (done: commits `77147b2`
+  page restyle, `af10573` app select-icon).
+- **Decisions (locked):** (1) **capture everything, never break the XML** — show all LiveExShield fields, file
+  only XSD-valid elements (FIU never rejects), keep the rest as display/metadata so nothing is lost; (2)
+  **frontend-first then goAML** (T1 UI → T2 carry-through); (3) **read-only prefilled** relation detail panels.
+- **Contract reality (verified):** DPMSR is activity-shaped (parties+goods, no txn block). LiveExShield fields
+  split: ✅ map today (report/goods) · 🟡 XSD-supported but not in curated DTO (rich director/UBO, bank account
+  party, role codes, PEP, multi-ID, nationality2) · ❌ not in XSD at all (payment mode, channel, rate, carrier,
+  late deposit, amount LC, indemnified, shareholding %).
+- **Key enabler:** the shipped **full-schema-fidelity** path — `POST /api/v1/reports` binds `DpmsrReportPayload`
+  (xjc leaf types, 1:1 XSD). T2 switches the cockpit to the full payload to carry **every** field; no curated-DTO
+  extension needed. See `.planning/plans/full-schema-fidelity.md`.
+- **Plan:** `.planning/plans/rich-transaction-builder.md` (T1 frontend → T2 goAML carry-through → T3 detail view).
