@@ -1,5 +1,6 @@
 package com.vyttah.goaml.controller.report;
 
+import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportDetailView;
@@ -53,6 +54,21 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
     public ResponseEntity<CreateReportResponse> create(@Valid @RequestBody DpmsrReportPayload request,
                                                        @AuthenticationPrincipal UserPrincipal principal) {
+        ReportResult result = reportService.create(request, principal.getTenantId(), principal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(CreateReportResponse.from(result));
+    }
+
+    /**
+     * Curated-contract create — accepts the ergonomic {@link DpmsrCreateRequest} (the same shape the engine
+     * builder + the CSV / accounting / screening feeds use) instead of the full-fidelity
+     * {@link DpmsrReportPayload}. Lets an external UI (the AML cockpit, calling goAML directly) assemble a
+     * clean DPMSR payload without the xjc-generated leaf types. Same build + validate + persist path and
+     * {@link CreateReportResponse} as {@link #create}; the server injects the tenant header / MLRO as usual.
+     */
+    @PostMapping("/dpmsr")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    public ResponseEntity<CreateReportResponse> createDpmsr(@Valid @RequestBody DpmsrCreateRequest request,
+                                                            @AuthenticationPrincipal UserPrincipal principal) {
         ReportResult result = reportService.create(request, principal.getTenantId(), principal.getUserId());
         return ResponseEntity.status(HttpStatus.CREATED).body(CreateReportResponse.from(result));
     }

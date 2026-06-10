@@ -201,6 +201,31 @@ class ReportApiE2ETest {
     }
 
     @Test
+    void curatedDpmsrEndpointCreatesValidatesAndPersists() {
+        String analyst = user("curated", "ANALYST");
+
+        // the AML cockpit assembles the curated DpmsrCreateRequest and POSTs it directly to goAML
+        ResponseEntity<JsonNode> created =
+                post("/api/v1/reports/dpmsr", String.format(DPMSR_JSON, "PAY-CURATED-1"), analyst);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        assertThat(created.getBody().get("status").asText()).isEqualTo("VALID");
+        String reportId = created.getBody().get("reportId").asText();
+
+        // it is the same report store as POST /reports — shows up in the list + carries the right XML
+        assertThat(get("/api/v1/reports", analyst).getBody().toString()).contains("PAY-CURATED-1");
+        ResponseEntity<String> xml = rest.exchange("/api/v1/reports/" + reportId + "/xml",
+                HttpMethod.GET, new HttpEntity<>(headers(analyst)), String.class);
+        assertThat(xml.getBody())
+                .contains("<report_code>DPMSR</report_code>")
+                .contains("<entity_reference>PAY-CURATED-1</entity_reference>")
+                .contains("<item_type>GOLD</item_type>");
+
+        // idempotency holds on the curated path too
+        assertThat(post("/api/v1/reports/dpmsr", String.format(DPMSR_JSON, "PAY-CURATED-1"), analyst)
+                .getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+    }
+
+    @Test
     void fullFidelityPayloadPersistsEveryFieldIntoTheXml() throws Exception {
         String mlro = user("full", "MLRO");
 

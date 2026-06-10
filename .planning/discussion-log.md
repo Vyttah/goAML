@@ -483,3 +483,50 @@ Branch `feature/phase-1.5c-screening` (`f0d4ccc`…1.5c.5, `--no-ff` to `main`).
   `t_entity_person` — our XSD gate correctly rejects it.
 - **PII:** `assets/USG…` + `assets/TR.2079.*` are real-PII and must not be committed (repo was history-purged
   for push). Left on disk untracked; an **anonymized** copy lives at `src/test/resources/samples/USG-dpmsr-activity.xml`.
+
+## goAML as a frontend-direct microservice for the AML cockpit (pivot — 2026-06-10)
+
+**Decision (APPROVED — building; auth model = Option 1 Federated SSO, chosen 2026-06-10):** reposition goAML
+as a microservice the **AML frontend calls directly**, retiring the AML-backend proxy shape built in Phase C/D.
+Full plan:
+[plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md).
+
+- **User's pivot (verbatim intent):** AML frontend gets a **Create Transaction** + **Approve Transaction**
+  menu (+ **Download XML** after approve); the frontend calls goAML **directly** to create / approve /
+  generate-validate XML; it **fetches party data from the AML services** and **assembles the whole DPMSR
+  payload on the frontend**; **all transaction + DPMSR + goAML data stays in goAML** (no AML persistence);
+  screening + other AML features are unaffected.
+- **Supersedes, doesn't disturb:** Phase C/D built the same loop via an **AML-backend proxy + an AML
+  `goaml_transaction` deal table** (`feature/goaml-integration`, **unmerged**). This pivot moves the calls to
+  the **frontend** and drops AML-side persistence. Because that branch is unmerged, AML mainline is untouched —
+  the old deal module stays **dormant**, not ripped out.
+- **Verification fan-out (6 readers, both repos)** confirmed the full contract surface. The **goAML side needs
+  near-zero change** — create / review-approve-reject / submit / detail / xml / status / lookups /
+  reportability all already exist (table in the plan §5).
+- **⭐ The auth crux (verified):** `POST /api/v1/auth/federated/token` requires an **RS256 assertion signed by
+  a PRIVATE key** → **cannot be minted in a browser**. But `/api/v1/auth/login` IS browser-callable and CORS is
+  configurable (`goaml.web.allowed-origins` → the AML origin), so a browser **can hold a goAML JWT and call
+  `/api/v1/reports*` directly** — the only question is **how it gets the token**. Options:
+  1. **Federated SSO via a thin AML-backend token-mint (RECOMMENDED)** — one AML-backend call mints the
+     assertion + exchanges it → goAML JWT; the browser then calls everything else on goAML directly. Transparent
+     SSO, per-user attribution, reuses the built assertion signer + federated endpoint. Approve/submit are
+     **MLRO-only**, so the federated approver must map to a goAML **MLRO**.
+  2. **Native goAML login** — browser logs into goAML (`/auth/login`) directly; zero AML-backend involvement;
+     but a second credential to manage (shared service account loses attribution).
+  3. per-call assertion from the browser — ❌ key-in-browser, rejected.
+- **Payload contract:** the public `POST /api/v1/reports` takes the heavy full-schema `DpmsrReportPayload`;
+  `ReportService.create(DpmsrCreateRequest,…)` (curated) already exists → **recommend** adding a small additive
+  `POST /api/v1/reports/dpmsr` so the frontend assembles the **curated** shape, not the xjc tree.
+- **Field gaps the Create form must collect** (goAML needs, AML KYC lacks/omits): occupation, residence
+  country, incorporation state, commercial name, full ID-doc block + multiple IDs, TRN; a DPMSR **person** party
+  without a full ID doc + `tax_reg_number` seeds an analyst-completed **draft** (engine rule from 1.5c).
+- **Build shape:** G1 (goAML config + optional curated endpoint) · A1 (frontend goAML auth bridge +
+  `axiosInstanceGoaml`) · A2 (Create Transaction page — KYC prefill + payload assembly) · A3 (Approve
+  Transaction page — goAML review workflow + Download XML) · A4 (lookups direct + docs).
+- **✅ Auth model chosen (2026-06-10): Option 1 — Federated SSO via a thin AML-backend token-mint.** The
+  browser bootstraps its goAML JWT through one AML-backend call (`POST /api/v1/goaml/token` → mint RS256
+  assertion → goAML `/auth/federated/token`), then calls every transaction op on goAML directly. Build order:
+  **G1** (goAML: `GOAML_AUTH_MODE=both` + CORS for the AML origin + role-map the approver → goAML MLRO +
+  optional curated `POST /api/v1/reports/dpmsr`) → **A1** (AML `GoamlTokenController` + frontend
+  `axiosInstanceGoaml`/goAML-JWT interceptor) → **A2** (Create Transaction page) → **A3** (Approve Transaction
+  page) → **A4** (lookups direct + docs).

@@ -456,6 +456,25 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   **PHASE D COMPLETE (D.1+D.2+D.3+D.4). The full suite loop is built end-to-end: AML deal → approve (AML) →
   File → goAML builds the DPMSR → MLRO review/approve (goAML) → (with FIU creds) submit; report viewable +
   downloadable in BOTH apps. Remaining: only Phase E** (live FIU B2B proof — external, real RE + SACM).
+- **2026-06-10 session (continued) — PIVOT: goAML as a frontend-direct microservice for the AML cockpit.**
+  After Phase D closed (AML-backend-proxy loop), the user re-scoped: the **AML frontend should call goAML
+  directly** — two menus (**Create Transaction**, **Approve Transaction**) + **Download XML**; the frontend
+  **fetches KYC from the AML services and assembles the whole DPMSR payload itself**; **all transaction/DPMSR
+  data stays in goAML** (no AML persistence); screening + other AML features untouched. This **supersedes** the
+  AML-side deal module + proxies from Phase C/D — which live on the **unmerged** `feature/goaml-integration`
+  branch, so AML mainline is undisturbed (the old module stays dormant). Ran a **6-reader verification fan-out**
+  across both repos → confirmed the **goAML side needs near-zero change** (create / review-approve-reject /
+  submit / detail / xml / status / lookups / reportability all exist). **Auth crux (verified):**
+  `/auth/federated/token` needs a **private-key-signed RS256 assertion → not browser-mintable**; but
+  `/auth/login` is browser-callable + CORS is configurable, so a browser CAN hold a goAML JWT and call
+  `/api/v1/reports*` directly — the open decision is **how it gets the token** (Option 1 = federated SSO via a
+  thin AML-backend mint **[recommended]**; Option 2 = native goAML login). Wrote the full plan
+  [plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md) + logged the decision in
+  [discussion-log.md](discussion-log.md). **✅ Auth model chosen: Option 1 (Federated SSO via a thin
+  AML-backend token-mint).** Building **G1→A4**: G1 (goAML `GOAML_AUTH_MODE=both` + CORS for the AML origin +
+  approver→MLRO role-map + optional curated `POST /api/v1/reports/dpmsr`) → A1 (AML `GoamlTokenController` +
+  frontend `axiosInstanceGoaml`/goAML-JWT interceptor) → A2 (Create Transaction page) → A3 (Approve Transaction
+  page) → A4 (lookups direct + docs).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
