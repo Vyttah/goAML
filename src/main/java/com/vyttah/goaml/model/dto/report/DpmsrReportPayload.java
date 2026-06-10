@@ -31,7 +31,10 @@ public record DpmsrReportPayload(
         @NotBlank String entityReference,
         @NotNull OffsetDateTime submissionDate,
         String fiuRefNumber,
-        @NotNull TPersonRegistrationInReport reportingPerson,
+        // Optional on the wire: when omitted the service fills it from the tenant's active
+        // tenant_goaml_person (the goAML-feeds-the-MLRO decision), mirroring the curated path. The build
+        // still yields INVALID ("reporting_person is mandatory") if neither supplied nor configured.
+        TPersonRegistrationInReport reportingPerson,
         TAddress location,
         String reason,
         String action,

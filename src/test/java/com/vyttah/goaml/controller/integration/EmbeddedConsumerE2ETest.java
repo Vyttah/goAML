@@ -100,6 +100,18 @@ class EmbeddedConsumerE2ETest {
               "goods": [{"itemType": "GOLD", "estimatedValue": 90000.00, "currencyCode": "AED"}]
             }""";
 
+    /** Same full payload but WITHOUT reportingPerson — the cockpit relies on goAML to inject the MLRO. */
+    private static final String DPMSR_NO_RP_JSON = """
+            {
+              "entityReference": "%s",
+              "submissionDate": "2026-06-09T12:00:00Z",
+              "reason": "DPMS threshold met", "action": "Filed",
+              "indicators": ["DPMSJ"],
+              "parties": [{"reason": "Seller", "entity":
+                  {"name": "Minimal Trading FZE", "incorporationNumber": "123456", "incorporationCountryCode": "AE"}}],
+              "goods": [{"itemType": "GOLD", "estimatedValue": 90000.00, "currencyCode": "AED"}]
+            }""";
+
     @BeforeEach
     void setUp() throws Exception {
         externalIdentities.deleteAll();
@@ -178,6 +190,26 @@ class EmbeddedConsumerE2ETest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt)
                         .contentType(APPLICATION_JSON).content(""))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void fullPayloadOmittingReportingPersonInjectsTheTenantMlro() throws Exception {
+        // the tenant's active reporting person (MLRO) — a full-payload client (the AML cockpit) need not send it
+        jdbcTemplate.update("""
+                INSERT INTO public.tenant_goaml_person
+                  (id, tenant_id, first_name, last_name, nationality, id_number, occupation, is_active)
+                VALUES (?, ?, 'Layla', 'Mansoori', 'AE', '784000000000001', 'MLRO', true)
+                """, UUID.randomUUID(), tenant.getId());
+
+        String jwt = exchange("ext-analyst2", "analyst2@emb.test");
+        JsonNode created = postJson("/api/v1/reports", String.format(DPMSR_NO_RP_JSON, "EMB-NRP"), jwt);
+        assertThat(created.get("status").asText()).isEqualTo("VALID");
+        String reportId = created.get("reportId").asText();
+
+        String xml = mvc.perform(get("/api/v1/reports/" + reportId + "/xml")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwt))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertThat(xml).contains("<first_name>Layla</first_name>").contains("<last_name>Mansoori</last_name>");
     }
 
     // --- helpers ---

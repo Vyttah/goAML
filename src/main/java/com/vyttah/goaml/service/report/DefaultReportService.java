@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
 import com.vyttah.goaml.engine.build.DpmsrReportBuilder;
 import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.engine.build.ValidatedReport;
@@ -58,7 +59,8 @@ public class DefaultReportService implements ReportService {
 
     @Override
     public ReportResult create(DpmsrReportPayload payload, UUID tenantId, UUID actorUserId) {
-        return doCreate(payload, payload, tenantId, actorUserId);
+        DpmsrReportPayload filled = withDefaultReportingPerson(payload, tenantId);
+        return doCreate(filled, filled, tenantId, actorUserId);
     }
 
     @Override
@@ -98,6 +100,37 @@ public class DefaultReportService implements ReportService {
     private static DpmsrCreateRequest.Person toPerson(TenantGoamlPerson p) {
         return new DpmsrCreateRequest.Person(p.getGender(), p.getFirstName(), p.getLastName(), null, null,
                 p.getNationality(), null, p.getIdNumber(), null, p.getOccupation(), null, null, null);
+    }
+
+    /**
+     * Same MLRO injection for the full-fidelity {@link DpmsrReportPayload} path: fill the reporting person
+     * from the tenant's active {@code tenant_goaml_person} when the caller omitted it, so a full-payload
+     * client (the AML cockpit) need not hold MLRO data either.
+     */
+    private DpmsrReportPayload withDefaultReportingPerson(DpmsrReportPayload payload, UUID tenantId) {
+        if (payload.reportingPerson() != null) {
+            return payload;
+        }
+        return personRepository.findByTenantIdAndActiveTrue(tenantId)
+                .map(person -> withReportingPerson(payload, toRegistrationPerson(person)))
+                .orElse(payload);
+    }
+
+    private static DpmsrReportPayload withReportingPerson(DpmsrReportPayload p, TPersonRegistrationInReport rp) {
+        return new DpmsrReportPayload(p.rentityBranch(), p.entityReference(), p.submissionDate(),
+                p.fiuRefNumber(), rp, p.location(), p.reason(), p.action(), p.indicators(), p.parties(),
+                p.goods());
+    }
+
+    private static TPersonRegistrationInReport toRegistrationPerson(TenantGoamlPerson p) {
+        TPersonRegistrationInReport rp = new TPersonRegistrationInReport();
+        rp.setGender(p.getGender());
+        rp.setFirstName(p.getFirstName());
+        rp.setLastName(p.getLastName());
+        rp.setNationality1(p.getNationality());
+        rp.setIdNumber(p.getIdNumber());
+        rp.setOccupation(p.getOccupation());
+        return rp;
     }
 
     /**
