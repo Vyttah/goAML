@@ -594,3 +594,28 @@ Full plan:
   201 VALID and institution_name/swift/account/account_name/iban round-trip into the marshalled XML. **T2 is
   now complete** — every selected relation type (subject, directors/shareholders/UBOs/reps with roles+IDs,
   banks) plus all goods fields files into a FIU-valid DPMSR; non-XSD extras remain captured metadata.
+
+- **✅ T2.1 — full LiveExShield field parity + correct mandatory markers (2026-06-11):** user flagged the cockpit
+  still had far fewer fields than LiveExShield, no mandatory markers, and a confusing "Indicators" field. Ran a
+  4-way XSD-grounded gap analysis (goAML 5.0.2 XSD ⇄ xjc leaf types ⇄ current form ⇄ LiveExShield/AML-KYC).
+  Findings + decisions:
+  - **`indicators` IS mandatory.** XSD `<report_indicators>` (≥1 `<indicator>` from the 423-value
+    `report_indicator_type` enum) has no minOccurs ⇒ required; an empty one is XSD-INVALID and the FIU rejects.
+    It IS LiveExShield's "Is STR/ISTR" reason-for-reporting. Relabelled "Reason for reporting (FIU indicator)" +
+    helper; kept required.
+  - **Subject party type switched to the LENIENT `t_person`/`t_entity`** (was natural→`t_person_my_client`,
+    legal→`t_entity` — inconsistent). DECISIVE evidence: all three real FIU DPMSR samples use `<entity>`
+    (non-my-client). `t_person_my_client` forces gender/birthdate/idNumber/nationality/residence/phones + a
+    **required 1-char `tax_reg_number`** (line 1251) — a real TRN would XSD-break the XML and blank fields built
+    INVALID. On `t_person`/`t_entity` only the name is required, every KYC field is optional ⇒ carry everything,
+    FIU can't reject for a missing field. Also fixed `country_of_birth` being silently dropped by the adapter.
+  - **Field parity:** added the missing LiveExShield fields, all KYC-prefilled — natural: alias, dual nationality
+    (`nationality2`), source of wealth, email, full address; legal: business activity (→`business`, free-text,
+    maxLen 255), date of incorporation, TRN (→`tax_number`), email, full address. `legal_form_type` is a restricted
+    enum, so license type is NOT filed there (metadata). EID issue-country defaults AE, passport→nationality
+    (definitional, editable, not fabricated). ID + address filed all-or-nothing (omit if incomplete → never breaks).
+  - **Mandatory markers + validation** on every field the FIU/LiveExShield treats as required. PEP (no 5.0.2
+    person element) + source of funds captured as report metadata.
+  - **Live-verified** (POST /api/v1/reports, goAML :8090): natural `<person>` + legal `<entity>` full payloads
+    both build **VALID, zero messages**, and every new element round-trips into the marshalled XML. Frontend
+    commit `0348255`; **no goAML code change** (the `DpmsrReportPayload` full path already carries all of this).

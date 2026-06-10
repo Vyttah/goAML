@@ -111,3 +111,23 @@ carry every XSD element. See `.planning/plans/full-schema-fidelity.md`.
   carry role codes); `tsc`+`lint` green.
 - **T2:** a created report's XML carries the rich party/goods fields + bank account party; XSD round-trip
   passes; FIU-unsupported fields are absent from the XML but present in the stored metadata.
+
+## ✅ T2.1 — LiveExShield field parity + mandatory markers (DONE, verified 2026-06-11)
+
+Closes the remaining gap the user flagged ("still major differences vs LiveExShield, no mandatory markers,
+what is `indicators`"). XSD-grounded 4-way gap analysis drove these:
+
+- **Subject filed as the LENIENT `t_person`/`t_entity`** (was natural→`t_person_my_client`). The real FIU
+  DPMSR samples all use `<entity>` (non-my-client); `t_person_my_client` requires a 1-char `tax_reg_number`
+  (would XSD-break a real TRN) + gender/dob/idNumber/nationality/residence/phones. On the lenient types only
+  the name is required ⇒ carry every KYC field as optional, never INVALID for a missing field. Fixed
+  `country_of_birth` drop.
+- **`indicators` IS mandatory** (XSD `<report_indicators>`, ≥1 from `report_indicator_type`). Relabelled
+  "Reason for reporting (FIU indicator)" + helper; it is LiveExShield's "Is STR/ISTR".
+- **Added fields** (all KYC-prefilled): natural — alias, dual nationality (`nationality2`), source of wealth,
+  email, full address; legal — business activity (→`business`), date of incorporation, TRN (→`tax_number`),
+  email, full address. `legal_form_type` is a restricted enum ⇒ license type kept as metadata. ID + address
+  filed all-or-nothing. PEP + source of funds → metadata.
+- **Mandatory markers + validation** on every FIU/LiveExShield-required field.
+- **Verified live**: natural `<person>` + legal `<entity>` full payloads → **VALID, zero messages**, every
+  element round-trips into the marshalled XML. Frontend commit `0348255`; no goAML code change.

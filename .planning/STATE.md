@@ -544,6 +544,17 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   `feature/goaml-integration` (A1a `7a399e0`); AML `Frontend_Customer` `feature/goaml-integration` (A1b
   `0f57680`, A2 `ca45180`, A3 `820dc08`). **Remaining:** the user's live cockpit pass (plan §10) + Phase E
   (real FIU creds, external). Plan: [plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md).
+- **2026-06-11 — Rich Transaction Builder T1→T2 + T2.1 (LiveExShield parity) COMPLETE & VERIFIED LIVE.** The
+  cockpit Create-Transaction page now posts the full-fidelity `DpmsrReportPayload` with **every** LiveExShield
+  field, all KYC-prefilled, with correct **mandatory markers**. Key fixes this session: subject filed as the
+  **lenient `t_person`/`t_entity`** (matching the real FIU DPMSR samples — not `t_person_my_client`, whose
+  required 1-char `tax_reg_number` could XSD-break the XML), `country_of_birth` no longer dropped, "Indicators"
+  relabelled "Reason for reporting (FIU indicator)" (it is XSD-mandatory ≥1). Added natural alias/dual-nationality/
+  source-of-wealth/email/address + legal business-activity/incorporation-date/TRN/email/address; PEP + source-of-
+  funds kept as metadata; `legal_form_type` left unset (enum). Live: natural `<person>` + legal `<entity>` full
+  payloads build **VALID, zero messages**, all elements round-trip into the XML. **No goAML code change** (full
+  path already supports it). Frontend commit `0348255`. Plan: [plans/rich-transaction-builder.md](plans/rich-transaction-builder.md).
+  **Remaining:** user's combined live cockpit pass + Phase E (real FIU creds, external).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
