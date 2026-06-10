@@ -24,6 +24,8 @@ export const REPORT_STATUSES = [
   'DRAFT',
   'VALID',
   'INVALID',
+  'PENDING_REVIEW',
+  'APPROVED',
   'SUBMITTED',
   'ACCEPTED',
   'REJECTED',
@@ -69,6 +71,15 @@ export interface StatusView {
   reportKey: string | null;
   status: string;
   errors: string | null;
+}
+
+/** Outcome of a review-stage transition (Phase D.2) — mirrors `ReportResponses.ReviewView`. */
+export interface ReviewView {
+  reportId: string;
+  status: string;
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  remark: string | null;
 }
 
 /** Report attachment metadata — mirrors `model.dto.attachment.AttachmentView`. */

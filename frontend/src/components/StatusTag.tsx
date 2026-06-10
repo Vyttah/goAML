@@ -8,6 +8,8 @@ const COLORS: Record<string, string> = {
   DRAFT: 'default',
   VALID: 'blue',
   INVALID: 'red',
+  PENDING_REVIEW: 'gold',
+  APPROVED: 'cyan',
   SUBMITTED: 'processing',
   ACCEPTED: 'success',
   REJECTED: 'error',

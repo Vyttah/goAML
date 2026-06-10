@@ -25,6 +25,9 @@ export function AppShell() {
     ...(isTenantUser
       ? [{ key: '/screening', label: <Link to="/screening">Screening</Link> }]
       : []),
+    ...(can(ROLES.MLRO, ROLES.TENANT_ADMIN)
+      ? [{ key: '/reports/review', label: <Link to="/reports/review">Review queue</Link> }]
+      : []),
     { key: '/reference', label: <Link to="/reference">Reference</Link> },
     ...(can(ROLES.SUPER_ADMIN, ROLES.TENANT_ADMIN)
       ? [{ key: '/admin', label: <Link to="/admin">Admin</Link> }]

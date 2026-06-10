@@ -16,6 +16,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
 import {
+  AuditOutlined,
   DeleteOutlined,
   DownloadOutlined,
   FileTextOutlined,
@@ -39,6 +40,7 @@ import {
   useReport,
   useSubmitReport,
 } from './useReportDetail';
+import { useSubmitForReview } from './useReviewQueue';
 import type { AttachmentView, StatusView } from '../../types';
 
 const SUBMITTED_STATUSES = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'FAILED'];
@@ -66,6 +68,7 @@ export function ReportDetailPage() {
 
   const reportQuery = useReport(id);
   const submit = useSubmitReport(id);
+  const submitForReview = useSubmitForReview(id);
   const checkStatus = useCheckStatus(id);
   const attachmentsQuery = useAttachments(id);
   const addAttachment = useAddAttachment(id);
@@ -95,7 +98,9 @@ export function ReportDetailPage() {
   }
 
   const report = reportQuery.data;
-  const canSubmit = report.status === 'VALID' && can(ROLES.MLRO);
+  // A report submits when VALID (review off) or APPROVED (review on); the backend enforces which.
+  const canSubmit = ['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO);
+  const canSubmitForReview = report.status === 'VALID' && can(ROLES.ANALYST, ROLES.MLRO);
   const canEditAttachments = can(ROLES.ANALYST, ROLES.MLRO);
   const hasSubmission = SUBMITTED_STATUSES.includes(report.status);
 
@@ -105,6 +110,15 @@ export function ReportDetailPage() {
       await submit.mutateAsync();
     } catch (err) {
       setActionError(errorMessage(err, 'Submission failed'));
+    }
+  };
+
+  const onSubmitForReview = async () => {
+    setActionError(null);
+    try {
+      await submitForReview.mutateAsync(undefined);
+    } catch (err) {
+      setActionError(errorMessage(err, 'Could not submit for review'));
     }
   };
 
@@ -242,6 +256,15 @@ export function ReportDetailPage() {
           />
         )}
         <Space wrap>
+          {canSubmitForReview && (
+            <Button
+              icon={<AuditOutlined />}
+              onClick={onSubmitForReview}
+              loading={submitForReview.isPending}
+            >
+              Submit for review
+            </Button>
+          )}
           {can(ROLES.MLRO) && (
             <Popconfirm
               title="Submit this report to the FIU?"
@@ -271,16 +294,17 @@ export function ReportDetailPage() {
           )}
         </Space>
 
-        {!can(ROLES.MLRO) && !hasSubmission && (
+        {!can(ROLES.MLRO) && !hasSubmission && !canSubmitForReview && (
           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
             No actions available here — submitting to the FIU is restricted to an MLRO, and this report
             hasn&apos;t been submitted yet.
           </Typography.Paragraph>
         )}
 
-        {!canSubmit && report.status !== 'VALID' && can(ROLES.MLRO) && (
+        {!canSubmit && !['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO) && (
           <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-            Only a <strong>VALID</strong> report can be submitted (this one is {report.status}).
+            Only a <strong>VALID</strong> or <strong>APPROVED</strong> report can be submitted (this one is{' '}
+            {report.status}).
           </Typography.Paragraph>
         )}
 

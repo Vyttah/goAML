@@ -1,6 +1,12 @@
 import { apiClient } from './client';
 import { API_PREFIX } from '../lib/config';
-import type { CreateReportResponse, ReportView, StatusView, SubmissionView } from '../types';
+import type {
+  CreateReportResponse,
+  ReportView,
+  ReviewView,
+  StatusView,
+  SubmissionView,
+} from '../types';
 import type { DpmsrReportPayload } from '../types/dpmsrPayload';
 
 const BASE = `${API_PREFIX}/reports`;
@@ -38,5 +44,31 @@ export async function submitReport(id: string): Promise<SubmissionView> {
 /** Refresh + return the latest FIU status for a report. */
 export async function getReportStatus(id: string): Promise<StatusView> {
   const { data } = await apiClient.get<StatusView>(`${BASE}/${id}/status`);
+  return data;
+}
+
+// ---- Review gate (Phase D.2, opt-in per tenant) ----------------------------------------------
+
+/** Reports awaiting MLRO review (PENDING_REVIEW) for this tenant — the review queue. */
+export async function getReviewQueue(): Promise<ReportView[]> {
+  const { data } = await apiClient.get<ReportView[]>(`${BASE}/review-queue`);
+  return data;
+}
+
+/** Submit a VALID report into the review queue (ANALYST or MLRO). */
+export async function submitReportForReview(id: string, remark?: string): Promise<ReviewView> {
+  const { data } = await apiClient.post<ReviewView>(`${BASE}/${id}/submit-for-review`, { remark });
+  return data;
+}
+
+/** Approve a PENDING_REVIEW report (MLRO). */
+export async function approveReport(id: string, remark?: string): Promise<ReviewView> {
+  const { data } = await apiClient.post<ReviewView>(`${BASE}/${id}/approve`, { remark });
+  return data;
+}
+
+/** Reject a PENDING_REVIEW report back to VALID (MLRO) — a remark is required. */
+export async function rejectReport(id: string, remark: string): Promise<ReviewView> {
+  const { data } = await apiClient.post<ReviewView>(`${BASE}/${id}/reject`, { remark });
   return data;
 }
