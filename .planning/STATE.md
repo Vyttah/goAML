@@ -494,6 +494,14 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   `next build` is verified with A2 (first consumer of A1b). **Live E2E needs:** customer-service rebuilt/
   restarted with A1a + `GOAML_AUTH_MODE=both` + `GOAML_ALLOWED_ORIGINS=http://localhost:3001` on goAML +
   the AML companyId mapped to the demo tenant. Plan: [plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md).
+- **2026-06-10 (continued) — goAML half VERIFIED LIVE.** Self-contained smoke (`dev-local/goaml-direct-verify.sh`,
+  gitignored) on an isolated goAML `:8099` over a throwaway `goaml_smoke` DB (dev key mints the SCREENING
+  assertion — no AML login), all green: federated exchange → JWT with **MLRO** (G1.3) → direct `GET /reports`
+  200 → lookups → curated `POST /reports/dpmsr` **VALID** (G1.1) → CORS from `:3001` echoed (G1.2). Isolated
+  instance + DB torn down; running stack (8090/8081/8080) untouched. **Finding (config prereq, not a defect):**
+  the dev seeder creates no `tenant_goaml_config` → fresh tenant `rentity_id=0` → INVALID until a config row
+  with a positive `rentity_id` is seeded. customer-service `/goaml/token` leg is unit-tested (live leg needs
+  the AML password). **A2 plan detailed in the plan doc §6; presented for approval before building.**
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

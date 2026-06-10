@@ -222,12 +222,56 @@ work; chosen only if we want zero goAML edits.
   cockpit user as MLRO, and its company must map to the demo tenant (`GOAML_DEV_SCREENING_COMPANY_ID` = the AML
   companyId, e.g. `vyttah`).
 
-**A2 — "Create Transaction" page** (`src/app/(main)/create-transaction/page.tsx` + nav item).
-- Pick customer (legal/natural) → fetch KYC via existing getters → **prefill** the party block (resolve FK ids
-  → codes) → user completes goods[] (item type/status/value/currency from goAML lookups), indicators
-  (multi-select, ≥1), report header (reason/action), and the **§5 gap fields** → optional
-  **reportability check** → assemble `DpmsrCreateRequest` → `goamlCreateReport` → show `reportId` +
-  VALID/INVALID + validation messages. (No AML persistence — the report lives in goAML.)
+**A2 — "Create Transaction" page** (`src/app/(main)/create-transaction/page.tsx` + nav item) — DETAILED:
+
+*Structure* — mirror `DpmsrBuilderPage` (goAML SPA, the proven layout) but in AML's form primitives
+(FormSelect/FormMultiSelect/FormInput/FormDatePicker + useState/DataTable; no Form.List/useFieldArray). One
+multi-section page under a new **"Create Transaction"** `navItem`, component dir
+`components/CreateTransactionComponent/`.
+
+*Step 0 — masters + lookups (parallel `useQuery`):* `getDropDownOptions('countries,genders,nationalities,occupations,currencies,id-types')`
+(AML masters → `toOptions`) + `goamlLookup('item_types'|'item_status'|'report_indicators')` (goAML codes).
+Build a FK-id→code resolver from the masters (nationalityId→ISO, genderId→code, countryId→ISO, idTypeId→code).
+
+*Step 1 — pick customer:* a customer-kind toggle (Legal | Natural) + a `FormSelect` of customers
+(`getLegalCustomer('page=0&size=200')` / the natural-list getter) — reuse the existing filing-component picker.
+
+*Step 2 — load + PREFILL party (the core new work):* on select, fetch KYC and map → the party block:
+- **Legal →** `getLegalCustomerDataById` + `getLegalCustomerRelationDetails` (directors) + per-director
+  `getDirectorIdentificationsById` → `Party.entity` (name←legalName, incorporationNumber←licenseNumber/inc#,
+  incorporationCountryCode←countryOfIncorporationId→ISO, dateOfIncorporation, phone) + `directors[]`
+  (firstName/lastName/nationality→ISO/residence←countryOfResidenceId→ISO/birthdate + first id→idNumber).
+- **Natural →** `getNaturalCustomerDataById` → `Party.person` (firstName/lastName, gender→code,
+  birthdate←dob, nationality→ISO, idNumber←emiratesId, phone, address).
+- Prefill is **editable** — every field lands in a form control the user can correct.
+
+*Step 3 — fill the GAP fields (§5; required for VALID):* occupation (FormSelect occupations→code), residence
+country (FormSelect countries→ISO) for a natural person, incorporation state + commercial name (FormInput) for
+an entity, **TRN** (FormInput) + a **full ID document** (type→code, number, issue/expiry dates, issue country)
+for a natural-person party. Surface inline that a **person party** without TRN + full ID doc will create an
+analyst-completed **draft** (engine rule), an entity party creates VALID.
+
+*Step 4 — goods[] (useState + DataTable):* add/remove rows; per row itemType (lookup item_types, req),
+statusCode (item_status), estimatedValue (req), currencyCode (currencies, default AED), + optional itemMake/
+description/size/sizeUom/registrationDate/disposedValue/registrationNumber/identificationNumber/statusComments.
+
+*Step 5 — header + indicators:* reason, action (FormInput); indicators (FormMultiSelect report_indicators,
+**≥1 required**); reportingPerson **omitted** (goAML auto-injects the tenant MLRO — Phase A); submissionDate
+defaults now.
+
+*Step 6 — optional reportability pre-check:* a "Check reportability" button →
+`goamlCheckReportability({amount: Σ estimatedValue, currencyCode, involvesPreciousMetalsOrStones:true})` →
+show `{reportable, reasons, thresholdAed}` (advisory; doesn't block submit).
+
+*Step 7 — assemble + create:* build the curated `DpmsrCreateRequest` (yup-validated) →
+`goamlCreateReport(payload)` → on success show `reportId` + `status` (VALID/INVALID) + validationMessages
+table; a "Go to Approve Transaction" link. **No AML persistence** — the report lives in goAML.
+
+*Gate:* `tsc --noEmit` + `next lint` clean + `next build` green (Node ≥18.18 via nvm 22) — **this is the first
+real consumer of A1b, so it verifies the auth bridge compiles + wires**. Commit only my files.
+
+*Prereq for a live VALID create:* the demo tenant needs a positive `rentity_id` in `tenant_goaml_config`
+(see §8a) — seed once.
 
 **A3 — "Approve Transaction" page** (`src/app/(main)/approve-transaction/page.tsx` + nav item).
 - List goAML reports (`GET /api/v1/reports` or `/review-queue`) with status badges → open **detail**
@@ -279,6 +323,30 @@ work; chosen only if we want zero goAML edits.
 - **Live FIU submit** still needs per-tenant B2B creds (Phase E — external); without them, submit → 502.
 - **Node:** the AML `next build` needs Node ≥18.18 (the team uses nvm Node 22); the goAML SPA tests still run on
   Node 18 (unrelated).
+
+## 8a. Live verification — goAML half (2026-06-10) ✅
+
+Ran a self-contained live smoke (`dev-local/goaml-direct-verify.sh`, gitignored) against an **isolated**
+goAML on `:8099` over a throwaway `goaml_smoke` DB (running stack untouched; both torn down after). Used the
+dev RSA key to mint a real SCREENING assertion — **no AML login needed**. All green:
+1. **Federated exchange** `POST /auth/federated/token` → goAML JWT.
+2. **JWT carries `roles:["MLRO"]`** → **G1.3 default_role works live** (cockpit user can create *and*
+   approve/submit).
+3. Direct **`GET /api/v1/reports`** (browser-style Bearer) → 200, tenant-scoped.
+4. Direct **`GET /lookups/ae/item_types`** → code+label entries.
+5. Curated **`POST /api/v1/reports/dpmsr`** → **VALID** → **G1.1 works live**.
+6. **CORS** preflight from `http://localhost:3001` → `Access-Control-Allow-Origin` echoed → **G1.2 works live**.
+
+**Finding (config prereq, not a defect):** the dev seeder creates **no `tenant_goaml_config`**, so a fresh
+tenant has `rentity_id=0` → reports build **INVALID** until a config row with a **positive `rentity_id`**
+exists. Seed one before any live cockpit create:
+```sql
+INSERT INTO public.tenant_goaml_config (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
+VALUES (gen_random_uuid(), '<demo-tenant-id>', 'AE', 3177, 'https://goaml.test/uae', 'goaml/dev/creds', 'TOKEN');
+```
+**The customer-service `/goaml/token` leg** (A1a) is unit-tested (`GoamlScreeningClientTest`,
+MockRestServiceServer); its *live* leg needs the AML user-service password (not guessed) — exercise it via
+`dev-local/goaml-token-smoke.sh` once customer-service is rebuilt with A1a.
 
 ## 9. Verification (end-to-end)
 
