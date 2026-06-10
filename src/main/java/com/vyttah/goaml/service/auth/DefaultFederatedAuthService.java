@@ -146,8 +146,11 @@ public class DefaultFederatedAuthService implements FederatedAuthService {
                     "A goAML user already exists with email " + email
                             + "; map the external identity explicitly");
         }
-        Role role = roles.findByName(DEFAULT_ROLE)
-                .orElseThrow(() -> new IllegalStateException("Missing platform role " + DEFAULT_ROLE));
+        // The source may declare the role its users land with (e.g. the AML cockpit → MLRO); else least-priv.
+        String declaredRole = a.service().getDefaultRole();
+        String roleName = (declaredRole == null || declaredRole.isBlank()) ? DEFAULT_ROLE : declaredRole;
+        Role role = roles.findByName(roleName)
+                .orElseThrow(() -> new IllegalStateException("Missing platform role " + roleName));
 
         AppUser user = new AppUser(UUID.randomUUID(), tenantId, email,
                 // Unusable password — federated users authenticate only via token-exchange, never /login.

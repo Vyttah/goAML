@@ -125,6 +125,23 @@ class FederatedTokenE2ETest {
     }
 
     @Test
+    void jitHonoursTheTrustedServiceDefaultRole() throws Exception {
+        // The AML cockpit source declares default_role=MLRO so a JIT-provisioned cockpit user can both
+        // create AND approve/submit reports (goAML-as-microservice flow, G1.3).
+        KeyPair cockpitKeys = newKeys();
+        trustedServices.save(new TrustedService(UUID.randomUUID(), SourceSystem.SCREENING,
+                "AML cockpit", pem(cockpitKeys.getPublic()), true, "ACTIVE", "MLRO"));
+        tenantExternalRefs.save(new TenantExternalRef(UUID.randomUUID(), tenant.getId(),
+                SourceSystem.SCREENING, "ORG-SCR"));
+
+        String token = exchange(SourceSystem.SCREENING, assertion(cockpitKeys.getPrivate(),
+                "SCREENING", "cockpit-user", "cockpit@aml.test", "ORG-SCR"));
+        JsonNode me = me(token);
+        assertThat(me.get("roles").toString()).contains("MLRO");
+        assertThat(me.get("tenantSchema").asText()).isEqualTo(tenant.getSchemaName());
+    }
+
+    @Test
     void badAssertionSignatureReturns401() throws Exception {
         KeyPair wrong = newKeys();
         mvc.perform(post("/api/v1/auth/federated/token")

@@ -191,13 +191,15 @@ work; chosen only if we want zero goAML edits.
 - **G1.2 — config (runtime, no code).** Launch goAML with `GOAML_AUTH_MODE=both` (Option 1 needs the federated
   on-ramp **and** keeps native login) and `GOAML_ALLOWED_ORIGINS=http://localhost:3001` (dev; the prod cockpit
   origin later) — both are existing env knobs (`application.yml` `goaml.auth.mode` / `goaml.web.allowed-origins`).
-- **G1.3 — approver → MLRO role mapping.** The federated JIT default is **ANALYST** (`DefaultFederatedAuthService.DEFAULT_ROLE`),
-  but the cockpit "Approve Transaction" action calls goAML's **MLRO-only** approve/submit. The cockpit user must
-  therefore resolve to a goAML **MLRO**. goAML keeps roles authoritative (source hints advisory), so this is a
-  **provisioning** step, not an exchange-code change: **dev** → seed the cockpit user's `external_identity` →
-  the demo MLRO (`DevDataSeeder`, keyed off a configurable screening user id, mirroring `screening-company-id`);
-  **prod** → an admin promotes the federated user to MLRO (or pre-maps the identity). Finalized in **A1** once
-  the AML token-mint's `sub` (the AML user id) is known.
+- **G1.3 ✅ DONE — approver → MLRO via a per-trusted-service `default_role`.** The federated JIT default is
+  **ANALYST**, but the cockpit "Approve Transaction" calls goAML's **MLRO-only** approve/submit. Rather than
+  fragile per-user seeding, added a **`trusted_service.default_role`** (shared **V6** migration; nullable →
+  ANALYST fallback, so existing services unchanged) honoured in `DefaultFederatedAuthService.provision`. The
+  dev seeder now registers **SCREENING with `jit_provisioning=true` + `default_role=MLRO`**, so any cockpit user
+  hitting `/auth/federated/token` is auto-provisioned as an MLRO in the demo tenant — no manual per-user step.
+  `FederatedTokenE2ETest.jitHonoursTheTrustedServiceDefaultRole` proves it. (Standalone-safe; the screening
+  service-push path is unaffected — JIT only governs federated exchange.) Full gate green (one unrelated
+  WireMock socket flake, confirmed by isolated re-run).
 
 **A1 — goAML auth bridge in the AML frontend.**
 - `axiosInstanceGoaml` + a goAML-JWT provider: (Option 1) `POST /api/v1/goaml/token` on AML backend mints the

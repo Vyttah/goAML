@@ -121,9 +121,12 @@ public class DevDataSeeder implements CommandLineRunner {
     /** Idempotent suite-integration fixtures so the AML→goAML screening push works against the local seed. */
     private void seedSuiteIntegration(UUID tenantId) {
         if (trustedServices.findBySourceSystem(SourceSystem.SCREENING).isEmpty()) {
+            // jit_provisioning=true + default_role=MLRO: a cockpit user hitting POST /auth/federated/token is
+            // auto-created as an MLRO in the demo tenant, so the goAML-as-microservice flow (create AND
+            // approve/submit, direct from the AML cockpit) works with no manual per-user seeding.
             trustedServices.save(new TrustedService(UUID.randomUUID(), SourceSystem.SCREENING,
-                    "AML screening software (dev)", DEV_SCREENING_PUBLIC_KEY_PEM, false, "ACTIVE"));
-            log.info("[dev-seed] registered SCREENING trusted_service (dev public key)");
+                    "AML screening software (dev)", DEV_SCREENING_PUBLIC_KEY_PEM, true, "ACTIVE", "MLRO"));
+            log.info("[dev-seed] registered SCREENING trusted_service (dev public key, JIT→MLRO)");
         }
         if (tenantExternalRefs.findBySourceSystemAndExternalOrgRef(
                 SourceSystem.SCREENING, screeningCompanyId).isEmpty()) {

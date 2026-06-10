@@ -45,6 +45,15 @@ public class TrustedService {
     @Column(name = "jit_provisioning", nullable = false)
     private boolean jitProvisioning;
 
+    /**
+     * The goAML role a federated user from this source is JIT-provisioned with. {@code null} → the
+     * least-privilege default (ANALYST). The AML cockpit registers {@code MLRO} so a cockpit user can create
+     * <em>and</em> approve/submit (approval is a workflow stage there, not segregation-of-duties).
+     */
+    @Setter
+    @Column(name = "default_role", length = 32)
+    private String defaultRole;
+
     @Setter
     @Column(nullable = false, length = 32)
     private String status;
@@ -59,12 +68,18 @@ public class TrustedService {
 
     public TrustedService(UUID id, SourceSystem sourceSystem, String description,
                           String publicKeyPem, boolean jitProvisioning, String status) {
+        this(id, sourceSystem, description, publicKeyPem, jitProvisioning, status, null);
+    }
+
+    public TrustedService(UUID id, SourceSystem sourceSystem, String description, String publicKeyPem,
+                          boolean jitProvisioning, String status, String defaultRole) {
         this.id = id;
         this.sourceSystem = sourceSystem;
         this.description = description == null ? "" : description;
         this.publicKeyPem = publicKeyPem;
         this.jitProvisioning = jitProvisioning;
         this.status = status;
+        this.defaultRole = defaultRole;
     }
 
     public boolean isActive() {
