@@ -40,6 +40,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -116,6 +117,27 @@ class ScreeningFilingE2ETest {
         // idempotent re-file: same source deal → same report (no duplicate)
         JsonNode again = file(legalFilingPayload(COMPANY_ID, "DEAL-1"));
         assertThat(again.get("reportId").asText()).isEqualTo(reportId);
+    }
+
+    @Test
+    void filedReportXmlIsDownloadableByRef() throws Exception {
+        file(legalFilingPayload(COMPANY_ID, "DEAL-9"));
+
+        mvc.perform(get("/api/v1/integration/screening/filings/DEAL-9/report.xml")
+                        .header("X-Service-Assertion", assertion())
+                        .param("companyId", COMPANY_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(org.springframework.http.MediaType.APPLICATION_XML))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("<report>")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("FIL-601-DEAL-9")));
+    }
+
+    @Test
+    void downloadingXmlForUnknownFilingIsNotFound() throws Exception {
+        mvc.perform(get("/api/v1/integration/screening/filings/NOPE/report.xml")
+                        .header("X-Service-Assertion", assertion())
+                        .param("companyId", COMPANY_ID))
+                .andExpect(status().isNotFound());
     }
 
     @Test

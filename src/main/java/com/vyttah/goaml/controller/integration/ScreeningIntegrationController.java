@@ -10,7 +10,9 @@ import com.vyttah.goaml.service.integration.ScreeningIngestionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +38,8 @@ import java.util.List;
  *   <li>{@code POST /filings} — one-shot file a complete DPMSR (parties + goods + header) → 202 with
  *       the created report id + status (Phase C.4a, the AML "File to goAML")</li>
  *   <li>{@code GET  /filings/{filingRef}?companyId=} — status of a previously-filed report</li>
+ *   <li>{@code GET  /filings/{filingRef}/report.xml?companyId=} — the marshalled goAML XML (Phase C.4b,
+ *       backs the AML cockpit's "Download report" action)</li>
  * </ul>
  */
 @RequiredArgsConstructor
@@ -87,5 +91,23 @@ public class ScreeningIntegrationController {
             @PathVariable String filingRef) {
         credentialValidator.verify(SourceSystem.SCREENING, assertion);
         return ingestionService.filingStatus(companyId, filingRef);
+    }
+
+    @GetMapping(value = "/filings/{filingRef}/report.xml", produces = MediaType.APPLICATION_XML_VALUE)
+    public ResponseEntity<String> filingXml(
+            @RequestHeader(value = "X-Service-Assertion", required = false) String assertion,
+            @RequestParam String companyId,
+            @PathVariable String filingRef) {
+        credentialValidator.verify(SourceSystem.SCREENING, assertion);
+        String xml = ingestionService.filingXml(companyId, filingRef);
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_XML)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + filingReference(companyId, filingRef) + ".xml\"")
+                .body(xml);
+    }
+
+    private static String filingReference(String companyId, String filingRef) {
+        return "FIL-" + companyId + "-" + filingRef;
     }
 }
