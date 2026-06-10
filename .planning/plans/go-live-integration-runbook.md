@@ -96,6 +96,10 @@ Two models; use either or both (same report is visible to all tenant users).
 
 ## Phase E — Enable real FIU submission (per tenant)
 
+> **For the DPMSR deal flow (Phases C+D) see the dedicated checkbox checklist:**
+> [`phase-e-fiu-go-live-checklist.md`](phase-e-fiu-go-live-checklist.md) — RE/SACM registration → per-tenant
+> FIU config → UAT dry-run → first live submission across both planes → prod cutover.
+
 1. `[goAML]` Put the tenant's goAML **B2B credentials** in AWS Secrets Manager; set
    `tenant_goaml_config` (`rentity_id`, `base_url`, `secrets_path`, `auth_mode`).
 2. `[goAML]` Create the `goaml-attachments` **S3 bucket** (attachments are pulled into the submission ZIP).
