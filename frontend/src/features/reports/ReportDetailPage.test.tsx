@@ -8,11 +8,11 @@ import { renderWithProviders } from '../../test/render';
 import { setToken } from '../../auth/tokenStore';
 import { makeToken } from '../../test/util';
 import { ReportDetailPage } from './ReportDetailPage';
-import type { AttachmentView, ReportView } from '../../types';
+import type { AttachmentView, ReportDetailView } from '../../types';
 
 const ID = 'r-1';
 
-function report(overrides: Partial<ReportView> = {}): ReportView {
+function report(overrides: Partial<ReportDetailView> = {}): ReportDetailView {
   return {
     id: ID,
     entityReference: 'DPMSR-1',
@@ -20,12 +20,24 @@ function report(overrides: Partial<ReportView> = {}): ReportView {
     status: 'VALID',
     rentityId: 3177,
     createdAt: '2026-06-01T10:00:00Z',
+    input: {
+      reason: 'DPMS threshold met',
+      action: 'Filed',
+      indicators: ['DPMSJ'],
+      parties: [{ reason: 'Seller', entity: { name: 'Minimal Trading FZE' } }],
+      goods: [{ itemType: 'GOLD', estimatedValue: 90000, currencyCode: 'AED' }],
+    },
+    validationMessages: [],
+    reviewedBy: null,
+    reviewedAt: null,
+    reviewRemark: null,
+    hasXml: true,
     ...overrides,
   };
 }
 
 function stubReport(status = 'VALID') {
-  server.use(http.get(`*/api/v1/reports/${ID}`, () => HttpResponse.json(report({ status }))));
+  server.use(http.get(`*/api/v1/reports/${ID}/detail`, () => HttpResponse.json(report({ status }))));
 }
 
 function stubAttachments(items: AttachmentView[] = []) {
@@ -62,7 +74,7 @@ describe('ReportDetailPage', () => {
   it('lets an MLRO submit a VALID report and reflects the new status', async () => {
     let submitted = false;
     server.use(
-      http.get(`*/api/v1/reports/${ID}`, () =>
+      http.get(`*/api/v1/reports/${ID}/detail`, () =>
         HttpResponse.json(report({ status: submitted ? 'SUBMITTED' : 'VALID' })),
       ),
       http.post(`*/api/v1/reports/${ID}/submit`, () => {
@@ -108,6 +120,31 @@ describe('ReportDetailPage', () => {
     await screen.findByText('DPMSR-1');
     expect(screen.getByRole('button', { name: /submit to fiu/i })).toBeDisabled();
     expect(screen.getByText(/Only a/)).toBeInTheDocument();
+  });
+
+  it('shows the validation messages and the review trail for a reviewed report', async () => {
+    server.use(
+      http.get(`*/api/v1/reports/${ID}/detail`, () =>
+        HttpResponse.json(
+          report({
+            status: 'APPROVED',
+            reviewedBy: 'u-mlro',
+            reviewedAt: '2026-06-02T09:00:00Z',
+            reviewRemark: 'looks good',
+            validationMessages: [
+              { severity: 'WARNING', path: 'report.action', code: 'SOFT', message: 'action is advisory' },
+            ],
+          }),
+        ),
+      ),
+    );
+    stubAttachments();
+    renderDetail('MLRO');
+
+    expect(await screen.findByText('action is advisory')).toBeInTheDocument();
+    expect(screen.getByText('WARNING')).toBeInTheDocument();
+    expect(screen.getByText('u-mlro')).toBeInTheDocument();
+    expect(screen.getByText('looks good')).toBeInTheDocument();
   });
 
   it('checks FIU status on demand', async () => {

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getReport, getReportStatus, submitReport } from '../../api/reports';
+import { getReport, getReportDetail, getReportStatus, submitReport } from '../../api/reports';
 import { addAttachment, listAttachments, removeAttachment } from '../../api/attachments';
 import { reportsQueryKey } from '../dashboard/useReports';
 import type { StatusView } from '../../types';
 
 export const reportQueryKey = (id: string) => ['report', id] as const;
+export const reportDetailQueryKey = (id: string) => ['report-detail', id] as const;
 export const attachmentsQueryKey = (id: string) => ['attachments', id] as const;
 
 /** Single report summary. */
@@ -12,13 +13,19 @@ export function useReport(id: string) {
   return useQuery({ queryKey: reportQueryKey(id), queryFn: () => getReport(id), enabled: !!id });
 }
 
-/** Submit to the FIU (MLRO). Invalidates the report + the dashboard list on success. */
+/** Full read view (Phase D.3): summary + stored input + validation + review trail. Drives the detail page. */
+export function useReportFull(id: string) {
+  return useQuery({ queryKey: reportDetailQueryKey(id), queryFn: () => getReportDetail(id), enabled: !!id });
+}
+
+/** Submit to the FIU (MLRO). Invalidates the report (summary + detail) + the dashboard list on success. */
 export function useSubmitReport(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => submitReport(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: reportQueryKey(id) });
+      queryClient.invalidateQueries({ queryKey: reportDetailQueryKey(id) });
       queryClient.invalidateQueries({ queryKey: reportsQueryKey });
     },
   });
@@ -29,7 +36,10 @@ export function useCheckStatus(id: string) {
   const queryClient = useQueryClient();
   return useMutation<StatusView, unknown, void>({
     mutationFn: () => getReportStatus(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: reportQueryKey(id) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: reportQueryKey(id) });
+      queryClient.invalidateQueries({ queryKey: reportDetailQueryKey(id) });
+    },
   });
 }
 
