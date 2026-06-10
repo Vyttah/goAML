@@ -354,6 +354,15 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   (proxy + form + the goAML service-authed lookup endpoint together), the report-download proxy → **C.4b**
   (with its goAML XML-by-ref backend). **Next: C.4b** (goAML) — `GET /filings/{ref}` status + XML-by-ref read +
   the AML download proxy.
+- **2026-06-10 session (continued) — Phase C.4b (report XML-by-ref download) DONE, both halves.** goAML
+  (`main`, merged `a0ede5f`): `GET /api/v1/integration/screening/filings/{ref}/report.xml` (service-assertion
+  authed) → the marshalled goAML XML resolved by `entity_reference` FIL-<companyId>-<ref>, `application/xml` +
+  download filename, 404 when no report/XML; E2E (filing test now 6 cases). AML (`feature/goaml-integration`,
+  `eae48ae`): `GET /api/v1/goaml-deals/{id}/report.xml` proxy (`GoamlScreeningClient.downloadReportXml` +
+  `GoamlFilingService.downloadReportXml`, requires the deal is filed) streams the XML inside the cockpit; 9
+  goaml tests green. goAML full gate green (1m58s, 2g heap, no OOM). **Next: C.3** — the goAML service-authed
+  **lookup endpoint** + AML **lookup proxy** + the **Frontend_Customer "goAML Filing" screen** (the last C
+  step: pick customer → enter deal → File to goAML → download).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

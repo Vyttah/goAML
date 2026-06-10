@@ -198,9 +198,13 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   > **Re-sequenced (kept each step a coherent feature-pair):** the **goAML-lookup proxy** moved to **C.3** (its
   > only consumer is the form, and it needs a goAML service-authed lookup endpoint — built together there); the
   > **report-download proxy** moved to **C.4b** (built with its goAML XML-by-ref backend).
-- **C.4b (goAML)** — service-assertion-authed **report read**: `GET /filings/{ref}` for status + an
-  **XML-by-ref** read, **plus the AML-side download proxy** (`GET /api/v1/goaml-deals/{id}/report.xml` →
-  streams the XML inside the AML UI). The two halves of one feature ship together. Slice + E2E.
+- **C.4b** ✅ **DONE** — service-assertion-authed **report read**, both halves: **goAML** (`a0ede5f`, merged to
+  `main`) `GET /api/v1/integration/screening/filings/{ref}/report.xml` → the marshalled XML by
+  `entity_reference` (FIL-<companyId>-<ref>), `application/xml` + download filename, 404 when no report/XML;
+  E2E proves a filed report's XML is downloadable by ref. **AML** (`eae48ae`, `feature/goaml-integration`)
+  `GET /api/v1/goaml-deals/{id}/report.xml` proxy (`GoamlScreeningClient.downloadReportXml` +
+  `GoamlFilingService.downloadReportXml`, requires the deal is filed) streams it inside the cockpit; 9 goaml
+  tests green. (`GET /filings/{ref}` status was already added in C.4a.)
 - **C.3 (AML)** — **(a)** a goAML **service-authed lookup endpoint** (`/api/v1/integration/lookups/{jur}/{set}`
   via `ServiceCredentialValidator`) + the AML **lookup proxy** (`GET /api/v1/goaml/lookups/{set}` →
   `{code,label}` for the Tailwind `FormSelect`) — proxy + its only consumer ship together. **(b)** the
