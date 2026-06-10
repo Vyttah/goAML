@@ -1,6 +1,8 @@
 package com.vyttah.goaml.service.report;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyttah.goaml.config.tenant.TenantContext;
 import com.vyttah.goaml.engine.build.DpmsrReportBuilder;
@@ -168,6 +170,41 @@ public class DefaultReportService implements ReportService {
     public Report get(UUID reportId) {
         return reportRepository.findById(reportId)
                 .orElseThrow(() -> new ReportExceptions.ReportNotFoundException("Report not found: " + reportId));
+    }
+
+    @Override
+    public ReportDetail detail(UUID reportId) {
+        Report report = get(reportId);
+        return new ReportDetail(
+                report.getId(), report.getEntityReference(), report.getReportCode(), report.getStatus(),
+                report.getRentityId(), report.getCreatedAt(),
+                parseInput(report.getInput()), parseMessages(report.getValidationErrors()),
+                report.getReviewedBy(), report.getReviewedAt(), report.getReviewRemark(),
+                report.getReportXml() != null && !report.getReportXml().isBlank());
+    }
+
+    /** The stored filing input (JSONB) parsed back to a JSON tree for the read view. */
+    private JsonNode parseInput(String input) {
+        if (input == null || input.isBlank()) {
+            return objectMapper.nullNode();
+        }
+        try {
+            return objectMapper.readTree(input);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to parse stored report input JSON", e);
+        }
+    }
+
+    /** The persisted validation messages (JSONB), or an empty list when none were stored. */
+    private List<ValidationMessage> parseMessages(String validationErrors) {
+        if (validationErrors == null || validationErrors.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(validationErrors, new TypeReference<List<ValidationMessage>>() {});
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to parse stored validation messages JSON", e);
+        }
     }
 
     @Override

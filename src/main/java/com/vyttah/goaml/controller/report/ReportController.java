@@ -2,6 +2,7 @@ package com.vyttah.goaml.controller.report;
 
 import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
+import com.vyttah.goaml.model.dto.report.ReportResponses.ReportDetailView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReviewView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.StatusView;
@@ -66,6 +67,16 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<ReportView> get(@PathVariable UUID id) {
         return ResponseEntity.ok(ReportView.from(reportService.get(id)));
+    }
+
+    /**
+     * Phase D.3 — the full "Transaction &amp; Report" read view: summary + the stored filing input + the
+     * persisted validation messages + the review trail. Lets a goAML login see the whole filing.
+     */
+    @GetMapping("/{id}/detail")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<ReportDetailView> detail(@PathVariable UUID id) {
+        return ResponseEntity.ok(ReportDetailView.from(reportService.detail(id)));
     }
 
     /**

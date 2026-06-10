@@ -109,6 +109,13 @@ class ReportReviewE2ETest {
         assertThat(approved.getBody().get("status").asText()).isEqualTo("APPROVED");
         assertThat(approved.getBody().get("reviewedBy").isNull()).isFalse();
 
+        // the D.3 read view surfaces the review trail (reviewer + remark) from the approval
+        ResponseEntity<JsonNode> detail = get("/api/v1/reports/" + reportId + "/detail", mlro);
+        assertThat(detail.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(detail.getBody().get("status").asText()).isEqualTo("APPROVED");
+        assertThat(detail.getBody().get("reviewedBy").isNull()).isFalse();
+        assertThat(detail.getBody().get("reviewRemark").asText()).isEqualTo("looks good");
+
         // now submit succeeds
         ResponseEntity<JsonNode> submitted = post("/api/v1/reports/" + reportId + "/submit", "", mlro);
         assertThat(submitted.getStatusCode()).isEqualTo(HttpStatus.OK);

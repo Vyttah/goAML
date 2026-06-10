@@ -45,5 +45,13 @@ public interface ReportService {
     /** @throws ReportExceptions.ReportNotFoundException if absent in this tenant */
     Report get(UUID reportId);
 
+    /**
+     * The full read view of a report (Phase D.3): summary + the stored filing input (parsed) + persisted
+     * validation messages + the review trail. Read-only — surfaces the whole filing for a goAML login.
+     *
+     * @throws ReportExceptions.ReportNotFoundException if absent in this tenant
+     */
+    ReportDetail detail(UUID reportId);
+
     List<Report> list();
 }

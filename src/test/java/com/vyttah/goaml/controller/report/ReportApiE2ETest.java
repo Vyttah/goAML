@@ -155,6 +155,31 @@ class ReportApiE2ETest {
     }
 
     @Test
+    void detailReturnsStoredInputValidationAndAnEmptyReviewTrail() {
+        String mlro = user("detail", "MLRO");
+        ResponseEntity<JsonNode> created = post("/api/v1/reports", String.format(DPMSR_JSON, "PAY-DETAIL-1"), mlro);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        String reportId = created.getBody().get("reportId").asText();
+
+        ResponseEntity<JsonNode> detail = get("/api/v1/reports/" + reportId + "/detail", mlro);
+        assertThat(detail.getStatusCode()).isEqualTo(HttpStatus.OK);
+        JsonNode body = detail.getBody();
+        // summary
+        assertThat(body.get("entityReference").asText()).isEqualTo("PAY-DETAIL-1");
+        assertThat(body.get("status").asText()).isEqualTo("VALID");
+        assertThat(body.get("hasXml").asBoolean()).isTrue();
+        // the stored filing input is returned as a JSON tree (not a stringified blob)
+        assertThat(body.get("input").isObject()).isTrue();
+        assertThat(body.get("input").toString())
+                .contains("Minimal Trading FZE")
+                .contains("GOLD");
+        assertThat(body.get("validationMessages").isArray()).isTrue();
+        // not yet reviewed
+        assertThat(body.get("reviewedBy").isNull()).isTrue();
+        assertThat(body.get("reviewedAt").isNull()).isTrue();
+    }
+
+    @Test
     void analystCanCreateButCannotSubmit() {
         String analyst = user("analyst", "ANALYST");
 
