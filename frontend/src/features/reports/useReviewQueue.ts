@@ -6,7 +6,7 @@ import {
   submitReportForReview,
 } from '../../api/reports';
 import { reportsQueryKey } from '../dashboard/useReports';
-import { reportQueryKey } from './useReportDetail';
+import { reportDetailQueryKey, reportQueryKey } from './useReportDetail';
 
 export const reviewQueueQueryKey = ['review-queue'] as const;
 
@@ -22,6 +22,7 @@ function useInvalidateAfterReview() {
     queryClient.invalidateQueries({ queryKey: reviewQueueQueryKey });
     queryClient.invalidateQueries({ queryKey: reportsQueryKey });
     queryClient.invalidateQueries({ queryKey: reportQueryKey(id) });
+    queryClient.invalidateQueries({ queryKey: reportDetailQueryKey(id) });
   };
 }
 

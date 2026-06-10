@@ -82,6 +82,26 @@ export interface ReviewView {
   remark: string | null;
 }
 
+/**
+ * Full read view of a report (Phase D.3) — mirrors `ReportResponses.ReportDetailView`. `input` is the stored
+ * filing JSON (usually a `DpmsrReportPayload`, but screening/accounting feeds store the curated shape), so it
+ * is rendered defensively. `null` fields in the review trail mean the report hasn't been reviewed.
+ */
+export interface ReportDetailView {
+  id: string;
+  entityReference: string;
+  reportCode: string;
+  status: string;
+  rentityId: number | null;
+  createdAt: string;
+  input: Record<string, unknown> | null;
+  validationMessages: ValidationMessage[];
+  reviewedBy: string | null;
+  reviewedAt: string | null;
+  reviewRemark: string | null;
+  hasXml: boolean;
+}
+
 /** Report attachment metadata — mirrors `model.dto.attachment.AttachmentView`. */
 export interface AttachmentView {
   id: string;

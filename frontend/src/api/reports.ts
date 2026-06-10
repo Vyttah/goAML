@@ -2,6 +2,7 @@ import { apiClient } from './client';
 import { API_PREFIX } from '../lib/config';
 import type {
   CreateReportResponse,
+  ReportDetailView,
   ReportView,
   ReviewView,
   StatusView,
@@ -20,6 +21,12 @@ export async function listReports(): Promise<ReportView[]> {
 /** Fetch a single report summary. */
 export async function getReport(id: string): Promise<ReportView> {
   const { data } = await apiClient.get<ReportView>(`${BASE}/${id}`);
+  return data;
+}
+
+/** Fetch the full read view (Phase D.3): summary + stored input + validation + review trail + hasXml. */
+export async function getReportDetail(id: string): Promise<ReportDetailView> {
+  const { data } = await apiClient.get<ReportDetailView>(`${BASE}/${id}/detail`);
   return data;
 }
 

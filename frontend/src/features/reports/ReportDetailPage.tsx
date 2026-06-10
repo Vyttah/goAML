@@ -10,6 +10,7 @@ import {
   Skeleton,
   Space,
   Table,
+  Tag,
   Typography,
   Upload,
 } from 'antd';
@@ -37,11 +38,12 @@ import {
   useAttachments,
   useCheckStatus,
   useRemoveAttachment,
-  useReport,
+  useReportFull,
   useSubmitReport,
 } from './useReportDetail';
 import { useSubmitForReview } from './useReviewQueue';
-import type { AttachmentView, StatusView } from '../../types';
+import { ReportFilingDetails } from './ReportFilingDetails';
+import type { AttachmentView, StatusView, ValidationMessage } from '../../types';
 
 const SUBMITTED_STATUSES = ['SUBMITTED', 'ACCEPTED', 'REJECTED', 'FAILED'];
 
@@ -66,7 +68,7 @@ export function ReportDetailPage() {
   const navigate = useNavigate();
   const { can } = useAuth();
 
-  const reportQuery = useReport(id);
+  const reportQuery = useReportFull(id);
   const submit = useSubmitReport(id);
   const submitForReview = useSubmitForReview(id);
   const checkStatus = useCheckStatus(id);
@@ -316,6 +318,50 @@ export function ReportDetailPage() {
             </Descriptions.Item>
             <Descriptions.Item label="Errors">{fiuStatus.errors || '—'}</Descriptions.Item>
           </Descriptions>
+        )}
+      </Card>
+
+      <Card title="Filing details" style={{ marginBottom: 16 }}>
+        <ReportFilingDetails input={report.input} />
+      </Card>
+
+      <Card title="Validation" style={{ marginBottom: 16 }}>
+        <Table<ValidationMessage>
+          rowKey={(m) => `${m.severity}:${m.path}:${m.code}`}
+          size="small"
+          pagination={false}
+          dataSource={report.validationMessages}
+          locale={{ emptyText: 'No validation messages' }}
+          columns={[
+            {
+              title: 'Severity',
+              dataIndex: 'severity',
+              key: 'severity',
+              width: 110,
+              render: (s: string) => <Tag color={s === 'ERROR' ? 'error' : 'warning'}>{s}</Tag>,
+            },
+            { title: 'Path', dataIndex: 'path', key: 'path', width: 240 },
+            { title: 'Message', dataIndex: 'message', key: 'message' },
+          ]}
+        />
+      </Card>
+
+      <Card title="Review" style={{ marginBottom: 16 }}>
+        {report.reviewedAt || report.reviewRemark ? (
+          <Descriptions column={1} size="small">
+            <Descriptions.Item label="Status">
+              <StatusTag status={report.status} />
+            </Descriptions.Item>
+            <Descriptions.Item label="Reviewer">{report.reviewedBy ?? '—'}</Descriptions.Item>
+            <Descriptions.Item label="Reviewed at">
+              {report.reviewedAt ? formatTimestamp(report.reviewedAt) : '—'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Remark">{report.reviewRemark || '—'}</Descriptions.Item>
+          </Descriptions>
+        ) : (
+          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
+            Not yet reviewed{report.status === 'PENDING_REVIEW' ? ' — awaiting an MLRO decision.' : '.'}
+          </Typography.Paragraph>
         )}
       </Card>
 
