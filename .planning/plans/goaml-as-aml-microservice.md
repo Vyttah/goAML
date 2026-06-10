@@ -222,7 +222,16 @@ work; chosen only if we want zero goAML edits.
   cockpit user as MLRO, and its company must map to the demo tenant (`GOAML_DEV_SCREENING_COMPANY_ID` = the AML
   companyId, e.g. `vyttah`).
 
-**A2 — "Create Transaction" page** (`src/app/(main)/create-transaction/page.tsx` + nav item) — DETAILED:
+**A2 ✅ DONE** (AML `Frontend_Customer`, commit `ca45180`) — one-page Create Transaction builder calling goAML
+directly: customer pick (legal|natural) → KYC prefill (master-id→code mapped; legal incl. best-effort
+directors) → gap fields (incorporation state / commercial name / residence / TRN / full ID doc) → goods rows
+(goAML lookups) → indicators (≥1) + reason/action → optional reportability check → assemble curated
+`DpmsrCreateRequest` → `goamlCreateReport` (`POST /reports/dpmsr`) → reportId + VALID/INVALID + messages; no
+AML persistence; MLRO auto-injected. New nav + route. **Gate green (Node 22): tsc + lint clean, `next build`
+OK, `/create-transaction` 9.06 kB — verified the A1b auth bridge compiles/wires.** Field-mapping fidelity
+(esp. nationality/occupation code-sets) to be confirmed in a live cockpit pass. Detail spec below.
+
+**A2 detail (as built)** (`src/app/(main)/create-transaction/page.tsx` + nav item):
 
 *Structure* — mirror `DpmsrBuilderPage` (goAML SPA, the proven layout) but in AML's form primitives
 (FormSelect/FormMultiSelect/FormInput/FormDatePicker + useState/DataTable; no Form.List/useFieldArray). One

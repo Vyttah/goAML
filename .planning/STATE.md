@@ -502,6 +502,20 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   the dev seeder creates no `tenant_goaml_config` → fresh tenant `rentity_id=0` → INVALID until a config row
   with a positive `rentity_id` is seeded. customer-service `/goaml/token` leg is unit-tested (live leg needs
   the AML password). **A2 plan detailed in the plan doc §6; presented for approval before building.**
+- **2026-06-10 (continued) — A2 (Create Transaction page) DONE.** AML `Frontend_Customer`
+  (`feature/goaml-integration`, commit `ca45180`, NOT merged; only my files — new
+  `components/CreateTransactionComponent/` + `(main)/create-transaction/page.tsx` + Sidebar nav). One-page
+  DPMSR builder calling goAML **directly**: pick customer (legal|natural) → prefill party from AML KYC
+  (master-id→goAML-code mapped; legal incl. best-effort directors) → complete the gap fields goAML needs
+  (incorporation state / commercial name / residence / TRN / full ID doc) → goods rows (item type/status/
+  currency from goAML lookups) → indicators (≥1) + reason/action → optional reportability check → assemble
+  the curated `DpmsrCreateRequest` → `goamlCreateReport` (`POST /api/v1/reports/dpmsr` via the A1b
+  `axiosInstanceGoaml`) → reportId + VALID/INVALID + messages. No AML persistence; MLRO auto-injected by
+  goAML. **Gate green (Node 22): tsc + lint clean, `next build` OK, `/create-transaction` 9.06 kB emitted —
+  first real consumer of the A1b auth bridge, so it verifies the bridge compiles + wires.** Field-mapping
+  fidelity (nationality/occupation code-sets) to confirm in a live cockpit pass. **Next: A3** — Approve
+  Transaction page (list goAML reports → detail → submit-for-review/approve/reject → submit to FIU → Download
+  XML), then A4 (lookups-direct cleanup + docs).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
