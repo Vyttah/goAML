@@ -144,7 +144,7 @@ Goal: one onboarded AML customer → goAML, tenant-scoped, over a signed service
 - Deferred: party role / identification / contact / address code sets, and the live FIU-OData lookup sync
   (external follow-up; current values are the authoritative XSD enums, which is correct for structural validity).
 
-### Phase C — The Deal module (the cockpit build, AML-side) + the real feed  (PLANNED — decisions locked 2026-06-09)
+### Phase C — The Deal module (the cockpit build, AML-side) + the real feed  ✅ COMPLETE (2026-06-10)
 
 > **Ground-truth from research (2026-06-09):** goAML's report-creation path **already accepts goods + a full
 > header** — `ScreeningSeedRequest.goods` (required) + `DpmsrCreateRequest.Goods` (14 item fields) →
@@ -205,14 +205,20 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   `GET /api/v1/goaml-deals/{id}/report.xml` proxy (`GoamlScreeningClient.downloadReportXml` +
   `GoamlFilingService.downloadReportXml`, requires the deal is filed) streams it inside the cockpit; 9 goaml
   tests green. (`GET /filings/{ref}` status was already added in C.4a.)
-- **C.3 (AML)** — **(a)** a goAML **service-authed lookup endpoint** (`/api/v1/integration/lookups/{jur}/{set}`
-  via `ServiceCredentialValidator`) + the AML **lookup proxy** (`GET /api/v1/goaml/lookups/{set}` →
-  `{code,label}` for the Tailwind `FormSelect`) — proxy + its only consumer ship together. **(b)** the
-  Frontend_Customer **"goAML Filing"** screen: new route `(main)/goaml-filing/page.tsx` + a Sidebar nav item;
-  pick customer → parties auto-load (existing relations endpoint) → enter the deal (goods list via the
-  DataTable+modal pattern; header fields; indicators **multi-select** from the lookup proxy — **≥1 required**) →
-  **File to goAML** → show returned status + the **Download report (XML)** action (C.4b). react-hook-form/yup +
-  the custom Tailwind form components (NOT Ant — that's goAML's own SPA).
+- **C.3a** ✅ **DONE** — lookup proxy, both halves: **goAML** (`04f42bc`, merged to `main`)
+  `IntegrationLookupController` `GET /api/v1/integration/lookups/{jur}/{set}` (service-authed) → the
+  authoritative `code+label` set (reuses `LookupService.entries` + Phase B labels); 404 unknown set, 401 no
+  assertion; Testcontainers E2E. **AML** (`30c6b9a`, `feature/goaml-integration`) `GoamlLookupController`
+  `GET /api/v1/goaml/lookups/{set}` proxy (`GoamlScreeningClient.lookup`); the cockpit talks only to
+  customer-service. 14 goaml tests green.
+- **C.3b** ✅ **DONE** (Frontend_Customer `feature/goaml-integration`, `dfc04f0`) — the **"goAML Filing"**
+  screen: App-Router route `(main)/goaml-filing` + Sidebar nav item; pick a (legal) customer → enter the deal
+  (item type / status from goAML lookups, value, currency, registration no., description) → report indicators
+  (**multi-select** from goAML lookups, **≥1 required**) + reason/action → **File to goAML** (create deal →
+  file) → shows goAML status + validation messages + a **Download report (XML)** action. react-hook-form/yup;
+  reuses the custom Tailwind `FormSelect`/`FormMultiSelect`/`FormInput`/`TextArea` (NOT Ant — that's goAML's own
+  SPA). Gate: `tsc --noEmit` + `next lint` clean; **full `next build` succeeds** (route `/goaml-filing` emitted)
+  — note: `next build` needs **Node ≥18.18** (used nvm Node 22; the env default 18.16 is too old).
 
 ### Phase D — Maker-checker (both planes) + "see it all in goAML"
 - **D.1 (AML)** — deal approval before filing, reusing the `CaseManagementDecisionLog` pattern (maker creates,
@@ -252,5 +258,7 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 - **Standalone-safe:** Phases A–B + goAML's SPA keep goAML usable alone; the seam is additive.
 
 ## Suggested order
-~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → **Phase C (deal module): C.4a → C.1 → C.2 → C.4b → C.3** →
-**D** (maker-checker both planes + "see it all in goAML"), with **E** (live B2B proof) in parallel throughout.
+~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → ~~**Phase C (deal module)**~~ ✅ (C.4a → C.1 → C.2 → C.4b →
+C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML"), with **E** (live B2B proof) in
+parallel throughout. **The full deal→file→download pipe is built end-to-end (both repos + the AML cockpit
+screen); next is Phase D (the two-plane approval gate) and Phase E (live FIU submission, external).**

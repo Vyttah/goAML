@@ -363,6 +363,19 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   goaml tests green. goAML full gate green (1m58s, 2g heap, no OOM). **Next: C.3** — the goAML service-authed
   **lookup endpoint** + AML **lookup proxy** + the **Frontend_Customer "goAML Filing" screen** (the last C
   step: pick customer → enter deal → File to goAML → download).
+- **2026-06-10 session (continued) — Phase C COMPLETE (the LexAML-style deal→file→download pipe).** **C.3a**
+  lookup proxy: goAML `IntegrationLookupController` `GET /api/v1/integration/lookups/{jur}/{set}` (service-authed,
+  merged `04f42bc`) + AML `GoamlLookupController` `GET /api/v1/goaml/lookups/{set}` (`30c6b9a`) — the cockpit's
+  dropdowns come from goAML's authoritative codes (Phase B labels flow through), no drift. **C.3b** the
+  **Frontend_Customer "goAML Filing" screen** (its own repo, branch `feature/goaml-integration`, `dfc04f0`):
+  route `(main)/goaml-filing` + Sidebar nav; pick legal customer → enter deal (item type/status/indicators from
+  goAML lookups, ≥1 indicator required) → **File to goAML** (create→file) → status + validation messages +
+  **Download report (XML)**. react-hook-form/yup + the custom Tailwind form components. Gate: tsc + next lint
+  clean, **full `next build` green** (route emitted) — needs **Node ≥18.18** (used nvm Node 22; env default
+  18.16 too old; build via `export PATH="$HOME/.nvm/versions/node/v22.22.0/bin:$PATH" && npm run build`).
+  **Phase C done across all three repos.** Unmerged integration branches: goAML pieces are merged to `main`;
+  AML `Backend_Java` + `Frontend_Customer` both on `feature/goaml-integration`. **Next: Phase D** (maker-checker
+  on both planes + the "see it all in goAML" read view) and **Phase E** (live FIU B2B submission — external).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
