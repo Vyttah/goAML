@@ -201,14 +201,26 @@ work; chosen only if we want zero goAML edits.
   service-push path is unaffected — JIT only governs federated exchange.) Full gate green (one unrelated
   WireMock socket flake, confirmed by isolated re-run).
 
-**A1 — goAML auth bridge in the AML frontend.**
-- `axiosInstanceGoaml` + a goAML-JWT provider: (Option 1) `POST /api/v1/goaml/token` on AML backend mints the
-  assertion + federated-exchanges → JWT; (Option 2) `POST /api/v1/auth/login` to goAML. Cache token, attach
-  Bearer, refresh on 401. (Option 1 also needs the thin AML-backend `GoamlTokenController` — reuse the existing
-  assertion signer / `GoamlScreeningClient`.)
-- `auth.js` goAML getters: `goamlCreateReport`, `goamlListReports`, `goamlReportDetail`,
-  `goamlSubmitForReview/approve/reject`, `goamlSubmit`, `goamlDownloadXml`, `goamlLookup(set)`,
-  `goamlReportabilityCheck`.
+**A1 ✅ DONE — goAML auth bridge (both repos).**
+- **A1a (AML `customer-service`, commit `7a399e0`):** `GoamlTokenController` `POST /api/v1/goaml/token`
+  (`@ConditionalOnProperty goaml.integration.base-url`) mints the RS256 assertion for the logged-in user +
+  exchanges it via `GoamlScreeningClient.federatedToken` → goAML `/auth/federated/token`, returning the goAML
+  JWT. Reuses `GoamlAssertionService` (+ `sourceSystem()` accessor) + `GoamlTokenResult`. Test:
+  `GoamlScreeningClientTest.federatedTokenExchanges…` (MockRestServiceServer). Built green (Temurin21+IntelliJ
+  Maven); only my files committed (user's poms/yml untouched).
+- **A1b (AML `Frontend_Customer`, commit `0f57680`):** `axiosInstanceGoaml` — dedicated instance that
+  bootstraps + caches the goAML JWT (de-duped in-flight), attaches **only** the goAML Bearer (no AML
+  token/company header, no custom headers — matches goAML CORS), with its **own** 401 handler that refreshes
+  the goAML token without firing the AML logout/redirect. `auth.js` goAML getters: `goamlCreateReport`
+  (curated `/reports/dpmsr`), `goamlListReports`/`goamlReviewQueue`/`goamlGetReportDetail`/`goamlGetReportStatus`,
+  `goamlSubmitForReview`/`goamlApproveReport`/`goamlRejectReport`, `goamlSubmitReport`, `goamlLookup(set)`,
+  `goamlCheckReportability`, `goamlDownloadReportXml` (Blob). `NEXT_PUBLIC_API_GOAML_SERVICE_URL`
+  (+ optional `NEXT_PUBLIC_GOAML_WEB_URL`) in `.env.example`. **Frontend build verified in A2** (first consumer).
+- **goAML config (G1.2, runtime — for the live E2E):** launch goAML with `GOAML_AUTH_MODE=both` +
+  `GOAML_ALLOWED_ORIGINS=http://localhost:3001`; customer-service with `GOAML_INTEGRATION_BASE_URL` + the dev
+  private key (already the case in the running dev session). The dev SCREENING service (G1.3) JIT-provisions the
+  cockpit user as MLRO, and its company must map to the demo tenant (`GOAML_DEV_SCREENING_COMPANY_ID` = the AML
+  companyId, e.g. `vyttah`).
 
 **A2 — "Create Transaction" page** (`src/app/(main)/create-transaction/page.tsx` + nav item).
 - Pick customer (legal/natural) → fetch KYC via existing getters → **prefill** the party block (resolve FK ids

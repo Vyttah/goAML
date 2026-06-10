@@ -475,6 +475,25 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   approver→MLRO role-map + optional curated `POST /api/v1/reports/dpmsr`) → A1 (AML `GoamlTokenController` +
   frontend `axiosInstanceGoaml`/goAML-JWT interceptor) → A2 (Create Transaction page) → A3 (Approve Transaction
   page) → A4 (lookups direct + docs).
+- **2026-06-10 session (continued) — frontend-direct G1 + A1 DONE (auth + contract foundation built across
+  both repos).** Verified the whole contract surface (6-reader fan-out), then built + committed:
+  **goAML `feature/goaml-frontend-direct`** — **G1.1** (`a69a184`) curated `POST /api/v1/reports/dpmsr`
+  (`DpmsrCreateRequest` → existing `ReportService.create`, so the cockpit assembles a clean payload not the xjc
+  tree; E2E + full gate green); **G1.3** (`f76998d`) per-trusted-service `default_role` (shared **V6**; nullable
+  → ANALYST fallback) honoured by the federated exchange, dev SCREENING service now JIT-provisions cockpit users
+  as **MLRO** (so create AND approve/submit work with no per-user seeding). **AML `Backend_Java`
+  `feature/goaml-integration`** — **A1a** (`7a399e0`) `GoamlTokenController` `POST /api/v1/goaml/token` (mint
+  assertion → goAML `/auth/federated/token` → goAML JWT; reuses the RS256 signer; tested). **AML
+  `Frontend_Customer` `feature/goaml-integration`** — **A1b** (`0f57680`) `axiosInstanceGoaml` (bootstraps/caches
+  the goAML JWT, attaches only the goAML Bearer, own 401-refresh that doesn't log the user out) + `auth.js` goAML
+  getters + `.env.example`. **Auth = Federated SSO** (decided): browser bootstraps its goAML JWT via the one
+  backend mint, then calls every transaction op on goAML directly. **goAML gate green** (one unrelated WireMock
+  socket flake, confirmed passing on isolated re-run). **Next: A2** (Create Transaction page — pick customer →
+  KYC prefill → goods/indicators/header + gap fields → assemble `DpmsrCreateRequest` → create) **+ A3** (Approve
+  Transaction page — list → detail → submit-for-review/approve/reject → submit → Download XML); the frontend
+  `next build` is verified with A2 (first consumer of A1b). **Live E2E needs:** customer-service rebuilt/
+  restarted with A1a + `GOAML_AUTH_MODE=both` + `GOAML_ALLOWED_ORIGINS=http://localhost:3001` on goAML +
+  the AML companyId mapped to the demo tenant. Plan: [plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
