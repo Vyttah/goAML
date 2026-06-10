@@ -525,6 +525,17 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   review trail + parties + goods + validation + raw-filing fallback). approve/reject/submit MLRO-gated
   server-side; goAML error bodies surfaced. Gate green: tsc + lint clean (0 warnings), next build OK (/approve-transaction 3.43 kB). Commit `820dc08`. **Next: A4** —
   lookups-direct cleanup + docs; then the full suite loop is frontend-direct.
+- **2026-06-10 (continued) — A4 DONE → goAML-as-microservice PIVOT COMPLETE.** A4 was docs/closeout (no new
+  code): lookups were already direct in A2/A3, and the dormant Phase C/D deal module is left intact (both nav
+  items coexist — "goAML Filing" = old proxy flow, "Create/Approve Transaction" = new direct flow). Added the
+  consolidated **run/test guide (plan §10)**, a pointer from `docs/14-suite-integration.md`, and closed the
+  pivot here + in `discussion-log.md`. **End state:** the AML cockpit creates a DPMSR directly in goAML and
+  drives review → approve → submit → download, all browser → goAML (auth = one backend mint, A1). goAML half
+  verified live (§8a); A2/A3 gate-green (tsc/lint/next build). **Branches (unmerged):** goAML
+  `feature/goaml-frontend-direct` (G1.1 `a69a184`, G1.3 `f76998d` + planning); AML `Backend_Java`
+  `feature/goaml-integration` (A1a `7a399e0`); AML `Frontend_Customer` `feature/goaml-integration` (A1b
+  `0f57680`, A2 `ca45180`, A3 `820dc08`). **Remaining:** the user's live cockpit pass (plan §10) + Phase E
+  (real FIU creds, external). Plan: [plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5

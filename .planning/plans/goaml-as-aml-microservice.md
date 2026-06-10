@@ -291,10 +291,22 @@ parties + goods + validation messages + raw-filing fallback. approve/reject/subm
 errors surfaced from goAML's response body. Optional "Open in goAML" deep-link (`NEXT_PUBLIC_GOAML_WEB_URL`).
 New nav + route.
 
-**A4 — wire-up + lookups direct + docs.**
-- Repoint the (now-direct) lookup calls at goAML; retire the old AML lookup/XML proxies for this flow (leave
-  the dormant Phase C/D deal module on its unmerged branch — do **not** rip out). Update `STATE.md` +
-  `discussion-log.md`; note the env vars in the AML `.env.example`.
+**A4 ✅ DONE — wire-up + lookups direct + docs.**
+- Lookups are **already direct** in A2/A3 (`goamlLookup` → `axiosInstanceGoaml` → goAML `/lookups/ae/{set}`);
+  reportability + create + review + submit + xml likewise. No proxy remained to retire for the new flow.
+- The **dormant Phase C/D deal module** (AML `goaml_transaction` + `GoamlFilingController`/`GoamlLookupController`
+  proxies + the old "goAML Filing" SPA page) is **left intact** on the unmerged `feature/goaml-integration`
+  branch — superseded by the new menus but not ripped out (it can serve as a fallback / be removed later by a
+  product decision). Both nav items coexist: **"goAML Filing"** = old proxy flow; **"Create/Approve Transaction"**
+  = new frontend-direct flow.
+- Env documented in the AML `.env.example` (A1b: `NEXT_PUBLIC_API_GOAML_SERVICE_URL`, optional
+  `NEXT_PUBLIC_GOAML_WEB_URL`). The consolidated run/test guide is **§10** below. Pivot closed in `STATE.md`
+  + `discussion-log.md` + a pointer from `docs/14-suite-integration.md`.
+
+> **Pivot complete.** The AML cockpit can create a DPMSR directly in goAML and take it through
+> review → approve → submit → download, entirely browser → goAML (auth bootstrapped by one backend mint).
+> Screening + every other AML feature are untouched. Remaining: a live cockpit pass (§10) + per-tenant FIU
+> creds for a real submit (Phase E, external).
 
 ---
 
@@ -369,3 +381,55 @@ MockRestServiceServer); its *live* leg needs the AML user-service password (not 
 - **Approve:** submit-for-review → approve (MLRO) → submit (502 without FIU creds, handled) → status.
 - **Download:** `GET /{id}/xml` streams the marshalled goAML XML in the cockpit.
 - **No drift:** screening + other AML features unchanged; standalone goAML defaults unchanged.
+
+## 10. Run & test the full frontend-direct flow (live cockpit pass)
+
+> Goal: in the AML cockpit, **Create Transaction** → see it in **Approve Transaction** → submit-for-review →
+> approve → (submit to FIU) → **Download XML**, all browser → goAML. The goAML half is already verified live
+> (§8a); this is the cross-process cockpit pass.
+
+**1. goAML (`:8090`)** — run branch `feature/goaml-frontend-direct` with:
+```
+GOAML_AUTH_MODE=both
+GOAML_ALLOWED_ORIGINS=http://localhost:3001
+GOAML_DEV_SEED=true            # seeds demo tenant + SCREENING trusted_service (JIT→MLRO)
+```
+Then ensure the demo tenant has a **positive `rentity_id`** (the dev seeder omits `tenant_goaml_config`):
+```sql
+-- demo tenant id: SELECT id FROM public.tenant WHERE slug='demo';
+INSERT INTO public.tenant_goaml_config (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
+VALUES (gen_random_uuid(), '<demo-tenant-id>', 'AE', 3177, 'https://goaml.test/uae', 'goaml/dev/creds', 'TOKEN')
+ON CONFLICT (tenant_id) DO UPDATE SET rentity_id = EXCLUDED.rentity_id;
+```
+If your existing DB has a pre-V6 SCREENING row, also: `UPDATE public.trusted_service SET jit_provisioning=true, default_role='MLRO' WHERE source_system='SCREENING';`
+And map your AML companyId → demo tenant (if not `1001`): set `GOAML_DEV_SCREENING_COMPANY_ID=<companyId>` or insert a `tenant_external_ref` row.
+
+**2. customer-service (`:8081`)** — rebuild (to pick up `GoamlTokenController`/A1a) + run with:
+```
+GOAML_INTEGRATION_BASE_URL=http://localhost:8090
+GOAML_INTEGRATION_SOURCE=SCREENING
+GOAML_INTEGRATION_PRIVATE_KEY_PEM="$(cat <goAML-repo>/dev-local/screening-dev-key.pem)"
+```
+
+**3. Frontend_Customer (`:3001`)** — set in `.env` **before** `npm run dev` (Node ≥18.18; the team uses nvm 22):
+```
+NEXT_PUBLIC_API_GOAML_SERVICE_URL=http://localhost:8090/api/v1
+NEXT_PUBLIC_GOAML_WEB_URL=http://localhost:5173   # optional "Open in goAML"
+```
+
+**4. Walk the flow** (logged into the cockpit):
+- **Create Transaction** → pick a customer → review the prefilled party → fill gap fields (entity → just confirm;
+  natural person → TRN + full ID doc for a VALID, else it seeds an analyst draft) → add goods (≥1, value, item
+  type) → ≥1 indicator → **Create** → expect `reportId` + `VALID`.
+- **Approve Transaction** → the report shows `VALID` → **Submit for review** (`PENDING_REVIEW`) → **Approve**
+  (`APPROVED`) → **Submit to FIU** (expect a transport/credentials error — 502/“Secret not found” — without
+  real FIU creds; everything up to the FIU call is real) → **Download XML** (works on any built report) →
+  **Details** shows parties/goods/validation/review-trail.
+
+**Pre-flight smoke (no browser):** `dev-local/goaml-token-smoke.sh` exercises AML-login → `/goaml/token` →
+goAML `/reports` (needs your AML password); `dev-local/goaml-direct-verify.sh` exercises the goAML half with the
+dev key (no login).
+
+**Known fidelity caveat:** AML masters' nationality/occupation/country **codes** must match goAML's code sets
+(ISO-2 for countries; goAML `nationality1` is ISO-2). If a prefilled code is rejected at create, adjust the
+master `code` or the field before submit — confirm the mapping during this pass.

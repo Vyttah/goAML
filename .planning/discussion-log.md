@@ -530,3 +530,14 @@ Full plan:
   optional curated `POST /api/v1/reports/dpmsr`) → **A1** (AML `GoamlTokenController` + frontend
   `axiosInstanceGoaml`/goAML-JWT interceptor) → **A2** (Create Transaction page) → **A3** (Approve Transaction
   page) → **A4** (lookups direct + docs).
+- **✅ PIVOT COMPLETE (2026-06-10).** Built + gated across both repos: **G1.1** curated `POST /reports/dpmsr`
+  (`a69a184`) · **G1.3** per-`trusted_service` `default_role` → SCREENING JIT→MLRO (`f76998d`, shared V6) ·
+  **A1a** `GoamlTokenController` mint→exchange (`7a399e0`) · **A1b** `axiosInstanceGoaml` + getters (`0f57680`) ·
+  **A2** Create Transaction page (`ca45180`) · **A3** Approve Transaction page + Download XML (`820dc08`) ·
+  **A4** docs/closeout (lookups already direct; dormant Phase C/D module left intact; run/test guide = plan §10).
+  **goAML half verified LIVE** (§8a — federated SSO → MLRO → direct reports/lookups/curated-create + CORS);
+  A2/A3 gate-green (tsc/lint/next build). Auth = **Federated SSO** (one backend mint, then browser → goAML for
+  every op). All goAML-side knobs are runtime/standalone-safe (`auth.mode`, CORS, `default_role` null→ANALYST).
+  **Remaining:** the user's live cockpit pass (plan §10) + Phase E (real per-tenant FIU creds, external).
+  **Code-set fidelity caveat:** AML masters' nationality/occupation/country codes vs goAML's sets — confirm in
+  the live pass.

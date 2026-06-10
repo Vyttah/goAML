@@ -5,6 +5,12 @@
 > **sole FIU submission authority**; sibling apps integrate as REST clients behind their own UIs.
 > The standalone product (`auth.mode=native`) is unchanged — everything here is additive and inert
 > until a `trusted_service` is registered.
+>
+> **See also — frontend-direct cockpit flow:** the AML cockpit now consumes goAML as a **frontend-direct
+> microservice** (browser → goAML for create/approve/submit/xml; auth bootstrapped by one backend mint via
+> `/api/v1/auth/federated/token`). This is **Model 1** applied from the browser, plus a curated
+> `POST /api/v1/reports/dpmsr` entry and a per-`trusted_service` `default_role`. Full design + run guide:
+> [.planning/plans/goaml-as-aml-microservice.md](../.planning/plans/goaml-as-aml-microservice.md).
 
 ## Two integration models
 
