@@ -248,8 +248,13 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   (messages table), and **Review** (status/reviewer/remark/when) panels; `ReportFilingDetails` + tests.
 - **D.4 (AML)** — in the case/filing UI: show goAML status (poll/refresh), a link to open the report in goAML,
   **and a "Download report (XML)" action** backed by the C.2 download proxy — so an AML user sees *and downloads*
-  the generated DPMSR without leaving the AML software. (End-state parity goal: the report is viewable +
-  downloadable in **both** apps.)
+  the generated DPMSR without leaving the AML software. ✅ **DONE** (`Frontend_Customer`,
+  `feature/goaml-integration` `5c1f476`, unmerged). The "goAML Filing" screen is now a **workflow console**:
+  create → DRAFT, then a **deals table** with per-status badges + stage actions (Submit for approval → Approve /
+  Reject+remark → **File to goAML** (only when APPROVED) → **Download XML** + optional **Open in goAML** link via
+  `NEXT_PUBLIC_GOAML_WEB_URL`). 3 new axios approval helpers; success/error keyed off the ApiResponse `type`
+  (adversarial-review fix). Gate green (type-check / lint / `next build`, `/goaml-filing` emitted). **End-state
+  parity reached: the report is viewable + downloadable in BOTH apps.**
 
 ### Phase E — Live B2B proof (parallel, external — NOT a code phase)
 Secure a client RE + SACM registration → per-tenant FIU B2B URL + creds → submit a real DPMSR → confirm FIU
@@ -278,9 +283,9 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 
 ## Suggested order
 ~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → ~~**Phase C (deal module)**~~ ✅ (C.4a → C.1 → C.2 → C.4b →
-C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML") — **D.2 (goAML review gate) ✅ DONE**
-(D.2a + D.2b), **D.3 (goAML read view) ✅ DONE** (D.3a + D.3b), **D.1 (AML deal approval gate) ✅ DONE**
-(`feature/goaml-integration`, unmerged); next **D.4** (AML: show goAML status + link + Download in the filing
-UI — the last Phase-D slice) — with **E** (live B2B proof) in parallel throughout. **Both approval planes now
-exist: goAML report review gate + AML deal approval gate (deal must be APPROVED before File). Remaining: D.4
-(AML UI display) closes Phase D.**
+C.3a → C.3b) → **D (maker-checker both planes + "see it all in goAML") ✅ COMPLETE** — D.2 (goAML review gate:
+D.2a+D.2b) + D.3 (goAML read view: D.3a+D.3b) + D.1 (AML deal approval gate) + D.4 (AML filing console). The
+AML pieces (D.1, D.4) are on `feature/goaml-integration` (unmerged, like Phase C). **Remaining: only Phase E**
+(live FIU B2B proof — external, gated on a real RE + SACM). **The full suite loop is built end-to-end: AML
+deal → approve (AML) → File → goAML builds DPMSR → MLRO review/approve (goAML) → (with creds) submit to FIU;
+the report is viewable + downloadable in BOTH apps.**

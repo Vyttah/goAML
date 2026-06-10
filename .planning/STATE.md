@@ -439,6 +439,23 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   5/9 confirmed applied, 4 correctly dismissed). **Both approval planes now exist. Next: D.4** — the AML
   `Frontend_Customer` filing UI: show goAML/approval status + a link to open the report in goAML + the
   **Download report (XML)** action (C.4b proxy built) — closes Phase D.
+- **2026-06-10 session (continued) — Phase D.4 (AML goAML filing console) DONE → PHASE D COMPLETE.** AML
+  `Frontend_Customer`, branch `feature/goaml-integration`, commit `5c1f476` (**NOT merged**; only my 2 files —
+  `components/GoAMLFilingComponent/GoAMLFilingComponent.tsx` + `utils/react-query/axios/auth.js`). D.1 made the
+  backend `file()` require APPROVED, so the screen is no longer create+file in one shot — it now **creates a
+  DRAFT, then a deals table drives the gate**: per-status badges (DRAFT/PENDING_APPROVAL/APPROVED/FILED/FAILED)
+  + stage actions — **Submit for approval** (DRAFT) → **Approve** / **Reject**+remark (PENDING_APPROVAL) →
+  **File to goAML** (APPROVED only) → **Download XML** + optional **Open in goAML** link
+  (`NEXT_PUBLIC_GOAML_WEB_URL`, hidden if unset) for FILED/FAILED. 3 new axios helpers (submit/approve/reject).
+  **Adversarial-review catch + fix:** success vs error must be keyed off the ApiResponse `type`
+  ("SUCCESS"/"ERROR") — both `ApiResponse` and `ApiErrorResponse` carry a numeric `statusCode`, so an earlier
+  `statusCode`-based `isSuccess` would have shown a success toast on a 409; fixed to `type==='SUCCESS'`. Gate
+  (Node 22): `tsc --noEmit` clean, `next lint` no errors, `next build` ✓ (`/goaml-filing` 6.05 kB emitted).
+  Reviewed across api-shape / workflow-gate / react-ux lenses against the confirmed response envelopes (the
+  review-workflow had a script-syntax hiccup, so the lens sweep was done directly — no further defects).
+  **PHASE D COMPLETE (D.1+D.2+D.3+D.4). The full suite loop is built end-to-end: AML deal → approve (AML) →
+  File → goAML builds the DPMSR → MLRO review/approve (goAML) → (with FIU creds) submit; report viewable +
+  downloadable in BOTH apps. Remaining: only Phase E** (live FIU B2B proof — external, real RE + SACM).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
