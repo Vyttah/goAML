@@ -584,3 +584,13 @@ Full plan:
   dates+issue_country all resolve, else omitted — XML can't be invalidated by a partial ID). **Remaining T2
   item:** banks are captured/displayed but not yet filed as a structured `account_my_client` party (required
   enum fields — status_code/currency/account_name — need live validation); flagged for the combined test.
+
+- **✅ T2 bank party wired (2026-06-11):** banks now file as a goAML **`t_account`** party (the light
+  counterparty account — only `swift|institution_code` + `account` + `account_name` required), NOT the heavy
+  `account_my_client` (which would require fabricating signatory/opened-date/status/branch). Maps real KYC:
+  bankName→institutionName, swift, accountNumber→account, customer name→accountName, iban; filed only when
+  swift + account number are present (else the bank stays displayed-only — no fabrication, XML never broken).
+  Frontend commit `5bc0285` (+ adapter t_account branch). **Verified live**: full payload with a bank party →
+  201 VALID and institution_name/swift/account/account_name/iban round-trip into the marshalled XML. **T2 is
+  now complete** — every selected relation type (subject, directors/shareholders/UBOs/reps with roles+IDs,
+  banks) plus all goods fields files into a FIU-valid DPMSR; non-XSD extras remain captured metadata.
