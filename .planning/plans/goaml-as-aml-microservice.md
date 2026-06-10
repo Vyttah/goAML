@@ -282,11 +282,14 @@ real consumer of A1b, so it verifies the auth bridge compiles + wires**. Commit 
 *Prereq for a live VALID create:* the demo tenant needs a positive `rentity_id` in `tenant_goaml_config`
 (see §8a) — seed once.
 
-**A3 — "Approve Transaction" page** (`src/app/(main)/approve-transaction/page.tsx` + nav item).
-- List goAML reports (`GET /api/v1/reports` or `/review-queue`) with status badges → open **detail**
-  (`/detail`: filing + validation + review trail) → **Submit for review** / **Approve** / **Reject**+remark →
-  **Submit to FIU** (MLRO) → **Download XML** (`/xml`). Maps 1:1 to goAML's review workflow; the AML UI is a
-  thin driver.
+**A3 ✅ DONE** (AML `Frontend_Customer`, commit `820dc08`) — Approve Transaction page: lists goAML reports
+(`goamlListReports`) with status badges; per-status row actions drive the workflow directly against goAML —
+VALID → **Submit for review** / **Submit to FIU**; PENDING_REVIEW → **Approve** / **Reject**+remark (inline);
+APPROVED → **Submit to FIU**; SUBMITTED/ACCEPTED/REJECTED → **Refresh status**; any → **Download XML** +
+**Details**. The inline **Details** panel loads `/detail` (`goamlGetReportDetail`) → header + review trail +
+parties + goods + validation messages + raw-filing fallback. approve/reject/submit are MLRO-gated server-side;
+errors surfaced from goAML's response body. Optional "Open in goAML" deep-link (`NEXT_PUBLIC_GOAML_WEB_URL`).
+New nav + route.
 
 **A4 — wire-up + lookups direct + docs.**
 - Repoint the (now-direct) lookup calls at goAML; retire the old AML lookup/XML proxies for this flow (leave

@@ -516,6 +516,15 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   fidelity (nationality/occupation code-sets) to confirm in a live cockpit pass. **Next: A3** — Approve
   Transaction page (list goAML reports → detail → submit-for-review/approve/reject → submit to FIU → Download
   XML), then A4 (lookups-direct cleanup + docs).
+- **2026-06-10 (continued) — A3 (Approve Transaction page) DONE.** AML `Frontend_Customer`
+  (`feature/goaml-integration`, commit pending; only my files — `components/ApproveTransactionComponent/` +
+  `(main)/approve-transaction/page.tsx` + Sidebar nav). Lists goAML reports (`goamlListReports`) with status
+  badges; per-status row actions drive the workflow **directly** against goAML: VALID → Submit-for-review /
+  Submit-to-FIU; PENDING_REVIEW → Approve / Reject+remark (inline); APPROVED → Submit-to-FIU; SUBMITTED/
+  ACCEPTED/REJECTED → Refresh status; any → Download XML (Blob) + inline **Details** (`/detail`: header +
+  review trail + parties + goods + validation + raw-filing fallback). approve/reject/submit MLRO-gated
+  server-side; goAML error bodies surfaced. Gate green: tsc + lint clean (0 warnings), next build OK (/approve-transaction 3.43 kB). Commit `820dc08`. **Next: A4** —
+  lookups-direct cleanup + docs; then the full suite loop is frontend-direct.
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
