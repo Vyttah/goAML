@@ -562,3 +562,13 @@ Full plan:
   (xjc leaf types, 1:1 XSD). T2 switches the cockpit to the full payload to carry **every** field; no curated-DTO
   extension needed. See `.planning/plans/full-schema-fidelity.md`.
 - **Plan:** `.planning/plans/rich-transaction-builder.md` (T1 frontend → T2 goAML carry-through → T3 detail view).
+
+- **✅ T1 done (2026-06-10, frontend):** Create Transaction rebuilt into collapsible LiveExShield-style
+  sections — Customer (subject) + Shareholder / Director-Representative / Bank / UBO (each a selectable
+  relation table expanding to read-only KYC + ID-docs "Detail" sub-table) + Goods + Transaction Details
+  (indicators/description/action/branch filed; Additional Details captured but not in the XML). Selected
+  relations map to `entity.directors[]` with role codes (DIR/SHRHL/UBO/ATR); banks deferred to T2. New files:
+  `CollapsibleSection.tsx`, `RelationGroupSection.tsx`, `relationKyc.ts`. Gate green (tsc+lint). Commits:
+  `77147b2` (UI restyle), `af10573` (app select icon), `7f1add0` (T1). **Next: T2** — switch the cockpit to
+  POST the full `DpmsrReportPayload` so every KYC/user field round-trips to the XML (banks as account party,
+  rich director/UBO detail, PEP, multi-ID, nationality2).
