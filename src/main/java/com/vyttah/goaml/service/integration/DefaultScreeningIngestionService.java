@@ -155,6 +155,27 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
         }
     }
 
+    @Override
+    public String filingXml(String companyId, String filingRef) {
+        ResolvedTenant tenant = resolveTenant(companyId);
+        String ref = filingReference(companyId, filingRef);
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            Report r = reportRepository.findByEntityReference(ref)
+                    .orElseThrow(() -> new com.vyttah.goaml.service.report.ReportExceptions
+                            .ReportNotFoundException("No goAML report for filing " + filingRef));
+            String xml = r.getReportXml();
+            if (xml == null || xml.isBlank()) {
+                throw new com.vyttah.goaml.service.report.ReportExceptions
+                        .ReportNotFoundException("Report for filing " + filingRef + " has no generated XML");
+            }
+            return xml;
+        } finally {
+            restore(previous);
+        }
+    }
+
     private ScreeningSubjectResponse response(String ref, ScreeningPartyPayload payload) {
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(payload);
         return new ScreeningSubjectResponse(ref, payload.subjectType().name(),

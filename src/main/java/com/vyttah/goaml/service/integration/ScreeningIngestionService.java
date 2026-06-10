@@ -33,4 +33,10 @@ public interface ScreeningIngestionService {
 
     /** Status of a previously-filed report (by AML company + filing ref). */
     ScreeningFilingResponse filingStatus(String companyId, String filingRef);
+
+    /**
+     * The marshalled goAML XML of a previously-filed report (by AML company + filing ref), so the AML cockpit
+     * can download the report it filed without leaving its own UI (Phase C.4b). 404 if no report / no XML.
+     */
+    String filingXml(String companyId, String filingRef);
 }
