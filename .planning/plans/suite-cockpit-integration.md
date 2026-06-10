@@ -228,7 +228,10 @@ directly** (item type/status/indicators are goAML's domain, not AML masters); cu
   ✅ DONE (merged `1d16989`) — `tenant_goaml_config.review_required` (default false, opt-in everywhere) + report
   review columns; `ReportReviewService` (submit-for-review/approve/reject/queue, MLRO approves+submits, no new
   role); submit gate requires APPROVED when review on; REST `/submit-for-review|approve|reject|review-queue`;
-  `ReportReviewE2ETest` (4). **D.2b** the SPA review queue page — next.
+  `ReportReviewE2ETest` (4). **D.2b** ✅ DONE (merged `5e2b5c4`) — goAML SPA: `ReviewQueuePage` (route
+  `reports/review` + "Review queue" nav, MLRO/TENANT_ADMIN) lists PENDING_REVIEW with approve/reject(remark);
+  `ReportDetailPage` "Submit for review" on VALID + submit enabled for VALID|APPROVED; `ReviewQueuePage.test`
+  (4); full frontend gate green on Node 18 (lint/tsc/72 vitest/build). **D.2 COMPLETE.**
 - **D.3 (goAML)** — "Transaction & Report" view: a read endpoint + SPA page rendering the stored `input`
   (parties/directors/UBO/goods/deal) + status + XML — a goAML login shows the whole thing.
 - **D.4 (AML)** — in the case/filing UI: show goAML status (poll/refresh), a link to open the report in goAML,
@@ -263,7 +266,8 @@ report that our XSD gate rejects (`employer_address_id` in a director)? Determin
 
 ## Suggested order
 ~~Slice 1~~ ✅ → ~~Phase A~~ ✅ → ~~Phase B~~ ✅ → ~~**Phase C (deal module)**~~ ✅ (C.4a → C.1 → C.2 → C.4b →
-C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML") — **D.2a (goAML review backend) ✅
-DONE**; next **D.2b** (SPA review queue) → D.3 (goAML read view) → D.1 (AML deal approval) → D.4 (AML
+C.3a → C.3b) → **D** (maker-checker both planes + "see it all in goAML") — **D.2 (goAML review gate) ✅ DONE**
+(D.2a backend + D.2b SPA review queue); next **D.3** (goAML read view) → D.1 (AML deal approval) → D.4 (AML
 status+download) — with **E** (live B2B proof) in parallel throughout. **The full deal→file→download pipe is
-built end-to-end; the goAML review gate (VALID→PENDING_REVIEW→APPROVED→submit, opt-in per tenant) is now in.**
+built end-to-end; the goAML review gate (VALID→PENDING_REVIEW→APPROVED→submit, opt-in per tenant) is now in,
+backend + SPA.**

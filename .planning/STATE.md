@@ -390,6 +390,19 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   `ReportReviewE2ETest` 4 cases (full flow, submit-before-approve 409, reject+remark/RBAC, review-disabled
   guard). Full gate green (2m42s). **Next: D.2b** — the goAML SPA review queue page (list PENDING_REVIEW +
   approve/reject actions), then D.3 (goAML read view), D.1 (AML deal approval), D.4 (AML status+download).
+- **2026-06-10 session (continued) — Phase D.2b (goAML SPA review queue) DONE, merged `5e2b5c4`. Phase D.2
+  COMPLETE.** goAML `frontend/`: `ReviewQueuePage` (route `reports/review`, new "Review queue" nav item, gated
+  MLRO/TENANT_ADMIN) lists PENDING_REVIEW reports — an MLRO approves (→ APPROVED) or rejects (→ VALID, remark
+  required via modal); a TENANT_ADMIN sees the queue read-only. `ReportDetailPage` gained **"Submit for review"**
+  on a VALID report (ANALYST/MLRO) and now enables submit for VALID **or** APPROVED (backend enforces which);
+  `api/reports` + `useReviewQueue` hooks + `ReviewView` type + PENDING_REVIEW/APPROVED status chips.
+  `ReviewQueuePage.test` (4: list, approve-clears-queue, reject-requires-remark, TENANT_ADMIN-read-only).
+  **Gate caveat (verified):** the full frontend gate is **green on Node 18** (the CI version — lint/tsc clean,
+  **72/72 vitest**, `vite build` ok). Under **Node 22** the pre-existing `ImportPage` `userEvent.upload` specs
+  fail (jsdom file-upload env artifact) — confirmed by stashing all my changes on pristine `main` (still fails
+  on 22, passes on 18); **not** introduced here. **Run the goAML SPA tests on Node 18.** **Next: D.3** — the
+  goAML "Transaction & Report" read view (read endpoint + SPA page over stored input + status + XML), then
+  D.1 (AML deal approval) + D.4 (AML status+download).
 - **To resume on any machine:** clone → read this file → `docker compose up -d postgres` →
   `./gradlew test` (confirm green) → for the UI, `GOAML_DEV_SEED=true ./gradlew bootRun` +
   `cd frontend && npm install && npm run dev`. **No open build phase** — standalone (14/14) + Phase 1.5
