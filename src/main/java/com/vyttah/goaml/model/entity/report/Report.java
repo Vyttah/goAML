@@ -59,6 +59,18 @@ public class Report {
     @Column(name = "validation_errors", columnDefinition = "jsonb")
     private String validationErrors;
 
+    @Setter
+    @Column(name = "reviewed_by")
+    private UUID reviewedBy;
+
+    @Setter
+    @Column(name = "reviewed_at")
+    private OffsetDateTime reviewedAt;
+
+    @Setter
+    @Column(name = "review_remark")
+    private String reviewRemark;
+
     @Column(name = "created_by")
     private UUID createdBy;
 

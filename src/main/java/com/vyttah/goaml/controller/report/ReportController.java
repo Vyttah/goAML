@@ -3,12 +3,15 @@ package com.vyttah.goaml.controller.report;
 import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportView;
+import com.vyttah.goaml.model.dto.report.ReportResponses.ReviewView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.StatusView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.SubmissionView;
+import com.vyttah.goaml.model.dto.report.ReviewDecisionRequest;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.security.UserPrincipal;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.report.ReportResult;
+import com.vyttah.goaml.service.report.ReportReviewService;
 import com.vyttah.goaml.service.report.ReportService;
 import com.vyttah.goaml.service.submission.SubmissionService;
 import jakarta.validation.Valid;
@@ -32,7 +35,9 @@ import java.util.UUID;
 /**
  * REST API for the DPMSR report lifecycle. Thin — delegates to {@link ReportService} /
  * {@link SubmissionService}; tenant + actor come from the authenticated {@link UserPrincipal}. RBAC:
- * create/read for ANALYST or MLRO; <strong>submit is MLRO-only</strong>.
+ * create/read for ANALYST or MLRO; <strong>submit is MLRO-only</strong>. Phase D.2 adds the opt-in review
+ * gate — submit-for-review (ANALYST or MLRO) → approve/reject (MLRO) — which, when enabled, the submit call
+ * requires to have reached {@code APPROVED}.
  */
 @RestController
 @RequestMapping("/api/v1/reports")
@@ -40,6 +45,7 @@ import java.util.UUID;
 public class ReportController {
 
     private final ReportService reportService;
+    private final ReportReviewService reviewService;
     private final SubmissionService submissionService;
 
     @PostMapping
@@ -82,12 +88,55 @@ public class ReportController {
                 .body(xml);
     }
 
+    /**
+     * Phase D.2 review gate (opt-in per tenant). {@code submit-for-review} moves a VALID report into the
+     * queue; {@code approve}/{@code reject} are MLRO-only and decide it. When review is enabled the
+     * {@code /submit} call below requires {@code APPROVED}.
+     */
+    @PostMapping("/{id}/submit-for-review")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    public ResponseEntity<ReviewView> submitForReview(@PathVariable UUID id,
+                                                      @RequestBody(required = false) ReviewDecisionRequest body,
+                                                      @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ReviewView.from(reviewService.submitForReview(
+                id, principal.getTenantId(), principal.getUserId(), remarkOf(body))));
+    }
+
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('MLRO')")
+    public ResponseEntity<ReviewView> approve(@PathVariable UUID id,
+                                              @RequestBody(required = false) ReviewDecisionRequest body,
+                                              @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ReviewView.from(reviewService.approve(
+                id, principal.getTenantId(), principal.getUserId(), remarkOf(body))));
+    }
+
+    @PostMapping("/{id}/reject")
+    @PreAuthorize("hasRole('MLRO')")
+    public ResponseEntity<ReviewView> reject(@PathVariable UUID id,
+                                             @RequestBody(required = false) ReviewDecisionRequest body,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ReviewView.from(reviewService.reject(
+                id, principal.getTenantId(), principal.getUserId(), remarkOf(body))));
+    }
+
+    /** The review queue — reports awaiting MLRO review for this tenant. */
+    @GetMapping("/review-queue")
+    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
+    public ResponseEntity<List<ReportView>> reviewQueue() {
+        return ResponseEntity.ok(reviewService.reviewQueue().stream().map(ReportView::from).toList());
+    }
+
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasRole('MLRO')")
     public ResponseEntity<SubmissionView> submit(@PathVariable UUID id,
                                                 @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(SubmissionView.from(
                 submissionService.submit(id, principal.getTenantId(), principal.getUserId())));
+    }
+
+    private static String remarkOf(ReviewDecisionRequest body) {
+        return body == null ? null : body.remark();
     }
 
     @GetMapping("/{id}/status")

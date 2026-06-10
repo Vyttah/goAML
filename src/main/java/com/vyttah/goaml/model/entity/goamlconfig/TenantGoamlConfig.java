@@ -57,6 +57,15 @@ public class TenantGoamlConfig {
     @Column(name = "auto_submit", nullable = false)
     private boolean autoSubmit;
 
+    /**
+     * Phase D.2 — per-tenant opt-in to the report review gate. When {@code true}, a VALID report must be
+     * approved by an MLRO (VALID → PENDING_REVIEW → APPROVED) before it can be submitted to the FIU. Default
+     * {@code false}: standalone tenants keep the direct VALID → SUBMITTED path.
+     */
+    @Setter
+    @Column(name = "review_required", nullable = false)
+    private boolean reviewRequired;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
