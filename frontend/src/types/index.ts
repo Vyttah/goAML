@@ -182,6 +182,14 @@ export interface CreateUserRequest {
   role: string; // ANALYST | MLRO | TENANT_ADMIN
 }
 
+/** Update a user — mirrors `AdminViews.UpdateUserRequest`. Email is immutable; status ∈ ACTIVE | DISABLED. */
+export interface UpdateUserRequest {
+  firstName: string;
+  lastName: string;
+  role: string; // ANALYST | MLRO | TENANT_ADMIN
+  status: string; // ACTIVE | DISABLED
+}
+
 /** User summary — mirrors `AdminViews.UserView`. */
 export interface UserView {
   id: string;

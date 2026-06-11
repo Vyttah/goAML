@@ -27,4 +27,19 @@ public final class AdminExceptions {
             super(message);
         }
     }
+
+    /** No user with that id in the caller's tenant. → {@code 404}. */
+    public static class UserNotFoundException extends RuntimeException {
+        public UserNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    /** Hard-delete blocked because the user is referenced by reports (author/reviewer) — disable instead.
+     *  → {@code 409}. */
+    public static class UserReferencedException extends RuntimeException {
+        public UserReferencedException(String message) {
+            super(message);
+        }
+    }
 }

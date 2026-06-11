@@ -112,9 +112,14 @@ public class DefaultFederatedAuthService implements FederatedAuthService {
         Optional<ExternalIdentity> mapping = externalIdentities
                 .findBySourceSystemAndExternalUserId(a.sourceSystem(), a.externalUserId());
         if (mapping.isPresent()) {
-            return appUsers.findById(mapping.get().getAppUserId())
+            AppUser mapped = appUsers.findById(mapping.get().getAppUserId())
                     .orElseThrow(() -> new AuthExceptions.FederatedExchangeException(
                             "Mapped goAML user no longer exists"));
+            // A disabled user must not obtain a token via the federated on-ramp either.
+            if (!"ACTIVE".equals(mapped.getStatus())) {
+                throw new AuthExceptions.FederatedExchangeException("Mapped goAML user is disabled");
+            }
+            return mapped;
         }
         if (!a.service().isJitProvisioning()) {
             throw new AuthExceptions.FederatedExchangeException(

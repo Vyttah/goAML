@@ -174,6 +174,44 @@ class AdminApiE2ETest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void tenantAdminUpdatesAndDeletesUsers() throws Exception {
+        Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
+                "usr-" + UUID.randomUUID().toString().substring(0, 8), "User Mgmt FZE", "AE",
+                "usr-admin-" + UUID.randomUUID() + "@e2e.test", "P@ssw0rd!", "U", "A"));
+        String taToken = userInTenant(tenant.getId(), "TENANT_ADMIN");
+
+        // create an analyst
+        String email = "u-" + UUID.randomUUID() + "@e2e.test";
+        MvcResult created = mvc.perform(post("/api/v1/admin/users").contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"email\":\"" + email + "\",\"password\":\"P@ssw0rd!\","
+                                + "\"firstName\":\"An\",\"lastName\":\"Alyst\",\"role\":\"ANALYST\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        String uid = json(created).get("id").asText();
+
+        // update: promote to MLRO + disable (status returned, role replaced)
+        MvcResult updated = mvc.perform(put("/api/v1/admin/users/" + uid).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"firstName\":\"An\",\"lastName\":\"Alyst\",\"role\":\"MLRO\",\"status\":\"DISABLED\"}"))
+                .andExpect(status().isOk()).andReturn();
+        assertThat(json(updated).get("status").asText()).isEqualTo("DISABLED");
+        assertThat(json(updated).get("roles").toString()).contains("MLRO");
+
+        // update a non-existent user → 404
+        mvc.perform(put("/api/v1/admin/users/" + UUID.randomUUID()).contentType(APPLICATION_JSON)
+                        .header("Authorization", "Bearer " + taToken)
+                        .content("{\"firstName\":\"X\",\"lastName\":\"Y\",\"role\":\"MLRO\",\"status\":\"ACTIVE\"}"))
+                .andExpect(status().isNotFound());
+
+        // delete the user (no reports reference it) → 204, then gone from the list
+        mvc.perform(delete("/api/v1/admin/users/" + uid)
+                .header("Authorization", "Bearer " + taToken)).andExpect(status().isNoContent());
+        JsonNode users = json(mvc.perform(get("/api/v1/admin/users")
+                .header("Authorization", "Bearer " + taToken)).andExpect(status().isOk()).andReturn());
+        assertThat(users.toString()).doesNotContain(email);
+    }
+
     // ----- helpers -----
 
     private String superAdminToken() throws Exception {

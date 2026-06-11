@@ -20,4 +20,10 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
 
     /** All reports in the given status for the current tenant (the poller queries {@code SUBMITTED}). */
     List<Report> findByStatus(String status);
+
+    /** Delete-guard: is this user the author or reviewer of any report in the current tenant? If so, a
+     *  hard-delete would orphan an audit reference — block it (disable the user instead). */
+    boolean existsByCreatedBy(UUID createdBy);
+
+    boolean existsByReviewedBy(UUID reviewedBy);
 }

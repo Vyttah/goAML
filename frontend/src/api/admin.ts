@@ -8,6 +8,7 @@ import type {
   GoamlPersonView,
   TenantProvisioningRequest,
   TenantView,
+  UpdateUserRequest,
   UserView,
 } from '../types';
 
@@ -35,6 +36,15 @@ export async function listUsers(): Promise<UserView[]> {
 export async function createUser(body: CreateUserRequest): Promise<UserView> {
   const { data } = await apiClient.post<UserView>(`${BASE}/users`, body);
   return data;
+}
+
+export async function updateUser(id: string, body: UpdateUserRequest): Promise<UserView> {
+  const { data } = await apiClient.put<UserView>(`${BASE}/users/${id}`, body);
+  return data;
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await apiClient.delete(`${BASE}/users/${id}`);
 }
 
 // ----- goAML config for the caller's tenant (TENANT_ADMIN) -----

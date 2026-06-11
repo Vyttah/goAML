@@ -6,6 +6,7 @@ import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.TenantView;
+import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.UserView;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.security.UserPrincipal;
@@ -77,6 +78,23 @@ public class AdminController {
     public ResponseEntity<List<UserView>> listUsers(@AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(adminService.listUsers(principal.getTenantId())
                 .stream().map(UserView::from).toList());
+    }
+
+    @PutMapping("/users/{id}")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public ResponseEntity<UserView> updateUser(@PathVariable UUID id,
+                                               @Valid @RequestBody UpdateUserRequest request,
+                                               @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(UserView.from(
+                adminService.updateUser(principal.getTenantId(), id, request, principal.getUserId())));
+    }
+
+    @DeleteMapping("/users/{id}")
+    @PreAuthorize("hasRole('TENANT_ADMIN')")
+    public ResponseEntity<Void> deleteUser(@PathVariable UUID id,
+                                           @AuthenticationPrincipal UserPrincipal principal) {
+        adminService.deleteUser(principal.getTenantId(), id, principal.getUserId());
+        return ResponseEntity.noContent().build();
     }
 
     // ----- goAML config for the caller's tenant (TENANT_ADMIN) -----

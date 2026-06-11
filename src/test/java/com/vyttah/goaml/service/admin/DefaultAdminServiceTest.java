@@ -4,6 +4,7 @@ import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
@@ -11,6 +12,7 @@ import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
+import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.audit.AuditService;
@@ -43,14 +45,15 @@ class DefaultAdminServiceTest {
     private final RoleRepository roleRepository = mock(RoleRepository.class);
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
     private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
+    private final ReportRepository reportRepository = mock(ReportRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final AuditService auditService = mock(AuditService.class);
 
     private final JurisdictionRegistry jurisdictionRegistry = new JurisdictionRegistry();
 
     private final DefaultAdminService service = new DefaultAdminService(provisioning, tenantRepository,
-            appUserRepository, roleRepository, configRepository, personRepository, jurisdictionRegistry,
-            passwordEncoder, auditService);
+            appUserRepository, roleRepository, configRepository, personRepository, reportRepository,
+            jurisdictionRegistry, passwordEncoder, auditService);
 
     private final UUID tenantId = UUID.randomUUID();
 
@@ -91,6 +94,96 @@ class DefaultAdminServiceTest {
         assertThatThrownBy(() -> service.createUser(tenantId, userReq("x@t.test", "WIZARD")))
                 .isInstanceOf(IllegalArgumentException.class);
         verify(appUserRepository, never()).save(any());
+    }
+
+    // ----- user update / delete -----
+
+    private AppUser existingUser(UUID id, String status) {
+        AppUser u = new AppUser(id, tenantId, "u@t.test", "ENC", "Old", "Name", status);
+        return u;
+    }
+
+    @Test
+    void updateUserChangesProfileRoleAndStatus() {
+        UUID uid = UUID.randomUUID();
+        AppUser user = existingUser(uid, "ACTIVE");
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(user));
+        when(roleRepository.findByName("MLRO")).thenReturn(Optional.of(mock(Role.class)));
+
+        service.updateUser(tenantId, uid, new UpdateUserRequest("New", "Name", "mlro", "disabled"),
+                UUID.randomUUID());
+
+        assertThat(user.getFirstName()).isEqualTo("New");
+        assertThat(user.getStatus()).isEqualTo("DISABLED"); // normalized + actually persisted
+        assertThat(user.getRoles()).hasSize(1);
+        verify(appUserRepository).save(user);
+    }
+
+    @Test
+    void updateUserRejectsUnknownTenantRoleOrStatus() {
+        UUID uid = UUID.randomUUID();
+        // unknown tenant
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        assertThatThrownBy(() -> service.updateUser(UUID.randomUUID(), uid,
+                new UpdateUserRequest("A", "B", "MLRO", "ACTIVE"), UUID.randomUUID()))
+                .isInstanceOf(AdminExceptions.UserNotFoundException.class);
+        // bad role / status fail before the lookup
+        assertThatThrownBy(() -> service.updateUser(tenantId, uid,
+                new UpdateUserRequest("A", "B", "SUPER_ADMIN", "ACTIVE"), UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.updateUser(tenantId, uid,
+                new UpdateUserRequest("A", "B", "MLRO", "BANISHED"), UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(appUserRepository, never()).save(any());
+    }
+
+    @Test
+    void updateUserCannotDisableOrDemoteSelf() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        // self + disable
+        assertThatThrownBy(() -> service.updateUser(tenantId, uid,
+                new UpdateUserRequest("A", "B", "TENANT_ADMIN", "DISABLED"), uid))
+                .isInstanceOf(IllegalArgumentException.class);
+        // self + demote off TENANT_ADMIN
+        assertThatThrownBy(() -> service.updateUser(tenantId, uid,
+                new UpdateUserRequest("A", "B", "ANALYST", "ACTIVE"), uid))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(appUserRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteUserRemovesWhenUnreferenced() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(reportRepository.existsByCreatedBy(uid)).thenReturn(false);
+        when(reportRepository.existsByReviewedBy(uid)).thenReturn(false);
+
+        service.deleteUser(tenantId, uid, UUID.randomUUID());
+
+        verify(appUserRepository).delete(any(AppUser.class));
+    }
+
+    @Test
+    void deleteUserBlockedWhenReferencedByReports() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(reportRepository.existsByCreatedBy(uid)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.deleteUser(tenantId, uid, UUID.randomUUID()))
+                .isInstanceOf(AdminExceptions.UserReferencedException.class);
+        verify(appUserRepository, never()).delete(any(AppUser.class));
+    }
+
+    @Test
+    void deleteUserCannotDeleteSelfOrUnknownTenant() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        assertThatThrownBy(() -> service.deleteUser(tenantId, uid, uid))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> service.deleteUser(UUID.randomUUID(), uid, UUID.randomUUID()))
+                .isInstanceOf(AdminExceptions.UserNotFoundException.class);
+        verify(appUserRepository, never()).delete(any(AppUser.class));
     }
 
     @Test

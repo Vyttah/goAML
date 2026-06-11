@@ -3,6 +3,7 @@ package com.vyttah.goaml.service.admin;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
@@ -34,6 +35,24 @@ public interface AdminService {
 
     /** Users of a tenant. */
     List<AppUser> listUsers(UUID tenantId);
+
+    /**
+     * Update a user in {@code tenantId}: profile, single role, and status (ACTIVE|DISABLED). Email is immutable
+     * (it is the login identity). {@code actingUserId} is the caller — used to block self-lockout (you cannot
+     * disable or demote your own admin account).
+     *
+     * @throws AdminExceptions.UserNotFoundException if no such user in this tenant
+     */
+    AppUser updateUser(UUID tenantId, UUID userId, UpdateUserRequest request, UUID actingUserId);
+
+    /**
+     * Hard-delete a user from {@code tenantId}. Blocked if the user authored/reviewed any report (disable
+     * instead) or if it is the caller themselves.
+     *
+     * @throws AdminExceptions.UserNotFoundException if no such user in this tenant
+     * @throws AdminExceptions.UserReferencedException if the user is referenced by reports
+     */
+    void deleteUser(UUID tenantId, UUID userId, UUID actingUserId);
 
     /**
      * The tenant's goAML config.

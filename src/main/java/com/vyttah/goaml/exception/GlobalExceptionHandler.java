@@ -69,6 +69,7 @@ public class GlobalExceptionHandler {
             LookupExceptions.LookupNotFoundException.class,
             AdminExceptions.GoamlConfigNotFoundException.class,
             AdminExceptions.GoamlPersonNotFoundException.class,
+            AdminExceptions.UserNotFoundException.class,
             AuthExceptions.AuthModeDisabledException.class,
             IntegrationExceptions.UnmappedOrgException.class,
             IntegrationExceptions.ScreenedSubjectNotFoundException.class
@@ -83,7 +84,8 @@ public class GlobalExceptionHandler {
             SubmissionExceptions.ReportNotSubmittableException.class,
             SubmissionExceptions.TenantConfigMissingException.class,
             AttachmentExceptions.ReportNotEditableException.class,
-            AdminExceptions.UserEmailExistsException.class
+            AdminExceptions.UserEmailExistsException.class,
+            AdminExceptions.UserReferencedException.class
     })
     public ResponseEntity<Map<String, Object>> handleConflict(RuntimeException ex) {
         return body(HttpStatus.CONFLICT, ex.getMessage());

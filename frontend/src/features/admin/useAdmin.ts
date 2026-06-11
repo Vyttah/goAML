@@ -3,15 +3,17 @@ import {
   createGoamlPerson,
   createUser,
   deleteGoamlPerson,
+  deleteUser,
   getGoamlConfig,
   listGoamlPersons,
   listTenants,
   listUsers,
   provisionTenant,
   updateGoamlPerson,
+  updateUser,
   upsertGoamlConfig,
 } from '../../api/admin';
-import type { GoamlPersonRequest } from '../../types';
+import type { GoamlPersonRequest, UpdateUserRequest } from '../../types';
 
 export const tenantsKey = ['admin', 'tenants'] as const;
 export const usersKey = ['admin', 'users'] as const;
@@ -38,6 +40,22 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createUser,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: usersKey }),
+  });
+}
+
+export function useUpdateUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateUserRequest }) => updateUser(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: usersKey }),
+  });
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: usersKey }),
   });
 }

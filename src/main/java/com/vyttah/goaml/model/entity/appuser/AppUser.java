@@ -92,4 +92,21 @@ public class AppUser {
     public void addRole(Role role) {
         roles.add(role);
     }
+
+    /** Replace the user's role set with exactly one role (TENANT_ADMIN edit). */
+    public void setSingleRole(Role role) {
+        roles.clear();
+        roles.add(role);
+    }
+
+    /** Update the editable profile fields (TENANT_ADMIN edit). */
+    public void rename(String firstName, String lastName) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+    }
+
+    /** ACTIVE / DISABLED. A DISABLED user cannot authenticate ({@link UserPrincipal#isEnabled()}). */
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }

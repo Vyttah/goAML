@@ -6,6 +6,7 @@ import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
@@ -15,6 +16,7 @@ import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
+import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.audit.AuditService;
@@ -41,6 +43,8 @@ public class DefaultAdminService implements AdminService {
 
     /** Roles a tenant admin may assign — never the platform role SUPER_ADMIN. */
     private static final Set<String> ASSIGNABLE_ROLES = Set.of("ANALYST", "MLRO", "TENANT_ADMIN");
+    /** Valid user lifecycle states (a DISABLED user is retained for audit but cannot log in). */
+    private static final Set<String> USER_STATUSES = Set.of("ACTIVE", "DISABLED");
 
     private final TenantProvisioningService provisioningService;
     private final TenantRepository tenantRepository;
@@ -48,6 +52,7 @@ public class DefaultAdminService implements AdminService {
     private final RoleRepository roleRepository;
     private final TenantGoamlConfigRepository configRepository;
     private final TenantGoamlPersonRepository personRepository;
+    private final ReportRepository reportRepository;
     private final JurisdictionRegistry jurisdictionRegistry;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
@@ -90,6 +95,59 @@ public class DefaultAdminService implements AdminService {
     @Override
     public List<AppUser> listUsers(UUID tenantId) {
         return appUserRepository.findByTenantId(tenantId);
+    }
+
+    @Override
+    @Transactional
+    public AppUser updateUser(UUID tenantId, UUID userId, UpdateUserRequest request, UUID actingUserId) {
+        String roleName = request.role() == null ? "" : request.role().toUpperCase();
+        if (!ASSIGNABLE_ROLES.contains(roleName)) {
+            throw new IllegalArgumentException(
+                    "role must be one of " + ASSIGNABLE_ROLES + ", was: " + request.role());
+        }
+        String status = request.status() == null ? "" : request.status().toUpperCase();
+        if (!USER_STATUSES.contains(status)) {
+            throw new IllegalArgumentException(
+                    "status must be one of " + USER_STATUSES + ", was: " + request.status());
+        }
+        AppUser user = appUserRepository.findById(userId)
+                .filter(u -> tenantId.equals(u.getTenantId()))
+                .orElseThrow(() -> new AdminExceptions.UserNotFoundException(
+                        "No user " + userId + " in this tenant"));
+        // Self-lockout guard: an admin cannot disable or demote their own account (that would orphan the tenant).
+        if (user.getId().equals(actingUserId) && (!"ACTIVE".equals(status) || !"TENANT_ADMIN".equals(roleName))) {
+            throw new IllegalArgumentException(
+                    "You cannot disable or change the role of your own admin account");
+        }
+        Role role = roleRepository.findByName(roleName)
+                .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + roleName));
+        user.rename(request.firstName(), request.lastName());
+        user.setSingleRole(role);
+        user.setStatus(status);
+        appUserRepository.save(user);
+        auditService.record("ADMIN.USER_UPDATE", null, null, TenantContext.get(),
+                "updated user " + user.getEmail() + " [" + roleName + ", " + status + "]");
+        return user;
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(UUID tenantId, UUID userId, UUID actingUserId) {
+        AppUser user = appUserRepository.findById(userId)
+                .filter(u -> tenantId.equals(u.getTenantId()))
+                .orElseThrow(() -> new AdminExceptions.UserNotFoundException(
+                        "No user " + userId + " in this tenant"));
+        if (user.getId().equals(actingUserId)) {
+            throw new IllegalArgumentException("You cannot delete your own account");
+        }
+        // Block a destructive delete that would orphan an audit reference; disable the user instead.
+        if (reportRepository.existsByCreatedBy(userId) || reportRepository.existsByReviewedBy(userId)) {
+            throw new AdminExceptions.UserReferencedException(
+                    "This user authored or reviewed reports and cannot be deleted — disable the user instead");
+        }
+        appUserRepository.delete(user); // shared FKs (user_role, refresh_token, external_identity) cascade
+        auditService.record("ADMIN.USER_DELETE", null, null, TenantContext.get(),
+                "deleted user " + user.getEmail());
     }
 
     @Override

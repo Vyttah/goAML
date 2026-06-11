@@ -35,6 +35,11 @@ public final class AdminViews {
                                     @NotBlank String firstName, @NotBlank String lastName,
                                     @NotBlank String role) {}
 
+    /** Update a user in the caller's tenant: profile, single role, and status (ACTIVE | DISABLED). Email is
+     *  immutable (the login identity). A DISABLED user cannot log in but is retained for audit. */
+    public record UpdateUserRequest(@NotBlank String firstName, @NotBlank String lastName,
+                                    @NotBlank String role, @NotBlank String status) {}
+
     public record UserView(UUID id, String email, String firstName, String lastName, String status,
                            List<String> roles, OffsetDateTime createdAt) {
         public static UserView from(AppUser u) {
