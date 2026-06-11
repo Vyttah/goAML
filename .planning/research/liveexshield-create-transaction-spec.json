@@ -1,0 +1,195 @@
+{
+  "source": {
+    "url": "https://liveexshield.com/LexAML/Transaction/frm_tr_app",
+    "appName": "LiveExShield",
+    "flow": "Create Transaction",
+    "capturedAt": "2026-06-11",
+    "capturedVia": "Claude for Chrome (read-only scrape; SAVE/NEW not clicked)",
+    "structure": "single-page; collapsible panels: Customer, Shareholder, Director/Representative, Bank, UBO, Transaction Details. Top filter: Transaction Type (PERSON/ENTITY/ACCOUNT) + record-picker table that prefills Customer."
+  },
+  "sections": [
+    {
+      "id": "filter",
+      "title": "Transaction (top filter)",
+      "fields": [
+        { "label": "Select Transaction (Transcation Id)", "mandatory": false, "control": "text", "validation": "has '...' picker button" },
+        { "label": "Transaction Type", "mandatory": false, "control": "dropdown", "default": "ENTITY", "options": ["PERSON", "ENTITY", "ACCOUNT"] }
+      ]
+    },
+    {
+      "id": "customer-legal",
+      "title": "Customer (Legal entity layout)",
+      "shownWhen": "Entity = LEGAL ENTITIES",
+      "fields": [
+        { "label": "UID", "mandatory": false, "control": "readonly", "prefilled": true },
+        { "label": "CORE SYSTEM ID", "mandatory": false, "control": "text" },
+        { "label": "Entity", "mandatory": false, "control": "dropdown", "default": "LEGAL ENTITIES", "options": ["LEGAL ENTITIES", "NATURAL PERSONS"] },
+        { "label": "Business Activity *", "mandatory": true, "control": "text", "prefilled": true },
+        { "label": "Legal Name *", "mandatory": true, "control": "readonly", "prefilled": true },
+        { "label": "Alias", "mandatory": false, "control": "text" },
+        { "label": "Date Of Incorporation *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Country of Incorporation", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "License type", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "License Number *", "mandatory": true, "control": "text" },
+        { "label": "Issue Date *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Expiry Date *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Email", "mandatory": false, "control": "text" },
+        { "label": "Phone *", "mandatory": true, "control": "text" },
+        { "label": "Countries of Source of Funds *", "mandatory": true, "control": "text" },
+        { "label": "Management Company", "mandatory": false, "control": "text" },
+        { "label": "Countries of Operation *", "mandatory": true, "control": "text" },
+        { "label": "Jurisdiction", "mandatory": false, "control": "text" },
+        { "label": "Source Of Funds", "mandatory": false, "control": "text" },
+        { "label": "Residency Status", "mandatory": false, "control": "readonly", "default": "RESIDENT" },
+        { "label": "Licensing Authority / Other Details", "mandatory": false, "control": "text" },
+        { "label": "TRN", "mandatory": false, "control": "text" },
+        { "label": "License Category", "mandatory": false, "control": "text" },
+        { "label": "Address Expiry Date", "mandatory": false, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Channel", "mandatory": false, "control": "text" },
+        { "label": "Registered Office Address", "mandatory": false, "control": "text" },
+        { "label": "City *", "mandatory": true, "control": "text" },
+        { "label": "State", "mandatory": false, "control": "text" },
+        { "label": "Is My Client", "mandatory": false, "control": "checkbox" }
+      ]
+    },
+    {
+      "id": "customer-natural",
+      "title": "Customer (Natural person layout)",
+      "shownWhen": "Entity = NATURAL PERSONS (Transaction Type = PERSON)",
+      "fields": [
+        { "label": "UID", "mandatory": false, "control": "readonly", "prefilled": true },
+        { "label": "Core System id", "mandatory": false, "control": "text" },
+        { "label": "Entity", "mandatory": false, "control": "dropdown", "default": "NATURAL PERSONS", "options": ["LEGAL ENTITIES", "NATURAL PERSONS"] },
+        { "label": "Profession *", "mandatory": true, "control": "text", "prefilled": true },
+        { "label": "First Name *", "mandatory": true, "control": "readonly", "prefilled": true },
+        { "label": "Last Name", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Alias", "mandatory": false, "control": "text" },
+        { "label": "Date of Birth *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Id Type", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Emirates id", "mandatory": false, "control": "text" },
+        { "label": "Issue Date *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Expiry Date *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY" },
+        { "label": "Email", "mandatory": false, "control": "text" },
+        { "label": "Phone *", "mandatory": true, "control": "text" },
+        { "label": "Occupation", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Source of Wealth", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "PEP", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Country of Birth", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Source of funds", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Residency status", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Channel", "mandatory": false, "control": "text" },
+        { "label": "Nationality", "mandatory": false, "control": "text", "prefilled": true },
+        { "label": "Dual-Dual", "mandatory": false, "control": "checkbox" },
+        { "label": "Dual Nationality", "mandatory": false, "control": "text", "dependsOn": "Dual-Dual" },
+        { "label": "Registered Office Address", "mandatory": false, "control": "text" },
+        { "label": "City *", "mandatory": true, "control": "text", "prefilled": true },
+        { "label": "State", "mandatory": false, "control": "text" },
+        { "label": "Is My Client", "mandatory": false, "control": "checkbox" }
+      ]
+    },
+    {
+      "id": "transaction-details",
+      "title": "Transaction Details",
+      "fields": [
+        { "label": "Description Of The Report *", "mandatory": true, "control": "textarea" },
+        { "label": "Action Taken By Reporting Entity *", "mandatory": true, "control": "textarea" },
+        { "label": "Date *", "mandatory": true, "control": "date", "format": "DD/MM/YYYY", "default": "today" },
+        { "label": "Internal Reference no. *", "mandatory": true, "control": "textarea" },
+        { "label": "Transaction Product *", "mandatory": true, "control": "dropdown", "optionCount": 24, "optionsRef": "Transaction Product" },
+        { "label": "Payment Mode *", "mandatory": true, "control": "dropdown", "options": ["Cash Transaction", "Bank Transfer", "Exchange of Metal", "Card", "Cheque"] },
+        { "label": "Beneficiary Name", "mandatory": false, "control": "text" },
+        { "label": "Beneficiary Comments", "mandatory": false, "control": "textarea" },
+        { "label": "Late Deposite", "mandatory": false, "control": "text", "validation": "free text but expects Yes/No" },
+        { "label": "Channel *", "mandatory": true, "control": "dropdown", "options": ["FACE TO FACE", "NON FACE TO FACE"] },
+        { "label": "Source Of Found *", "mandatory": true, "control": "dropdown", "optionCount": 32, "optionsRef": "Source Of Found" },
+        { "label": "Transaction Purpose *", "mandatory": true, "control": "dropdown", "optionCount": 61, "optionsRef": "Transaction Purpose" },
+        { "label": "BRANCH", "mandatory": false, "control": "text" },
+        { "label": "Indemnified for Repatriation *", "mandatory": true, "control": "dropdown", "options": ["YES", "NO"] },
+        { "label": "Executed By", "mandatory": false, "control": "dropdown", "prefilled": true, "validation": "list of system users" },
+        { "label": "Currency *", "mandatory": true, "control": "dropdown", "optionCount": 175, "optionsTruncated": true, "validation": "standard ISO currency reference list" },
+        { "label": "Rate *", "mandatory": true, "control": "number", "default": "1", "dependsOn": "Currency" },
+        { "label": "Invoice Amount", "mandatory": false, "control": "number", "default": "0", "unit": "selected Currency" },
+        { "label": "Amount LC", "mandatory": false, "control": "number", "default": "0", "validation": "local-currency amount, likely Invoice Amount x Rate" },
+        { "label": "Estimated Amount", "mandatory": false, "control": "number", "default": "0" },
+        { "label": "Item Type", "mandatory": false, "control": "dropdown", "optionCount": 45, "optionsRef": "Item Type" },
+        { "label": "Item Size", "mandatory": false, "control": "number", "default": "0" },
+        { "label": "Item Unit", "mandatory": false, "control": "text" },
+        { "label": "Status Code *", "mandatory": true, "control": "dropdown", "optionCount": 22, "optionsRef": "Status Code" },
+        { "label": "Status Comments", "mandatory": false, "control": "textarea" },
+        { "label": "Carrier Name", "mandatory": false, "control": "text" },
+        { "label": "Carrier Details", "mandatory": false, "control": "text" },
+        { "label": "Is STR/ISTR?", "mandatory": false, "control": "checkbox", "validation": "flags the transaction as a Suspicious/Internal Suspicious Transaction Report" },
+        { "label": "Reason *", "mandatory": true, "control": "textarea", "validation": "suspicion grounds / reason for report (free text)" },
+        { "label": "Description *", "mandatory": true, "control": "textarea" }
+      ],
+      "actionButtons": ["SAVE TRANSACTION (write - NOT clicked)", "NEW TRANSACTION (resets form - NOT clicked)"]
+    }
+  ],
+  "relationTables": [
+    {
+      "name": "Shareholder",
+      "rowColumns": ["Select", "Entry Date", "Name", "Type"],
+      "tabs": ["NATURAL", "LEGAL", "TRUST"],
+      "detailPanelFields_NATURAL": [
+        "Full Name *", "Alias", "Country of Residence *", "Nationality *", "Date of Birth *", "Place of Birth",
+        "Phone *", "Email", "Address", "Source of Funds *", "Source of wealth", "Occupation *",
+        "Expected income range Annually", "PEP *", "Shareholding % (unit %)", "Dual nationality"
+      ],
+      "detailPanelFields_LEGAL": [
+        "Full Name", "Alias", "Date of Incorporation", "Country of Incorporation *", "Type *", "License Type *",
+        "License Number *", "Issue Date", "Expiry Date", "Business Activity *", "Countries of Operation *",
+        "Source of funds *", "Registered Office Address", "Countries of source of funds", "Email", "Phone *",
+        "Other details", "% Shareholding (unit %)"
+      ],
+      "detailPanelFields_TRUST": [
+        "Full name *", "Trust Registered", "Type of Trust", "Jurisdiction of law", "Registered Address *",
+        "% Shareholding (unit %)", "Name of Trustee", "Trustee Type"
+      ],
+      "idDocumentsSubTable": { "title": "Detail", "note": "Expandable ID Documents sub-section; rendered empty for the sample so column headers were not displayed (NOT invented)." }
+    },
+    {
+      "name": "Director / Representative",
+      "rowColumns": ["Select", "Entry Date", "Name", "Type", "Director / Representative"],
+      "detailPanelFields": [
+        "First Name", "Last Name", "Alias", "Country of Residence *", "Nationality *", "Date of Birth",
+        "Place of Birth *", "Phone", "Email *", "Address", "City", "Occupation *", "PEP", "Dual Nationality",
+        "IS CEO/Managing Director? (checkbox)", "IS Representative? (checkbox)", "IS MANAGER? (checkbox)"
+      ],
+      "idDocumentsSubTable": { "title": "Detail", "note": "Expandable ID Documents sub-section; empty for sample." }
+    },
+    {
+      "name": "Bank",
+      "rowColumns": ["Select", "Entry Date", "Name"],
+      "detailPanelFields": [
+        "Bank Name * (has lookup/search icon)", "Account Type", "Currency", "Bank Account Details",
+        "Account Number *", "IBAN *", "Swift *", "Mode Of Signatory", "Internet Banking", "Bank Signatories"
+      ],
+      "idDocumentsSubTable": null
+    },
+    {
+      "name": "UBO",
+      "rowColumns": ["Select", "Entry Date", "Name", "Type", "Date Of Birth", "Nationality", "Email"],
+      "detailPanelFields": [
+        "Full Name *", "Alias", "Country of Residence *", "Nationality *", "Date of Birth", "Place of Birth",
+        "Phone", "Email", "Address", "Source of funds *", "Source of Wealth", "Occupation *",
+        "Expected Income Annually", "PEP", "Shareholding % (unit %)", "Dual ationality (label typo on screen)"
+      ],
+      "idDocumentsSubTable": { "title": "Detail", "note": "Expandable ID Documents sub-section; empty for sample." }
+    }
+  ],
+  "dropdownAppendix": {
+    "Transaction Type": ["PERSON", "ENTITY", "ACCOUNT"],
+    "Entity (Customer)": ["LEGAL ENTITIES", "NATURAL PERSONS"],
+    "Payment Mode": ["Cash Transaction", "Bank Transfer", "Exchange of Metal", "Card", "Cheque"],
+    "Channel": ["FACE TO FACE", "NON FACE TO FACE"],
+    "Indemnified for Repatriation": ["YES", "NO"],
+    "Executed By": ["Admin_Aumtech"],
+    "Transaction Product": ["Standard Project", "Capital Markets", "Commercial Dispute Resolution Notes", "Commercial", "Competition", "Corporate Intelligence", "Criminal Litigation", "Employment", "Gold Bars", "Silver Bars", "Gold Grains", "Silver Grains", "GOLD", "SILVER", "DIAMOND", "JEWELLERY", "OffPlan property", "Secondary property", "PLATINUM", "Audit", "Accountancy", "Consultancy", "Primary Property", "Company Service Provider"],
+    "Source Of Found": ["Patents", "Royalties", "Shares and securities", "Sale of investments and properties", "Business income", "Sale of products and services", "Sale of a fixed asset", "Sale of artworks", "Divorce settlement", "Lawsuit settlement", "Winnings from lottery or casino", "Inheritance or gifts", "Proceeds of real-estate sale transaction", "Return on investments", "Dividend income", "Interest income on bonds", "Retirement benefit payouts", "Pension", "Bonuses", "Business Proceeds", "Bank - Cash withdrawal Slip", "Bank Statement", "INVESTMENTS", "LOANS", "Other sources", "Funds from Dividend Payouts", "Funds From Schemes and Raffles", "Loan from Financial Institutions", "Loan from Friends and Family", "End of Services Funds", "Personal Savings", "Salary"],
+    "Transaction Purpose": ["Sale of diamond", "Purchase of Diamonds", "Sale of Scrap Gold", "Purchase of Scrap Gold", "Export Sale of Silver", "Import Purchase of Silver", "Export Sale of Gold", "Import  Purchase of Gold", "Sale of Silver", "Puchase of Silve", "Sale of Gold", "FAMILY MAINTENANCE", "abc", "Used Cars", "Travel Agents and Services", "Trade Credits And Advance Receivable -TCR", "TRADE", "Tools, Hardware and Light Machinery", "Technical Trade-Related And Other Business Service", "purchase of textiles", "purchase of gold", "Purchase of Electronics", "purchase of  house hold items", "IMPORT AND EXPORTS OF GOODS", "Goods Sold (Exports In Fob Value)-GDE", "GOLD AND PRECIOUS METAL - GOL", "Food,Beverage&Tobacco", "FMCG PURCHASE", "Financial Services-FIS", "Entertainment", "Cosmetics", "Family Support (Workers  Remittances) -FAM", "Construction Equipment and Supplies", "Automobile Parts Wholesalers", "REMITTANCE OUTWARD", "REMITTANCE INWARD", "CUSTOMER PROFILING", "Apparel Wholesalers", "INSURANCE SERVICES", "COMMERCIAL INVESTMENTS", "SALARY ADVANCE", "AIR TRANSPORT", "INFORMATION SERVICES", "COMPUTER SERVICES", "AGENCY COMMISSION", "OWN ACCOUNT TRANSFER", "CHARITABLE CONTRIBUTIONS", "GOODS BOUGHT OR SOLD", "PERSONAL INVESTMENTS", "EDUCATIONAL SUPPORT", "MEDICAL PUPOUSES", "PURCHASE OF ELECTRONICS", "OTHERS", "REFUND – OTHERS", "INVESTEMENT", "TOURISM", "HOME REMITTANCE", "FAMILY MAINTENANCE", "REFUND OF INVESTMENT", "PURCHASE OF PROPERTY", "IMPORT/EXPORT OF GOODS"],
+    "Currency": { "optionCount": 175, "optionsTruncated": true, "sample": ["AFG", "ALL", "DZD", "AOA", "ARS", "AMD", "AWG", "AUD", "AZN", "AZM", "BSD", "BHD", "BDT", "BBD", "BTA", "BYN", "BZD", "BMD", "BTN", "BOB"], "note": "standard ISO currency reference list, 175 total" },
+    "Item Type": ["JEWELLERY", "GOLD & DIAMOND", "PLATINUM", "SLVER", "WEAPON", "WATCH", "WAREHOUSE", "VEHICLE", "VEGETABLES", "UNKNOWN", "TOBACCO", "TEXTILES", "TAX AUDIT", "SHOPPING MALL", "SECURITY OFFICE", "SECURITY SOFTWARE", "SECURITY SERVICES", "SECURITY DEVICES", "SCIENCE (CONSULTANCY)", "RESIDENTIAL BUILDING", "PROPERTY", "PIPE TOBACCO", "ORPHANAGE", "OPERATIONAL AUDIT", "GOLD", "FUEL OIL", "FRUIT", "FOOD & BEVERAGE", "FINANCIAL AUDIT", "FINANCE CONSULTANCY", "EQUIPMENT", "ELECTRONIC DEVICES", "EDUCATION (CONSULTANCY)", "DISTRIBUTION CENTER", "DIAMOND", "CONSTRUCTION AUDIT", "COMPLIANCE AUDIT", "COMMERCIAL BUILDING", "CIGARETTE", "CIGAR", "CHEMICAL PRODUCTS", "BROKER COMMISSION", "APARTMENT", "ACCOUNTANCY (CONSULTANCY)"],
+    "Status Code": ["INHERITED", "FROZEN/CONFISCATED/IMPOUND", "EXCHANGED", "DONATED", "DESTROYED", "CANCELLED", "ACTIVE UNDER CONTRACT", "MANUFACTURING", "PURCHASED", "ACTIVE OPTION", "WITHDRAWN", "UNKNOWN", "UNDER APPLICATION", "UNCLAIMED", "TEMPORARLY OFF THE MARKET", "SOLD", "PENDING", "MORTGAGED", "LET", "LEASDED", "ACTIVE CONTINGENT"]
+  },
+  "notes": "Single-page form. Customer panel is read-only/prefilled from the record-picker; Legal vs Natural field set depends on the selected customer Entity type (toggled via Transaction Type PERSON/ENTITY/ACCOUNT). The report-reason mechanism is a checkbox 'Is STR/ISTR?' + free-text 'Reason'/'Description' - there is NO discrete 'Indicators' dropdown. Each relation form (Shareholder, Director/Representative, UBO) has a collapsible 'Detail' (ID Documents) expander that rendered empty for sample records (headers not observed - NOT invented). Bank has no Detail sub-section. Shareholder offers NATURAL/LEGAL/TRUST sub-form tabs. Verbatim option-list typos preserved (SLVER, Puchase of Silve, LEASDED, TEMPORARLY, Dual ationality, MEDICAL PUPOUSES, INVESTEMENT). Dates DD/MM/YYYY; amounts numeric default 0; Rate default 1. SAVE/NEW were NOT clicked. A 'Customer is Expired' info modal appeared when selecting the Natural sample and was dismissed."
+}
