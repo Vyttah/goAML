@@ -182,6 +182,19 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
   open decisions to confirm** (auth model, submission autonomy, plugin target, transport). Steps 12.1–12.3
   (read/build/validate/preview tools + plugin skill/commands) are buildable now on the existing `engine/`;
   submit/track/import tools need Phases 6/7/9/11.
+- **⏳ CHECKPOINT (raised 2026-06-11 — decide later): two AML-cockpit filing paths coexist; decide the UX.**
+  The AML cockpit now has BOTH ways to get a DPMSR into goAML:
+  1. **goAML Filing** (Phase C/D) — server-side: an AML-persisted `GoamlTransaction` "deal" + an **AML-side
+     maker-checker approval gate** (DRAFT→PENDING_APPROVAL→APPROVED) → signed **server-to-server** push to
+     goAML's integration endpoint (which builds the report); report id/status stored back on the deal.
+  2. **Create Transaction** (frontend-direct) — the browser POSTs a **full-fidelity DPMSR** straight to
+     goAML `POST /api/v1/reports` via federated SSO; **nothing persisted in AML**; goAML-side MLRO review applies.
+  Same end result (a DPMSR in goAML + downloadable XML) but different **record-of-truth** and **approval locus**;
+  Create Transaction is the richer/more-complete data path (read-only customer panel, relations, multiple goods,
+  full LiveExShield-parity fields). **Decision to make:** keep both (+ add in-app hints on each screen explaining
+  when to use which), deprecate one, or merge into a single flow. Context in memory `goaml-frontend-direct.md`
+  + `aml-software-stack.md`; the AML pieces are on `Frontend_Customer` `feature/goaml-integration`
+  (commits `29a04ce`, `7b5ebe3`).
 
 ## Blockers / Concerns
 
