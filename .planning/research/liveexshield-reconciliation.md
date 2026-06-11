@@ -26,13 +26,13 @@
 | Action Taken By Reporting Entity | ✱ | action | report `action` | ✅ have |
 | Date | ✱ | submissionDate (auto now) | report `submission_date` | ✅ have (auto) |
 | Internal Reference no. | ✱ | reference | report `entity_reference` | ✅ have |
-| Transaction Product (24) | ✱ | meta.transactionPurpose (transaction-products master) | — metadata | ✅ have (dropdown) |
-| Payment Mode (5) | ✱ | meta.paymentMode | — metadata | ✅ **now LiveEx 5 values** |
+| Transaction Product (24) | ✱ | meta.transactionProduct | — metadata | ✅ **LiveEx 24 values** |
+| Payment Mode (5) | ✱ | meta.paymentMode | — metadata | ✅ **LiveEx 5 values** |
 | Beneficiary Name / Comments | | meta.beneficiaryName / Comments | — metadata | ✅ have |
 | Late Deposite | | meta.lateDeposit (Yes/No) | — metadata | ✅ have |
-| Channel (FACE/NON-FACE) | ✱ | meta.channel (channels master) | — metadata | ✅ have (dropdown) |
-| Source Of Found (32) | ✱ | meta.sourceOfFunds (sources-of-funds master) | — metadata | ✅ have (dropdown) |
-| Transaction Purpose (61) | ✱ | meta.transactionPurpose | — metadata | ✅ have (overlaps Product; see note) |
+| Channel (FACE/NON-FACE) | ✱ | meta.channel | — metadata | ✅ **LiveEx 2 values** |
+| Source Of Found (32) | ✱ | meta.sourceOfFunds | — metadata | ✅ **LiveEx 32 values** |
+| Transaction Purpose (61) | ✱ | meta.transactionPurpose | — metadata | ✅ **LiveEx 61 values** |
 | BRANCH | | branch | report `rentity_branch` | ✅ have |
 | Indemnified for Repatriation (YES/NO) | ✱ | meta.indemnified | — metadata | ✅ **added** |
 | Executed By | | (reporting person) | reporting_person (server MLRO) | ✅ have (auto) |
@@ -58,14 +58,15 @@
 ## Customer (subject) — extras LiveExShield shows that we don't file
 
 These are LiveExShield metadata/display fields with **no home in the lenient goAML `t_person`/`t_entity`**. We file
-everything the XSD supports; the rest are optional metadata follow-ups (not blocking, never break the XML):
+everything the XSD supports; **all of these are now captured (not filed) in the "Customer details (captured)" block,
+prefilled from KYC** — so nothing LiveExShield shows is missing, and the filed XML stays clean:
 
-- **Legal:** Countries of Source of Funds ✱, Management Company, Countries of Operation ✱, Jurisdiction,
-  Licensing Authority/Other Details, License Category, Address Expiry Date, Residency Status, Core System ID,
-  Is My Client, Channel. (We DO file: Legal Name, Business Activity, License/Incorp No., Date of Inc, Country of Inc,
-  TRN→tax_number, Email, Phone, City/Address.)
-- **Natural:** Profession ✱ (≈ occupation, have), Residency Status, Core System ID, Channel, Is My Client.
-  (We DO file: First/Last name, DOB, Nationality, Country of birth, Occupation, Source of wealth, Alias,
+- **Legal:** Countries of Source of Funds, Management Company, Countries of Operation, Jurisdiction,
+  Licensing Authority/Other Details, License Category, Address Expiry Date, Core System ID, Is My Client.
+  (We FILE: Legal Name, Business Activity, License/Incorp No., Date of Inc, Country of Inc, TRN→tax_number,
+  Email, Phone, City/Address.)
+- **Natural:** Profession (also mapped → occupation, filed), Residency Status, Core System ID, Is My Client.
+  (We FILE: First/Last name, DOB, Nationality, Country of birth, Occupation, Source of wealth, Alias,
   Dual nationality→nationality2, ID document, Email, Phone, City/Address.)
 
 ## Relation detail panels (read-only KYC) — LiveExShield mandatory (`*`) set
@@ -85,7 +86,7 @@ everything the XSD supports; the rest are optional metadata follow-ups (not bloc
 
 | Dropdown | Source we use | Why |
 |---|---|---|
-| Payment Mode | **LiveExShield's 5 values** (hardcoded) | No AML master exists |
-| Channel, Source of funds, Transaction product/purpose | **AML masters** (`channels`, `sources-of-funds`, `transaction-products`) | The customer's own configured values; consistent with Customer Onboarding. LiveEx lists kept in the JSON as reference |
-| Indemnified for Repatriation, PEP, Late deposit | YES/NO (or Yes/No) | Simple enums |
+| Payment Mode, Channel, Source of funds, Transaction product, Transaction purpose | **LiveExShield's exact hardcoded lists** (from the saved spec) | User chose full LiveExShield parity for these metadata dropdowns |
+| Indemnified for Repatriation, PEP, Late deposit, Is my client | Yes/No | Simple enums |
 | Item Type, Status Code, Currency | **goAML lookups** | Must validate against the FIU XSD (filed fields) |
+| Customer-detail captured fields (License type, Jurisdiction, Residency status, Profession, …) | **AML masters** resolved to display names, prefilled from KYC | Captured metadata; the customer's own configured values |
