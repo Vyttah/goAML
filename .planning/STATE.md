@@ -13,6 +13,9 @@
 > (NOT `-am` → that targets the parent, no main class) with `GOAML_INTEGRATION_BASE_URL=http://localhost:8090`
 > + `GOAML_INTEGRATION_SOURCE=SCREENING` + the dev key. Frontend `:3001` needs
 > `NEXT_PUBLIC_API_GOAML_SERVICE_URL=http://localhost:8090/api/v1` in `.env`. Smoke: `dev-local/goaml-direct-verify.sh`.
+> **goAML's own SPA (`frontend/`, Vite `:5173`) must be started with `VITE_BACKEND_URL=http://localhost:8090`** —
+> its proxy default is `:8080` (`vite.config.ts`), which on this machine is the **AML user-service**, so without the
+> override the SPA login proxies to the wrong app and fails with **403/400** (`mlro@demo.local` / `Passw0rd!`).
 
 ## Project Reference
 
