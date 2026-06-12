@@ -81,7 +81,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({
             ReportExceptions.DuplicateEntityReferenceException.class,
             ReportExceptions.InvalidReviewStateException.class,
+            ReportExceptions.SelfApprovalNotAllowedException.class,
             SubmissionExceptions.ReportNotSubmittableException.class,
+            SubmissionExceptions.StoredXmlInvalidException.class,
             SubmissionExceptions.TenantConfigMissingException.class,
             AttachmentExceptions.ReportNotEditableException.class,
             AdminExceptions.UserEmailExistsException.class,
@@ -98,7 +100,10 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(b);
     }
 
-    @ExceptionHandler(SubmissionExceptions.SubmissionPackagingException.class)
+    @ExceptionHandler({
+            SubmissionExceptions.SubmissionPackagingException.class,
+            ReportExceptions.ClientMetadataTooLargeException.class
+    })
     public ResponseEntity<Map<String, Object>> handlePackaging(RuntimeException ex) {
         return body(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }

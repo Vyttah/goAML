@@ -7,6 +7,7 @@ import com.vyttah.goaml.domain.generated.ReportType;
 import com.vyttah.goaml.domain.generated.TParty;
 import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
 import com.vyttah.goaml.domain.generated.TTransItem;
+import com.vyttah.goaml.engine.build.NameNormalizer;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionConfig;
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
 import com.vyttah.goaml.engine.lookup.LookupService;
@@ -155,6 +156,22 @@ public class ReportValidator {
         if (isBlank(person.getLastName())) {
             result.error("report.reporting_person.last_name", "MANDATORY",
                     "reporting_person.last_name is mandatory");
+        }
+        checkNamePattern("report.reporting_person.first_name", person.getFirstName(), result);
+        checkNamePattern("report.reporting_person.last_name", person.getLastName(), result);
+    }
+
+    /**
+     * C8 — raises a clear, specific PATTERN error when a name field still contains characters the goAML name
+     * pattern ({@code [a-zA-Z0-9 .'-]*}) rejects after normalization (most importantly Arabic / non-Latin
+     * script). The curated path pre-normalizes common punctuation ({@code & ( ) , /}); whatever is left here
+     * is genuinely unmappable, so the caller gets a friendly message instead of a raw SAX line/column error.
+     */
+    private void checkNamePattern(String path, String value, ValidationResult result) {
+        if (!isBlank(value) && !NameNormalizer.matchesPattern(value)) {
+            result.error(path, "NAME_PATTERN",
+                    "'" + value + "' contains characters the goAML name pattern [a-zA-Z0-9 .'-] does not allow"
+                            + " (e.g. non-Latin script); provide a Latin transliteration");
         }
     }
 
@@ -321,6 +338,21 @@ public class ReportValidator {
             result.error(path, "PARTY_SUBJECT",
                     "report_party must have exactly one subject (person/account/entity, plain or my_client), found "
                             + subjects);
+        }
+        // C8: clear name-pattern errors for the party's name fields (all subject kinds), across every path.
+        if (party.getEntity() != null) {
+            checkNamePattern(path + ".entity.name", party.getEntity().getName(), result);
+        }
+        if (party.getEntityMyClient() != null) {
+            checkNamePattern(path + ".entity.name", party.getEntityMyClient().getName(), result);
+        }
+        if (party.getPerson() != null) {
+            checkNamePattern(path + ".person.first_name", party.getPerson().getFirstName(), result);
+            checkNamePattern(path + ".person.last_name", party.getPerson().getLastName(), result);
+        }
+        if (party.getPersonMyClient() != null) {
+            checkNamePattern(path + ".person.first_name", party.getPersonMyClient().getFirstName(), result);
+            checkNamePattern(path + ".person.last_name", party.getPersonMyClient().getLastName(), result);
         }
     }
 

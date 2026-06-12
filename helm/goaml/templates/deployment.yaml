@@ -20,6 +20,7 @@ spec:
         {{- end }}
       labels:
         {{- include "goaml.selectorLabels" . | nindent 8 }}
+        goaml.io/role: web
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -44,6 +45,12 @@ spec:
             - secretRef:
                 name: {{ include "goaml.secretName" . }}
                 optional: true
+          env:
+            # The poller is lock-free → safe on exactly one replica only. When a dedicated poller
+            # Deployment is rendered (poller.dedicated), force the scheduler OFF on the request-serving pods;
+            # otherwise honour scheduler.enabled. The app maps GOAML_SCHEDULER_ENABLED → goaml.scheduler…enabled.
+            - name: GOAML_SCHEDULER_ENABLED
+              value: {{ if .Values.poller.dedicated }}"false"{{ else }}{{ .Values.scheduler.enabled | quote }}{{ end }}
           startupProbe:
             httpGet:
               path: {{ .Values.probes.readiness.path }}

@@ -18,8 +18,12 @@ Full primer for newcomers: [docs/01-business-context.md](../docs/01-business-con
 ## Requirements
 
 **In scope (v1):**
-- Build goAML schema-v4.0 XML for **all UAE report types**: STR, SAR, AIF, AIFT, ECDD, ECDDT, **DPMSR**
-  (transaction-based and activity-based shapes).
+- Build goAML XML against the **authoritative 5.0.2 XSD** (xjc-generated JAXB + an XSD validation gate —
+  this **superseded** the original "schema-v4.0, all report types" intent). Delivery is **phased,
+  DPMSR-first**: **DPMSR** (the activity-shaped precious-metals report) is fully built; the engine is
+  XSD-generated so it *can* build all 17 codes, but the remaining **16 report-type builders
+  (STR/SAR/AIF/AIFT/ECDD/ECDDT/… ) are a tracked future-backlog item**, not silently dropped — see
+  [ROADMAP.md](ROADMAP.md) ("Backlog — remaining report types").
 - Validate against schema + conditional business rules **before** submission.
 - Submit over goAML B2B REST (auth → multipart ZIP → async OData status) using **each tenant's own**
   goAML credentials; track outcomes with retries + audit.
@@ -43,7 +47,7 @@ external inputs (see STATE.md → Blockers).
 | App auth | Self-managed JWT (HS256) + RBAC (SUPER_ADMIN / TENANT_ADMIN / MLRO / ANALYST) + full audit. **goAML stays the identity authority** (no external IdP). |
 | Product positioning | **(DECIDED 2026-06-04)** goAML is **sold standalone AND** runs inside Vyttah's suite (accounting/ERP + AML screening). Its own dedicated microservice — not merged into either. |
 | Unified auth | **(DECIDED 2026-06-04)** Three on-ramps, all ending in the standard goAML JWT: (1) native login; (2) **federated token-exchange** (`POST /api/v1/auth/federated/token`) where accounting/screening authenticate their user then exchange for a goAML token via service-to-service trust; (3) service principal. goAML stores **external-identity links**. `goaml.auth.mode = native\|federated\|both`. Design: [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md). |
-| Suite integration (Phase 1.5) | **(DECIDED 2026-06-04)** Accounting→goAML via **RabbitMQ** (txn event → reportability detection in goAML → auto-create DPMSR draft); Screening→goAML via **REST + UI form** (party/director/KYC). Sequenced **after** the standalone core despite the "1.5" label. |
+| Suite integration (Phase 1.5) | **(DECIDED 2026-06-04; SUPERSEDED 2026-06-08 — now BUILT & merged)** Accounting→goAML is **REST, not RabbitMQ** (the RabbitMQ plan was dropped 2026-06-08: immediate verdict + status pull, one REST style shared with screening, no broker; txn → reportability detection in goAML → auto-create DPMSR draft → MLRO 1-click). Screening→goAML via **REST** (service-assertion push + UI seed). Both apps consume goAML as embedded API clients (goAML = single system-of-record). Sequenced **after** the standalone core; **1.5a/b/c all done/merged** (see STATE.md / ROADMAP.md). |
 | Auto-submit safety | **(DECIDED 2026-06-04)** Auto-create a **validated draft → MLRO 1-click approve**; fully-automatic submission is a **per-tenant opt-in** (`tenant_goaml_config.auto_submit`, default false). FIU B2B creds are separate from all user login. |
 | Report scope | **Phased (DECIDED 2026-06-03):** **Phase 1 target = precious-metals dealers → `DPMSR`**, plus `STR`/`SAR` (baseline) + `PNMRA`/`CNMRA` (sanctions/TFS) as likely near-term. **Next phase = all 17** schema report types. Engine is XSD-generated so it *can* do all 17; we deliver DPMSR first. (See [discussion-log.md](discussion-log.md) topic 10.) |
 | Ingestion | UI + generic inbound REST + file import (goAML XML + CSV) |

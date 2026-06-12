@@ -128,10 +128,30 @@ class ScreeningIntegrationE2ETest {
 
     @Test
     void unmappedCompanyIsNotFound() throws Exception {
+        // The assertion's org must match the requested company (B11) to reach the tenant-resolution path;
+        // company 999 is mapped to no tenant → 404.
         mvc.perform(post("/api/v1/integration/screening/subjects")
-                        .header("X-Service-Assertion", assertion())
+                        .header("X-Service-Assertion", assertionFor("999"))
                         .contentType(APPLICATION_JSON).content(legalPayload("999", "LEG-3")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void orgClaimMismatchIsRejected() throws Exception {
+        // B11 — a valid SCREENING assertion for org 777 cannot touch company 501's data by changing the param.
+        mvc.perform(post("/api/v1/integration/screening/subjects")
+                        .header("X-Service-Assertion", assertionFor("777"))
+                        .contentType(APPLICATION_JSON).content(legalPayload(COMPANY_ID, "LEG-4")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void missingOrgClaimIsRejected() throws Exception {
+        // B11 — an assertion with no org claim cannot access screening data at all.
+        mvc.perform(post("/api/v1/integration/screening/subjects")
+                        .header("X-Service-Assertion", assertionWithoutOrg())
+                        .contentType(APPLICATION_JSON).content(legalPayload(COMPANY_ID, "LEG-5")))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -175,12 +195,31 @@ class ScreeningIntegrationE2ETest {
     }
 
     private static String assertion() {
+        return assertionFor(COMPANY_ID);
+    }
+
+    /** Mint an assertion whose signed {@code org} claim is {@code org} (B11 cross-check), unique jti per call. */
+    private static String assertionFor(String org) {
         return Jwts.builder()
                 .issuer("SCREENING")
                 .subject("screening-system")
                 .audience().add("goaml").and()
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plus(60, ChronoUnit.SECONDS)))
+                .id(UUID.randomUUID().toString())
+                .claim("org", org)
+                .signWith(keys.getPrivate(), Jwts.SIG.RS256)
+                .compact();
+    }
+
+    private static String assertionWithoutOrg() {
+        return Jwts.builder()
+                .issuer("SCREENING")
+                .subject("screening-system")
+                .audience().add("goaml").and()
+                .issuedAt(Date.from(Instant.now()))
+                .expiration(Date.from(Instant.now().plus(60, ChronoUnit.SECONDS)))
+                .id(UUID.randomUUID().toString())
                 .signWith(keys.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }

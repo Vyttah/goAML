@@ -58,6 +58,12 @@ public class DefaultReportReviewService implements ReportReviewService {
     @Transactional
     public ReviewResult approve(UUID reportId, UUID tenantId, UUID actorUserId, String remark) {
         Report report = requirePendingReview(reportId);
+        // A5 segregation-of-duties: the approver must differ from the author. One person creating AND
+        // approving collapses maker-checker — the whole point of the review gate.
+        if (actorUserId != null && actorUserId.equals(report.getCreatedBy())) {
+            throw new ReportExceptions.SelfApprovalNotAllowedException(
+                    "Report " + reportId + " cannot be approved by its author — a different reviewer must approve");
+        }
         report.setStatus(APPROVED);
         report.setReviewedBy(actorUserId);
         report.setReviewedAt(OffsetDateTime.now());

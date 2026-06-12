@@ -133,8 +133,8 @@ tasks.named('test') {
     // The suite caches several full Spring contexts (Testcontainers integration tests) in one forked test
     // JVM; the JVM's default max heap is too small under load and OOMs intermittently (a context-load
     // failure then cascades to whichever test runs next). Pin an explicit, ample heap so the gate is
-    // deterministic locally and in CI.
-    maxHeapSize = '2g'
+    // deterministic locally and in CI. Overridable via -PtestHeap (e.g. `./gradlew test -PtestHeap=3g`).
+    maxHeapSize = project.findProperty('testHeap') ?: '2g'
     jvmArgs '-XX:MaxMetaspaceSize=512m'
     testLogging {
         events 'passed', 'skipped', 'failed'
@@ -171,6 +171,9 @@ def coveredPackages = [
         'com/vyttah/goaml/model/mapper/report/**',
         'com/vyttah/goaml/controller/report/**',
         'com/vyttah/goaml/controller/lookup/**',
+        // G3: now under test — ingestion + notification controllers, the poller (scheduler) is already listed.
+        'com/vyttah/goaml/controller/ingestion/**',
+        'com/vyttah/goaml/controller/notification/**',
         'com/vyttah/goaml/config/observability/**',
         'com/vyttah/goaml/scheduler/**',
         'com/vyttah/goaml/mcp/**',
@@ -181,6 +184,10 @@ def coveredPackages = [
         'com/vyttah/goaml/security/AuthProperties*',
         'com/vyttah/goaml/security/ServiceCredentialValidator*',
         'com/vyttah/goaml/security/ServiceCredentialException*',
+        // Wave 1/G1 added dedicated tests for these security-core classes — hold them to the bar too.
+        'com/vyttah/goaml/security/LoginRateLimiter*',
+        'com/vyttah/goaml/security/UserStatusCache*',
+        'com/vyttah/goaml/security/IntegrationAuthFilter*',
         // Phase 1.5b — accounting integration (reportability rules, both models). DTOs/entities excluded.
         'com/vyttah/goaml/ingestion/reportability/**',
         'com/vyttah/goaml/service/integration/**',

@@ -100,6 +100,12 @@ export interface ReportDetailView {
   reviewedAt: string | null;
   reviewRemark: string | null;
   hasXml: boolean;
+  /**
+   * Optional client-supplied metadata captured at filing time (e.g. the AML cockpit's LiveExShield
+   * parity fields). Persisted verbatim by the backend and NEVER marshalled into the goAML XML; the
+   * SPA only displays it read-only when present. May be absent on older reports / other feeds.
+   */
+  clientMetadata?: Record<string, unknown> | null;
 }
 
 /** Report attachment metadata — mirrors `model.dto.attachment.AttachmentView`. */

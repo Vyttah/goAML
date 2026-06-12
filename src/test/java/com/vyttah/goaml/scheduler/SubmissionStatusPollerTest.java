@@ -9,6 +9,7 @@ import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.submission.SubmissionService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -40,16 +41,26 @@ class SubmissionStatusPollerTest {
     private final ReportRepository reportRepository = mock(ReportRepository.class);
     private final SubmissionService submissionService = mock(SubmissionService.class);
     private final RetryService retryService = mock(RetryService.class);
+    private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
-    private SubmissionStatusPoller poller(boolean enabled) {
-        SchedulerProperties props = new SchedulerProperties(
-                new SchedulerProperties.StatusPoll(enabled, Duration.ofMinutes(5)),
+    /** Poller with the finer status-poll flag toggled; the top-level master switch stays enabled. */
+    private SubmissionStatusPoller poller(boolean statusPollEnabled) {
+        return poller(true, statusPollEnabled);
+    }
+
+    private SubmissionStatusPoller poller(boolean masterEnabled, boolean statusPollEnabled) {
+        SchedulerProperties props = new SchedulerProperties(masterEnabled,
+                new SchedulerProperties.StatusPoll(statusPollEnabled, Duration.ofMinutes(5)),
                 new SchedulerProperties.Retry(3, Duration.ZERO));
         // make the retry wrapper just run the supplied call
         lenient().when(retryService.retryTransient(anyString(), any()))
                 .thenAnswer(inv -> ((Supplier<?>) inv.getArgument(1)).get());
         return new SubmissionStatusPoller(tenantRepository, reportRepository, submissionService,
-                retryService, props);
+                retryService, props, meterRegistry);
+    }
+
+    private double pollerErrorCount() {
+        return meterRegistry.get(SubmissionStatusPoller.POLLER_ERRORS_METRIC).counter().count();
     }
 
     private Tenant tenant(UUID id, String schema) {
@@ -132,11 +143,20 @@ class SubmissionStatusPollerTest {
         assertThat(summary.skipped()).isEqualTo(1);   // the failed tenant
         assertThat(summary.succeeded()).isEqualTo(1); // tenant B's report
         verify(submissionService).refreshStatus(rB.getId(), tB);
+        // B8/decision #4: the per-tenant failure incremented the metric (and did not throw out of the cycle).
+        assertThat(pollerErrorCount()).isEqualTo(1.0);
     }
 
     @Test
-    void disabledFlagShortCircuitsScheduledPoll() {
+    void disabledStatusPollFlagShortCircuitsScheduledPoll() {
         poller(false).scheduledPoll();
+        verify(tenantRepository, never()).findByStatus(any());
+    }
+
+    @Test
+    void disabledMasterSwitchShortCircuitsScheduledPoll() {
+        // B8: GOAML_SCHEDULER_ENABLED=false (web replicas) → the @Scheduled method no-ops on this instance.
+        poller(false, true).scheduledPoll();
         verify(tenantRepository, never()).findByStatus(any());
     }
 

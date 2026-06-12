@@ -197,6 +197,195 @@ class DefaultReportServiceTest {
                 .isInstanceOf(ReportExceptions.ReportNotFoundException.class);
     }
 
+    // ---------- C8: name-pattern normalization + clear error ----------
+
+    @Test
+    void entityNameWithIllegalPunctuationIsNormalisedAndStaysXsdValid() {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "GOLD & DIAMONDS (DUBAI), L.L.C / FZE", null, "123456", null, "AE", null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Seller", null, entity, null);
+        DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "C8-1", odt("2026-06-02T12:00:00"), null,
+                "DPMS", "Filed", List.of("DPMSJ"), mlro, null, List.of(party),
+                List.of(gold(new BigDecimal("90000.00"))));
+
+        ReportResult result = service.create(req, tenantId, actor);
+
+        assertThat(result.status()).as("errors=%s", result.validationMessages()).isEqualTo("VALID");
+        ArgumentCaptor<Report> saved = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(saved.capture());
+        // & → "and", ()/,/ removed; the normalized name is what reaches the XSD-valid XML
+        assertThat(saved.getValue().getReportXml()).contains("GOLD and DIAMONDS DUBAI L.L.C FZE");
+        assertThat(saved.getValue().getReportXml()).doesNotContain("&amp;").doesNotContain("(");
+    }
+
+    @Test
+    void unmappableArabicNameYieldsAClearPatternErrorNotARawSax() {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "محمد", null, "123456", null, "AE", null, null); // Arabic "Mohamed"
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Seller", null, entity, null);
+        DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "C8-2", odt("2026-06-02T12:00:00"), null,
+                "DPMS", "Filed", List.of("DPMSJ"), mlro, null, List.of(party),
+                List.of(gold(new BigDecimal("90000.00"))));
+
+        ReportResult result = service.create(req, tenantId, actor);
+
+        assertThat(result.status()).isEqualTo("INVALID");
+        assertThat(result.validationMessages())
+                .anyMatch(m -> m.code().equals("NAME_PATTERN") && m.path().contains("entity.name"));
+    }
+
+    // ---------- B5: lenient person party is VALID end-to-end ----------
+
+    @Test
+    void minimalCsvShapedPersonPartyProducesAValidReport() {
+        // The CSV importer builds a person party with null gender/birthdate/residence/taxRegNumber/idNumber
+        // (CsvImporter.toParty). With the lenient t_person mapping this must now be VALID (previously
+        // my_client forced a mandatory set the CSV could never fill → always INVALID).
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
+                null, "John", "Doe", null, null, "AE", "AE", null, null, null, null, null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Walk-in buyer", null, null, buyer);
+        DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "CSV-PERSON-1", odt("2026-06-02T12:00:00"), null,
+                "DPMS threshold met", "Filed", List.of("DPMSJ"), mlro, null, List.of(party),
+                List.of(gold(new BigDecimal("90000.00"))));
+
+        ReportResult result = service.create(req, tenantId, actor);
+
+        assertThat(result.status()).as("errors=%s", result.validationMessages()).isEqualTo("VALID");
+        ArgumentCaptor<Report> saved = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(saved.capture());
+        // lenient t_person (not <t_person_my_client>) is what reaches the XSD-VALID XML
+        assertThat(saved.getValue().getReportXml())
+                .contains("<person>")
+                .doesNotContain("<t_person_my_client>");
+    }
+
+    @Test
+    void personPartyWithAddressEmitsAddressesInTheXml() {
+        // B17: a party-person address (previously dropped) is now in the filed XML.
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
+                "M", "John", "Doe", null, null, "AE", "AE", "784", null, null, null,
+                new DpmsrCreateRequest.Address("BU", "Villa 9", "Dubai", "AE", "Dubai"), null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Walk-in buyer", null, null, buyer);
+        DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "CSV-PERSON-ADDR", odt("2026-06-02T12:00:00"),
+                null, "DPMS threshold met", "Filed", List.of("DPMSJ"), mlro, null, List.of(party),
+                List.of(gold(new BigDecimal("90000.00"))));
+
+        ReportResult result = service.create(req, tenantId, actor);
+
+        assertThat(result.status()).as("errors=%s", result.validationMessages()).isEqualTo("VALID");
+        ArgumentCaptor<Report> saved = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(saved.capture());
+        assertThat(saved.getValue().getReportXml()).contains("<addresses>").contains("Villa 9");
+    }
+
+    // ---------- A3 clientMetadata ----------
+
+    @Test
+    void clientMetadataIsPersistedReturnedInDetailButNeverInTheXml() throws Exception {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree(
+                "{\"internalReference\":\"LEX-778899\",\"executedBy\":\"Acme Bullion LLC\","
+                        + "\"dealDate\":\"2026-06-10\",\"estimatedAmount\":90000}");
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "META-1", odt("2026-06-02T12:00:00"), null,
+                "DPMS threshold met", "Filed", List.of("DPMSJ"),
+                new DpmsrCreateRequest.Person(null, "Sara", "Khan", null, null, null, null, null, null, null,
+                        null, null, null),
+                null, List.of(entityParty()), List.of(gold(new BigDecimal("90000.00"))), meta);
+
+        ReportResult result = service.create(req, tenantId, actor);
+        assertThat(result.status()).isEqualTo("VALID");
+
+        ArgumentCaptor<Report> saved = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(saved.capture());
+        Report stored = saved.getValue();
+
+        // persisted verbatim to its own column
+        assertThat(stored.getClientMetadata())
+                .contains("internalReference").contains("LEX-778899").contains("Acme Bullion LLC");
+        // NEVER in the marshalled goAML XML — no metadata key leaks into the FIU payload
+        assertThat(stored.getReportXml())
+                .doesNotContain("internalReference")
+                .doesNotContain("LEX-778899")
+                .doesNotContain("executedBy")
+                .doesNotContain("estimatedAmount")
+                .doesNotContain("clientMetadata");
+
+        // present in the detail read view
+        when(reportRepository.findById(stored.getId())).thenReturn(Optional.of(stored));
+        ReportDetail detail = service.detail(stored.getId());
+        assertThat(detail.clientMetadata()).isNotNull();
+        assertThat(detail.clientMetadata().get("internalReference").asText()).isEqualTo("LEX-778899");
+    }
+
+    @Test
+    void noClientMetadataLeavesColumnNullWithoutError() {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        ReportResult result = service.create(minimalRequest("META-NONE", new BigDecimal("90000.00")), tenantId, actor);
+
+        assertThat(result.status()).isEqualTo("VALID");
+        ArgumentCaptor<Report> saved = ArgumentCaptor.forClass(Report.class);
+        verify(reportRepository).save(saved.capture());
+        Report stored = saved.getValue();
+        assertThat(stored.getClientMetadata()).isNull();
+
+        when(reportRepository.findById(stored.getId())).thenReturn(Optional.of(stored));
+        assertThat(service.detail(stored.getId()).clientMetadata()).isNull();
+    }
+
+    @Test
+    void oversizedClientMetadataIsRejected() throws Exception {
+        stubConfig(3177);
+        when(reportRepository.existsByEntityReference(any())).thenReturn(false);
+
+        // > 16 KiB blob
+        String big = "x".repeat(17_000);
+        com.fasterxml.jackson.databind.JsonNode meta = objectMapper.readTree("{\"blob\":\"" + big + "\"}");
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "META-BIG", odt("2026-06-02T12:00:00"), null,
+                "DPMS threshold met", "Filed", List.of("DPMSJ"),
+                new DpmsrCreateRequest.Person(null, "Sara", "Khan", null, null, null, null, null, null, null,
+                        null, null, null),
+                null, List.of(entityParty()), List.of(gold(new BigDecimal("90000.00"))), meta);
+
+        assertThatThrownBy(() -> service.create(req, tenantId, actor))
+                .isInstanceOf(ReportExceptions.ClientMetadataTooLargeException.class);
+        verify(reportRepository, never()).save(any());
+    }
+
+    private static DpmsrCreateRequest.Party entityParty() {
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "Minimal Trading FZE", null, "123456", null, "AE", null, null);
+        return new DpmsrCreateRequest.Party("Seller of gold above AED 55,000", null, entity, null);
+    }
+
+    private static DpmsrCreateRequest.Goods gold(BigDecimal value) {
+        return new DpmsrCreateRequest.Goods(
+                "GOLD", null, "1kg gold bar", null, null, value, "AED", null, null, null, null, null, null, null);
+    }
+
     // ---------- fixtures ----------
 
     private static DpmsrCreateRequest minimalRequest(String ref, BigDecimal value) {

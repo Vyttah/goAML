@@ -53,20 +53,47 @@ class DpmsrRequestMapperTest {
     }
 
     @Test
-    void mapsPersonPartyAsMyClient() {
+    void mapsPersonPartyAsLenientPerson() {
+        // B5: person parties map to the lenient t_person (getPerson), NOT t_person_my_client, so a minimal
+        // feed can be VALID while a rich one still carries every field. taxRegNumber maps but isn't mandatory.
         DpmsrCreateRequest.Identification eid = new DpmsrCreateRequest.Identification(
                 "EID", "784198012345678", odt("2020-01-15T00:00:00"), odt("2030-01-14T00:00:00"), "AE");
         DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
                 "M", "Mohamad", "Al-Jaber", odt("1985-03-12T00:00:00"), "AE", "AE", "AE",
-                "784198012345678", "Y", null,
-                new DpmsrCreateRequest.Phone("PRIVT", "L", "971", "501112233"), null, List.of(eid));
+                "784198012345678", "TRN-9", null,
+                new DpmsrCreateRequest.Phone("PRIVT", "L", "971", "501112233"),
+                new DpmsrCreateRequest.Address("BU", "Villa 9", "Dubai", "AE", "Dubai"), List.of(eid));
         DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Walk-in buyer", null, null, buyer);
 
         DpmsrReportInput input = mapper.toInput(req(party), 3177);
 
-        assertThat(input.parties().get(0).getPersonMyClient()).isNotNull();
-        assertThat(input.parties().get(0).getPersonMyClient().getIdentifications().getIdentification()).hasSize(1);
+        var person = input.parties().get(0).getPerson();
+        assertThat(person).as("person party maps to lenient t_person").isNotNull();
+        assertThat(input.parties().get(0).getPersonMyClient()).as("not my_client").isNull();
         assertThat(input.parties().get(0).getEntity()).isNull();
+        assertThat(person.getIdentifications().getIdentification()).hasSize(1);
+        assertThat(person.getTaxRegNumber()).isEqualTo("TRN-9");
+        // B17: a party person address is now mapped (was previously dropped)
+        assertThat(person.getAddresses().getAddress()).hasSize(1);
+        assertThat(person.getAddresses().getAddress().get(0).getCity()).isEqualTo("Dubai");
+    }
+
+    @Test
+    void minimalPersonPartyOmitsOptionalBlocksAndStaysLenient() {
+        // B5: only first/last name supplied — no phones/addresses/identifications wrappers are emitted, so the
+        // person is a clean minimal t_person (the CSV-importer shape) rather than a my_client with mandatory holes.
+        DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
+                null, "Lin", "Chen", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Walk-in buyer", null, null, buyer);
+
+        DpmsrReportInput input = mapper.toInput(req(party), 3177);
+
+        var person = input.parties().get(0).getPerson();
+        assertThat(person).isNotNull();
+        assertThat(person.getPhones()).as("no empty phones wrapper").isNull();
+        assertThat(person.getAddresses()).isNull();
+        assertThat(person.getIdentifications()).isNull();
+        assertThat(person.getTaxRegNumber()).isNull();
     }
 
     @Test

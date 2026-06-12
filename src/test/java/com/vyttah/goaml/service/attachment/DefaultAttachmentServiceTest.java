@@ -35,8 +35,11 @@ class DefaultAttachmentServiceTest {
     private final S3StorageClient s3StorageClient = mock(S3StorageClient.class);
     private final AuditService auditService = mock(AuditService.class);
 
+    // B15: exercise the real default scanner (no-op) so the AV-disabled path is the one under test.
+    private final AttachmentScanner attachmentScanner = new NoopAttachmentScanner();
+
     private final DefaultAttachmentService service = new DefaultAttachmentService(
-            reportRepository, attachmentRepository, s3StorageClient, auditService);
+            reportRepository, attachmentRepository, s3StorageClient, auditService, attachmentScanner);
 
     private final UUID tenantId = UUID.randomUUID();
     private final UUID actor = UUID.randomUUID();
@@ -45,8 +48,9 @@ class DefaultAttachmentServiceTest {
         return new Report(UUID.randomUUID(), "PAY-1", "DPMSR", 3177, status, "{}", actor);
     }
 
+    /** A minimal real PDF (starts with the %PDF magic) so content sniffing recognises it. */
     private byte[] pdf() {
-        return "pretend-pdf".getBytes(StandardCharsets.UTF_8);
+        return "%PDF-1.4\n...".getBytes(StandardCharsets.UTF_8);
     }
 
     @Test
@@ -108,6 +112,65 @@ class DefaultAttachmentServiceTest {
                 .isInstanceOf(AttachmentExceptions.AttachmentRejectedException.class);
 
         verify(s3StorageClient, never()).put(any(), any(), any());
+    }
+
+    // ----- B15 content scanning -----
+
+    private byte[] elf() {
+        return new byte[]{0x7F, 'E', 'L', 'F', 0x02, 0x01, 0x01, 0x00};
+    }
+
+    private byte[] pe() {
+        return new byte[]{'M', 'Z', (byte) 0x90, 0x00, 0x03, 0x00};
+    }
+
+    private byte[] png() {
+        return new byte[]{(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
+    }
+
+    @Test
+    void addRejectsRenamedElfExecutableDeclaredAsPdf() {
+        Report r = report("DRAFT");
+        when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));
+
+        // an ELF binary renamed to invoice.pdf and relabelled application/pdf must be rejected (B15)
+        assertThatThrownBy(() -> service.add(r.getId(), tenantId, actor, "invoice.pdf", "application/pdf", elf()))
+                .isInstanceOf(AttachmentExceptions.AttachmentRejectedException.class);
+        verify(s3StorageClient, never()).put(any(), any(), any());
+        verify(attachmentRepository, never()).save(any());
+    }
+
+    @Test
+    void addRejectsRenamedPeExecutableDeclaredAsPdf() {
+        Report r = report("DRAFT");
+        when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));
+
+        assertThatThrownBy(() -> service.add(r.getId(), tenantId, actor, "doc.pdf", "application/pdf", pe()))
+                .isInstanceOf(AttachmentExceptions.AttachmentRejectedException.class);
+        verify(s3StorageClient, never()).put(any(), any(), any());
+    }
+
+    @Test
+    void addRejectsDeclaredPdfThatIsActuallyAnImage() {
+        Report r = report("DRAFT");
+        when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));
+
+        // PNG bytes but the caller declared application/pdf → declared/actual mismatch
+        assertThatThrownBy(() -> service.add(r.getId(), tenantId, actor, "scan.pdf", "application/pdf", png()))
+                .isInstanceOf(AttachmentExceptions.AttachmentRejectedException.class);
+        verify(s3StorageClient, never()).put(any(), any(), any());
+    }
+
+    @Test
+    void addAcceptsARealImage() {
+        Report r = report("VALID");
+        when(reportRepository.findById(r.getId())).thenReturn(Optional.of(r));
+
+        Attachment saved = service.add(r.getId(), tenantId, actor, "photo.png", "image/png", png());
+
+        assertThat(saved.getFilename()).isEqualTo("photo.png");
+        verify(s3StorageClient).put(any(), any(), eq("image/png"));
+        verify(attachmentRepository).save(any(Attachment.class));
     }
 
     @Test

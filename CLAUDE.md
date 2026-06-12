@@ -13,7 +13,8 @@ suite (accounting/ERP + AML screening).
 3. **`.planning/PROJECT.md`** — what it is, requirements, **Key Decisions**, constraints.
 4. **`.planning/discussion-log.md`** — the running Q&A/decision history (how we got here).
 5. **`docs/`** — full developer documentation (business → architecture → domain → engine → security →
-   testing → glossary). `docs/00-implementation-plan.md` is the original plan.
+   testing → glossary). `docs/00-implementation-plan.md` is the original plan;
+   `docs/16-operations-dr-retention.md` is the backup/DR/records-retention + poller-topology ops policy.
 
 ## Active plans (`.planning/plans/`)
 - **`xsd-first-foundation.md`** — current priority: build the domain over the real `goAMLSchema.xsd`
@@ -21,13 +22,22 @@ suite (accounting/ERP + AML screening).
   are vendored at `src/main/resources/xsd/goaml/5.0.2/` and `src/test/resources/samples/`.
 - **`integration-and-auth-architecture.md`** — suite positioning, **Phase 1.5** accounting/screening
   integration, and the **unified-auth** design (goAML keeps its own JWT + a federated token-exchange
-  on-ramp). Docs-only; code is Phase 1.5.
-- **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness.
+  on-ramp). **The code shipped** (1.5a/b/c merged to `main`; accounting is REST, not RabbitMQ). The contract
+  reference is `docs/14-suite-integration.md`; the live-wiring steps are `plans/go-live-integration-runbook.md`.
+- **`goaml-as-aml-microservice.md`** — the **frontend-direct** track: the AML cockpit calls goAML directly
+  (browser assembles the full DPMSR → `POST /api/v1/reports`). Built across both repos (goAML pieces on
+  `feature/goaml-frontend-direct`; AML pieces on `feature/goaml-integration`, unmerged).
+- **`phase-12-plugin-and-mcp-harness.md`** — the Claude plugin + MCP harness (done).
 
 ## Key facts to not re-derive
 - **Status: ALL 14 phases committed** (+ XSD-first foundation + layer-first refactor) — the standalone product
-  is complete. Built order was 13 → 14 → 12; **Phase 12 (plugin/MCP/CLI) was the last** and is done. **Phase 1.5**
-  (suite integration + federated auth) remains deferred — decide later. **Phase 12** added a Spring AI **MCP
+  is complete. Built order was 13 → 14 → 12; **Phase 12 (plugin/MCP/CLI) was the last** and is done. **Phase 1.5
+  (suite integration + federated auth) is DONE/merged** — 1.5a federated token-exchange (`/api/v1/auth/federated/token`
+  + `external_identity`/`trusted_service`), 1.5b accounting integration (**REST, not RabbitMQ** — both models +
+  reportability check), 1.5c screening push/seed are all built and merged to `main` (2026-06-08→09). A further
+  **suite-cockpit track (Phases A–D)** and a **frontend-direct pivot** then layered the AML cockpit on top (the
+  cockpit's Create-Transaction page builds a full DPMSR in the browser and POSTs it straight to goAML); only
+  **Phase E (live FIU B2B, external)** remains. **Phase 12** added a Spring AI **MCP
   server** (SSE at `/api/v1/mcp/**`, tenant-scoped + role-gated, MLRO-gated dry-run-first submission), a Claude
   **plugin** (`plugin/goaml/` + repo-root `.claude-plugin/marketplace.json`), and a **`--cli`** run-mode of the
   same jar — REST/MCP/CLI all delegate to the same engine/services (parity). See `docs/13-plugin-mcp-cli.md`.

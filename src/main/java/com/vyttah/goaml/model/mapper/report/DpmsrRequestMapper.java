@@ -7,13 +7,13 @@ import com.vyttah.goaml.domain.generated.TAddress;
 import com.vyttah.goaml.domain.generated.TEntity;
 import com.vyttah.goaml.domain.generated.TPerson;
 import com.vyttah.goaml.domain.generated.TPersonIdentification;
-import com.vyttah.goaml.domain.generated.TPersonMyClient;
 import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
 import com.vyttah.goaml.domain.generated.TPhone;
 import com.vyttah.goaml.domain.generated.TTransItem;
 import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.engine.build.GoamlParties;
 import com.vyttah.goaml.engine.build.GoamlWrappers;
+import com.vyttah.goaml.engine.build.NameNormalizer;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import org.springframework.stereotype.Component;
 
@@ -61,20 +61,30 @@ public class DpmsrRequestMapper {
             return GoamlParties.entity(entity(p.entity()), p.reason(), p.comments());
         }
         if (p.person() != null) {
-            return GoamlParties.personMyClient(personMyClient(p.person()), p.reason(), p.comments());
+            return GoamlParties.person(person(p.person()), p.reason(), p.comments());
         }
         throw new IllegalArgumentException("party must have an entity or a person");
     }
 
     private TEntity entity(DpmsrCreateRequest.Entity dto) {
         TEntity e = new TEntity();
-        e.setName(dto.name());
-        e.setCommercialName(dto.commercialName());
+        // C8: normalize XSD-illegal punctuation (&, (), comma, /) in name fields so a real UAE legal name
+        // stays XSD-valid instead of failing marshalling with a raw SAX pattern error.
+        e.setName(NameNormalizer.normalize(dto.name()));
+        e.setCommercialName(NameNormalizer.normalize(dto.commercialName()));
         e.setIncorporationNumber(dto.incorporationNumber());
         e.setIncorporationState(dto.incorporationState());
         e.setIncorporationCountryCode(dto.incorporationCountryCode());
+        // B4 carry-through (all optional on lenient t_entity; set-when-present, never fabricated).
+        e.setIncorporationDate(dto.incorporationDate());
+        e.setTaxRegNumber(dto.taxRegNumber());
+        e.setBusiness(dto.business());
         if (dto.phone() != null) {
             e.setPhones(GoamlWrappers.wrap(new TEntity.Phones(), TEntity.Phones::getPhone, phone(dto.phone())));
+        }
+        if (dto.address() != null) {
+            e.setAddresses(GoamlWrappers.wrap(
+                    new TEntity.Addresses(), TEntity.Addresses::getAddress, address(dto.address())));
         }
         if (dto.directors() != null) {
             for (DpmsrCreateRequest.Director d : dto.directors()) {
@@ -87,8 +97,8 @@ public class DpmsrRequestMapper {
     private TEntity.DirectorId director(DpmsrCreateRequest.Director dto) {
         TEntity.DirectorId d = new TEntity.DirectorId();
         d.setGender(dto.gender());
-        d.setFirstName(dto.firstName());
-        d.setLastName(dto.lastName());
+        d.setFirstName(NameNormalizer.normalize(dto.firstName()));
+        d.setLastName(NameNormalizer.normalize(dto.lastName()));
         d.setBirthdate(dto.birthdate());
         d.setPassportNumber(dto.passportNumber());
         d.setPassportCountry(dto.passportCountry());
@@ -104,11 +114,20 @@ public class DpmsrRequestMapper {
         return d;
     }
 
-    private TPersonMyClient personMyClient(DpmsrCreateRequest.Person dto) {
-        TPersonMyClient p = new TPersonMyClient();
+    /**
+     * Maps a curated person party onto the <em>lenient</em> {@code t_person} ({@link TPerson}) — not
+     * {@code t_person_my_client} (B5). On the lenient type only {@code first_name}/{@code last_name} are
+     * mandatory, so a minimal feed (e.g. the CSV importer) can produce a VALID person report; the heavier
+     * fields (gender, birthdate, id_number, nationality, residence, {@code tax_reg_number}, phone, address,
+     * identifications) are <strong>set only when present</strong>, never fabricated. {@code tax_reg_number}
+     * stays mappable but is optional here (vs. the 1-char-mandatory trap on my_client). The party
+     * {@code address} (B17) is mapped via the {@code t_person} addresses wrapper — previously dropped.
+     */
+    private TPerson person(DpmsrCreateRequest.Person dto) {
+        TPerson p = new TPerson();
         p.setGender(dto.gender());
-        p.setFirstName(dto.firstName());
-        p.setLastName(dto.lastName());
+        p.setFirstName(NameNormalizer.normalize(dto.firstName()));
+        p.setLastName(NameNormalizer.normalize(dto.lastName()));
         p.setBirthdate(dto.birthdate());
         p.setCountryOfBirth(dto.countryOfBirth());
         p.setNationality1(dto.nationality());
@@ -116,15 +135,24 @@ public class DpmsrRequestMapper {
         p.setIdNumber(dto.idNumber());
         p.setTaxRegNumber(dto.taxRegNumber());
         p.setOccupation(dto.occupation());
-        // <phones> is a required element on t_person_my_client (its inner <phone> is optional), so a party
-        // person always gets a phones wrapper — empty when no phone is supplied — to stay XSD-valid.
-        TPersonMyClient.Phones phones = new TPersonMyClient.Phones();
-        if (dto.phone() != null) {
-            phones.getPhone().add(phone(dto.phone()));
+        p.setAlias(dto.alias());
+        // <emails> wraps a List<String>; emit only when an email is supplied (the email|emails choice is
+        // optional on lenient t_person).
+        if (dto.email() != null && !dto.email().isBlank()) {
+            TPerson.Emails emails = new TPerson.Emails();
+            emails.getEmail().add(dto.email());
+            p.setEmails(emails);
         }
-        p.setPhones(phones);
+        // <phones> is optional on lenient t_person — only emit the wrapper when a phone is actually supplied.
+        if (dto.phone() != null) {
+            p.setPhones(GoamlWrappers.wrap(new TPerson.Phones(), TPerson.Phones::getPhone, phone(dto.phone())));
+        }
+        if (dto.address() != null) {
+            p.setAddresses(GoamlWrappers.wrap(
+                    new TPerson.Addresses(), TPerson.Addresses::getAddress, address(dto.address())));
+        }
         if (dto.identifications() != null && !dto.identifications().isEmpty()) {
-            TPersonMyClient.Identifications wrapper = new TPersonMyClient.Identifications();
+            TPerson.Identifications wrapper = new TPerson.Identifications();
             for (DpmsrCreateRequest.Identification id : dto.identifications()) {
                 wrapper.getIdentification().add(identification(id));
             }
@@ -136,8 +164,8 @@ public class DpmsrRequestMapper {
     private TPersonRegistrationInReport reportingPerson(DpmsrCreateRequest.Person dto) {
         TPersonRegistrationInReport p = new TPersonRegistrationInReport();
         p.setGender(dto.gender());
-        p.setFirstName(dto.firstName());
-        p.setLastName(dto.lastName());
+        p.setFirstName(NameNormalizer.normalize(dto.firstName()));
+        p.setLastName(NameNormalizer.normalize(dto.lastName()));
         p.setBirthdate(dto.birthdate());
         p.setNationality1(dto.nationality());
         p.setResidence(dto.residence());

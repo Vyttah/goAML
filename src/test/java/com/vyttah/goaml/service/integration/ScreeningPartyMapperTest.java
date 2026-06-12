@@ -9,11 +9,23 @@ import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload.Phone;
 import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload.RelatedParty;
 import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload.Sanctions;
 import com.vyttah.goaml.model.dto.integration.ScreeningPartyPayload.SubjectType;
+import com.vyttah.goaml.engine.build.ActivityReportBuilder;
+import com.vyttah.goaml.engine.build.DpmsrReportBuilder;
+import com.vyttah.goaml.engine.build.DpmsrReportInput;
+import com.vyttah.goaml.engine.build.ValidatedReport;
+import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
+import com.vyttah.goaml.engine.lookup.LookupService;
+import com.vyttah.goaml.engine.marshal.ReportMarshaller;
+import com.vyttah.goaml.engine.validation.ReportValidator;
+import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
+import com.vyttah.goaml.model.mapper.report.DpmsrRequestMapper;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,9 +56,14 @@ class ScreeningPartyMapperTest {
         assertThat(party.person().firstName()).isEqualTo("John");
         assertThat(party.person().lastName()).isEqualTo("Doe");
         assertThat(party.person().gender()).isEqualTo("M");             // normalized to a valid code
-        assertThat(party.person().countryOfBirth()).isEqualTo("IN");    // required for a party person
+        assertThat(party.person().countryOfBirth()).isEqualTo("IN");    // carried from the payload (not fabricated)
         assertThat(party.person().idNumber()).isEqualTo("P123");        // derived from the identification number
-        assertThat(party.person().identifications()).isNull();          // block omitted (top-level id_number used)
+        // B4: the identification block, email and alias are now carried (previously dropped)
+        assertThat(party.person().identifications()).hasSize(1);
+        assertThat(party.person().identifications().get(0).type()).isEqualTo("PASSPORT");
+        assertThat(party.person().identifications().get(0).number()).isEqualTo("P123");
+        assertThat(party.person().email()).isEqualTo("j@x.test");
+        assertThat(party.person().alias()).isEqualTo("JD");
         assertThat(party.comments()).contains("PEP");
     }
 
@@ -80,6 +97,9 @@ class ScreeningPartyMapperTest {
         assertThat(party.entity().name()).isEqualTo("Acme Trading FZE");
         assertThat(party.entity().incorporationNumber()).isEqualTo("INC-1");
         assertThat(party.entity().incorporationCountryCode()).isEqualTo("AE");
+        // B4: trn + incorporation date are now carried (previously had no slot → dropped)
+        assertThat(party.entity().taxRegNumber()).isEqualTo("TRN-1");
+        assertThat(party.entity().incorporationDate()).isNotNull();
         assertThat(party.entity().directors()).hasSize(1);
         assertThat(party.entity().directors().get(0).firstName()).isEqualTo("Ravi");
         assertThat(party.entity().directors().get(0).lastName()).isEqualTo("Patel");
@@ -140,6 +160,10 @@ class ScreeningPartyMapperTest {
         return ScreeningPartyMapper.toParties(p).get(0).person();
     }
 
+    private static OffsetDateTime odt(String isoLocal) {
+        return OffsetDateTime.parse(isoLocal + "Z").withOffsetSameInstant(ZoneOffset.UTC);
+    }
+
     @Test
     void genderIsNormalisedAndUnknownDefaultsToDash() {
         assertThat(personOf(natural("F", "Ann", "Lee", null)).gender()).isEqualTo("F");
@@ -148,17 +172,33 @@ class ScreeningPartyMapperTest {
     }
 
     @Test
-    void missingCustomerNamesFallBackToUnknown() {
-        // subjectType LEGAL but no legal block, and NATURAL with no natural block → defensive "Unknown"
+    void missingCustomerNamesAreOmittedNotFabricated() {
+        // B4: a missing legal/natural body OMITS the name in the filing (→ INVALID at the gate, never filed)
+        // rather than fabricating "Unknown" in the FIU XML. The human-facing displayName label still reads
+        // "Unknown" (it is a UI label, never marshalled).
         ScreeningPartyPayload legalNoBody = new ScreeningPartyPayload("1", "X", SubjectType.LEGAL,
                 null, null, null, null, null, null);
-        assertThat(ScreeningPartyMapper.toParties(legalNoBody).get(0).entity().name()).isEqualTo("Unknown");
+        assertThat(ScreeningPartyMapper.toParties(legalNoBody).get(0).entity().name()).isNull();
         assertThat(ScreeningPartyMapper.displayName(legalNoBody)).isEqualTo("Unknown");
 
         ScreeningPartyPayload naturalNoBody = new ScreeningPartyPayload("1", "X", SubjectType.NATURAL,
                 null, null, null, null, null, null);
-        assertThat(ScreeningPartyMapper.toParties(naturalNoBody).get(0).person().firstName()).isEqualTo("Unknown");
+        assertThat(ScreeningPartyMapper.toParties(naturalNoBody).get(0).person().firstName()).isNull();
         assertThat(ScreeningPartyMapper.displayName(naturalNoBody)).isEqualTo("Unknown");
+    }
+
+    @Test
+    void sparseNaturalCustomerOmitsCleanlyWithNoFabricatedCountryOrResidence() {
+        // B4: a sparse profile (nationality only, no countryOfBirth/residence) must NOT fabricate
+        // countryOfBirth←nationality or residence←nationality — those are omitted.
+        NaturalCustomer sparse = new NaturalCustomer(null, "Aman", "Roy", null, null, "IN", null, null,
+                null, null, null, null, null, null, false);
+        DpmsrCreateRequest.Person person = personOf(sparse);
+        assertThat(person.nationality()).isEqualTo("IN");
+        assertThat(person.countryOfBirth()).isNull();
+        assertThat(person.residence()).isNull();
+        assertThat(person.email()).isNull();
+        assertThat(person.identifications()).isNull();
     }
 
     @Test
@@ -172,7 +212,7 @@ class ScreeningPartyMapperTest {
         List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(p);
         assertThat(parties.get(0).comments()).isNull();                 // no PEP, no sanctions
         assertThat(parties.get(1).person().firstName()).isEqualTo("Cher");
-        assertThat(parties.get(1).person().lastName()).isEqualTo("Unknown");  // single-token name
+        assertThat(parties.get(1).person().lastName()).isNull();        // single-token name → omit, not "Unknown"
         assertThat(parties.get(1).comments()).isNull();                 // no %/PEP
     }
 
@@ -209,5 +249,79 @@ class ScreeningPartyMapperTest {
         assertThat(comments).contains("2 hit(s)")
                 .contains("Risky FZE (OFAC, score 95, SANCTIONS)")
                 .contains("Risky F (UN, score 80, SANCTIONS)");
+    }
+
+    // ---------- B4: end-to-end — carried fields reach the (XSD-VALID) XML, sparse omits cleanly ----------
+
+    private static final DpmsrReportBuilder BUILDER = new DpmsrReportBuilder(
+            new ActivityReportBuilder(),
+            new ReportValidator(new JurisdictionRegistry(), new LookupService()),
+            new XsdSchemaValidator(),
+            new ReportMarshaller());
+
+    private static ValidatedReport buildFrom(ScreeningPartyPayload payload) {
+        List<DpmsrCreateRequest.Party> parties = ScreeningPartyMapper.toParties(payload);
+        DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
+                null, "Sara", "Khan", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
+                "GOLD", null, "bar", null, null, new BigDecimal("90000.00"), "AED", null, null, null,
+                null, null, null, null);
+        DpmsrCreateRequest req = new DpmsrCreateRequest(null, "SCR-E2E", odt("2026-06-02T12:00:00"), null,
+                "DPMS", "Filed", List.of("DPMSJ"), mlro, null, parties, List.of(gold));
+        DpmsrReportInput input = new DpmsrRequestMapper().toInput(req, 3177);
+        return BUILDER.buildAndValidate(input, "ae");
+    }
+
+    @Test
+    void fullyPopulatedScreeningPayloadCarriesAllFieldsIntoTheXml() {
+        // These fields were previously DROPPED by the curated path; assert each now reaches the marshalled
+        // XML. NB: a goAML identification needs a coded `type` (PASSP, not PASSPORT) and the screening Phone /
+        // Address records carry no contact-type / address-type slot, so this rich payload is not itself
+        // XSD-VALID — the residual screening-DTO type-code gap is noted in the remediation summary. What this
+        // proves is that the values are carried through (no silent loss), which is the B4 fix.
+        NaturalCustomer nat = new NaturalCustomer("M", "John", "Doe", "Johnny",
+                LocalDate.of(1985, 3, 1), "IN", "IN", "AE", "784", "Trader", "john@x.test",
+                new Phone("+971", "500000000"), new Address("1 St", "Dubai", "AE", "Dubai"),
+                List.of(new Identification("PASSP", "P123", LocalDate.of(2020, 1, 1),
+                        LocalDate.of(2030, 1, 1), "IN")), false);
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "CUST-E2E", SubjectType.NATURAL,
+                nat, null, null, null, null, null);
+
+        String xml = buildFrom(p).xml();
+        assertThat(xml)
+                .contains("<person>")
+                .contains("john@x.test")          // email carried (was dropped)
+                .contains("Johnny")               // alias carried (was dropped)
+                .contains("<identification>")     // identification block carried (was dropped)
+                .contains("P123")
+                .contains("<addresses>");         // person address carried (was dropped)
+
+        // legal customer carries trn + incorporation_date + address (all previously dropped)
+        LegalCustomer legal = new LegalCustomer("Acme Trading FZE", "Acme", "INC-1", "Dubai", "AE",
+                LocalDate.of(2010, 1, 1), "LIC-9", "TRN-1", new Phone("+971", "44"),
+                new Address("HQ Tower", "Dubai", "AE", "Dubai"));
+        ScreeningPartyPayload pl = new ScreeningPartyPayload("7", "LEG-E2E", SubjectType.LEGAL,
+                null, legal, null, null, null, null);
+        assertThat(buildFrom(pl).xml())
+                .contains("<tax_reg_number>TRN-1</tax_reg_number>")
+                .contains("<incorporation_date>")
+                .contains("HQ Tower");
+    }
+
+    @Test
+    void sparseScreeningPayloadOmitsCleanlyWithNoUnknownOrFabricatedCountry() {
+        // a sparse natural customer: just names + nationality
+        NaturalCustomer nat = new NaturalCustomer("M", "John", "Doe", null, null, "IN", null, null,
+                "784", null, null, null, null, null, false);
+        ScreeningPartyPayload p = new ScreeningPartyPayload("7", "CUST-SPARSE", SubjectType.NATURAL,
+                nat, null, null, null, null, null);
+
+        ValidatedReport vr = buildFrom(p);
+        assertThat(vr.isValid()).as("errors=%s", vr.xsd().errors()).isTrue();
+        String xml = vr.xml();
+        // no fabricated "Unknown" name and no fabricated country_of_birth/residence in the filed XML
+        assertThat(xml).doesNotContain("Unknown");
+        assertThat(xml).doesNotContain("<country_of_birth>");
+        assertThat(xml).doesNotContain("<residence>");
     }
 }

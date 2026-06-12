@@ -57,11 +57,18 @@ function formatTimestamp(iso: string): string {
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleString();
 }
 
+/** Render a client-metadata value defensively — scalars inline, objects/arrays as compact JSON. */
+function formatMetadataValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') return '—';
+  if (typeof value === 'object') return JSON.stringify(value);
+  return String(value);
+}
+
 /**
  * Report detail + lifecycle: summary, the generated goAML XML (view + download), MLRO submit
- * (VALID-only, confirmed), on-demand FIU status, and attachment management (upload / download / remove).
- * Note: re-fetching the validation result of an existing report has no backend endpoint yet, so that
- * panel isn't shown here (a small future backend add).
+ * (VALID-only, confirmed), on-demand FIU status, the stored validation result, and attachment
+ * management (upload / download / remove). Any client-supplied metadata returned on `/detail`
+ * (never part of the filed XML) is shown read-only.
  */
 export function ReportDetailPage() {
   const { id = '' } = useParams();
@@ -345,6 +352,21 @@ export function ReportDetailPage() {
           ]}
         />
       </Card>
+
+      {report.clientMetadata && Object.keys(report.clientMetadata).length > 0 && (
+        <Card title="Client metadata" style={{ marginBottom: 16 }}>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            Captured at filing time for the record. Never included in the goAML XML.
+          </Typography.Paragraph>
+          <Descriptions column={1} size="small" bordered>
+            {Object.entries(report.clientMetadata).map(([key, value]) => (
+              <Descriptions.Item label={key} key={key}>
+                {formatMetadataValue(value)}
+              </Descriptions.Item>
+            ))}
+          </Descriptions>
+        </Card>
+      )}
 
       <Card title="Review" style={{ marginBottom: 16 }}>
         {report.reviewedAt || report.reviewRemark ? (

@@ -1,0 +1,95 @@
+{{- if .Values.poller.dedicated -}}
+# Dedicated single-replica poller. The submission-status poller (Phase 9) has no distributed lock, so it
+# must run on exactly ONE process. This Deployment runs the SAME image with the scheduler ENABLED and a
+# fixed single replica (no HPA), while the main Deployment runs it OFF — guaranteeing one poller cluster-wide.
+# It does not serve user/API traffic: the Service selects only goaml.io/role=web pods, and this Deployment's
+# pods are labelled goaml.io/role=poller — so no Service/Ingress routes to it. It just runs the @Scheduled loop.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "goaml.fullname" . }}-poller
+  labels:
+    {{- include "goaml.labels" . | nindent 4 }}
+    goaml.io/role: poller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "goaml.selectorLabels" . | nindent 6 }}
+      goaml.io/role: poller
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "goaml.selectorLabels" . | nindent 8 }}
+        goaml.io/role: poller
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "goaml.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}-poller
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: {{ include "goaml.fullname" . }}-config
+            - secretRef:
+                name: {{ include "goaml.secretName" . }}
+                optional: true
+          env:
+            # This is THE poller process — scheduler ON regardless of scheduler.enabled.
+            - name: GOAML_SCHEDULER_ENABLED
+              value: "true"
+          startupProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            failureThreshold: {{ .Values.probes.startupFailureThreshold }}
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.liveness.path }}
+              port: http
+            periodSeconds: 15
+          # No readinessProbe receives traffic here, but the health endpoint still gates a clean start.
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.readiness.path }}
+              port: http
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.poller.resources | nindent 12 }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

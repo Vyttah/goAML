@@ -8,9 +8,13 @@
 ## 1. Philosophy & tooling
 
 - **JUnit 5 (Jupiter)** + **AssertJ** everywhere.
-- **No mocking framework.** There is zero Mockito/WireMock in the suite today. Engine/unit tests just
-  `new` the classes; integration tests use a **real Postgres via Testcontainers** (`postgres:16-alpine`,
-  wired through Spring Boot's `@ServiceConnection` — no manual datasource property juggling).
+- **Mocking is used where it earns its keep.** Engine/unit tests still just `new` the classes (no Spring, no
+  DB) — that's the bulk of the suite. But from Phase 6 onward the suite **does** use **Mockito** (unit tests
+  for the AWS/B2B clients, services) and **WireMock** (the goAML B2B HTTP client, up to ZIP-submission E2E);
+  integration tests use a **real Postgres via Testcontainers** (`postgres:16-alpine`, wired through Spring
+  Boot's `@ServiceConnection`), plus **LocalStack** (S3/Secrets/SES) and **Redis** for the Phase-6 ITs
+  (these `assumeTrue`-skip if the compose services aren't up). *(The earlier "zero Mockito/WireMock" claim was
+  true only through Phase 5 — it is no longer accurate.)*
 - **XMLUnit** for semantic XML comparison in the golden tests.
 
 Two broad categories:
@@ -163,12 +167,22 @@ prefix — these element-name quirks come straight from the XSD via the generate
 
 ---
 
-## 6. What's NOT tested yet (because it's not built)
+## 6. Coverage across the later phases (all now built + tested)
 
-No tests exist for B2B submission, AWS integration, the scheduler, notifications, ingestion, MCP/CLI, or
-the frontend — those are Phases 6–14. When you build Phase 6, the plan calls for **WireMock** (B2B HTTP)
-and **LocalStack** (AWS) — neither dependency is in `build.gradle` yet, so adding them is part of that
-phase.
+This section once listed "not built yet" gaps; **those are all built and tested now**:
+- **B2B submission** — WireMock-stubbed unit + E2E up to ZIP submission (Phase 6/7).
+- **AWS integration** — `GoamlSecretsClient`/`S3StorageClient`/`SesClient` via Mockito unit tests +
+  **LocalStack** ITs (skipped if compose isn't up).
+- **Scheduler** — `SubmissionStatusPoller` Testcontainers IT (two tenants transition + isolation).
+- **Notifications** — Testcontainers ITs (in-app fan-out + the email-enabled gate).
+- **Ingestion** — MockMvc E2E (XML + CSV import, per-row results).
+- **Federated auth / integration** — E2E incl. JIT + bad-signature 401; accounting/screening push.
+- **MCP / CLI** — built (Phase 12); they delegate to the same services (REST/MCP/CLI parity).
+- **Frontend** — `frontend/` SPA has Vitest+RTL specs (run on Node 18), incl. golden `dpmsrPayload` tests.
+
+The `build.gradle` JaCoCo gate is extended per phase as new packages land. Both **WireMock** and
+**LocalStack** are in `build.gradle` (added in Phase 6). The total backend suite is ~90+ classes mirroring
+the main packages. **Authoritative live status:** [`.planning/STATE.md`](../.planning/STATE.md).
 
 ---
 

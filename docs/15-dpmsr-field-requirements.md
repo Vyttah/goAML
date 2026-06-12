@@ -55,8 +55,15 @@ neither) · ◆ **choice** (pick exactly one)
 
 ## Party wrapper (`report_party_type`)
 
-- 🔴 `reason`; ◆ exactly one subject — for DPMSR: **`entity`** or **`person` (my client)**
+- 🔴 `reason`; ◆ exactly one subject — for DPMSR: **`entity`** or **`person`**
 - ⚪ `role`, `country`, `is_suspected`, `significance`, `comments`
+
+> **Subject choice (B5 decision):** the curated path (`POST /api/v1/reports/dpmsr`, the CSV importer, and the
+> accounting/screening feeds) maps a person party to the **lenient `t_person`**, *not* `t_person_my_client`.
+> On `t_person` only `first_name`/`last_name` are XSD-mandatory, so a minimal feed (e.g. a CSV row) can produce
+> a **VALID** report; every other field is set-when-present (never fabricated). `t_person_my_client` is still
+> fully supported by the engine for callers who deliberately want the heavier my_client subject (e.g. via the
+> full-fidelity `DpmsrReportPayload`), but it is no longer forced on the curated path.
 
 ## Entity party (`t_entity`)
 
@@ -73,14 +80,31 @@ neither) · ◆ **choice** (pick exactly one)
 - 🔗 `passport_number` + `passport_country`
 - ⚪ everything else; `role` optional
 
-## ⚠️ Person *party* (`t_person_my_client`) — much heavier than the reporting person
+## Person *party* — two options
+
+### `t_person` (the curated-path default — **lenient**)
+
+- 🔴 `first_name`, `last_name` — **the only hard-required fields**
+- ⚪ everything else: `gender`, `birthdate`, `id_number`, `nationality1`, `residence`, `tax_reg_number`,
+  `country_of_birth`, `alias`, `email`/`emails`, `occupation`, `phones`, `addresses`, `identifications`,
+  `ssn`, … (all `minOccurs=0` or inside an optional choice; set-when-present, never fabricated)
+- 🔗 `passport_number` + `passport_country`
+
+This is what the curated `DpmsrCreateRequest` person party, the CSV importer, and the accounting/screening
+feeds emit (B5). It carries `tax_reg_number`, `address`, `email`, `alias`, and the full `identifications`
+block when supplied — but none are mandatory, so a sparse feed is still VALID.
+
+### ⚠️ `t_person_my_client` — much heavier (engine-supported, no longer forced on the curated path)
 
 - 🔴 `gender`, `first_name`, `last_name`, `birthdate`, `id_number`, `nationality1`, `residence`,
-  `tax_reg_number`
+  `tax_reg_number` (note: a **1-char** `tax_reg_number` on `t_entity`; longer on the person)
 - 🔴 `phones` — the wrapper element must be present (the inner `phone` is optional)
 - 🔴 ◆ **identification** — at least one mandatory (inline `identification` or an `identifications` wrapper)
 - 🔗 `passport_number` + `passport_country`
 - ⚪ `title`, `middle_name`, `ssn`, addresses, `email`, `occupation`, `country_of_birth`, …
+
+Only reachable now by a caller that deliberately builds a `TPersonMyClient` via the full-fidelity
+`DpmsrReportPayload`; the curated/CSV/screening paths use the lenient `t_person` above.
 
 ## Identification (`t_person_identification`) — when present
 
@@ -106,12 +130,14 @@ The SPA uses one shared `PersonFields` component for all people, but the require
 |---|---|
 | **Reporting person** (MLRO) | `first_name`, `last_name` |
 | **Director** | `first_name`, `last_name` |
-| **Person party** (the customer) | `gender`, `first_name`, `last_name`, `birthdate`, `id_number`, `nationality1`, `residence`, `tax_reg_number`, a phone block, **and** ≥1 full identification |
+| **Person party** (the customer, lenient `t_person`) | `first_name`, `last_name` |
 
-A **person-party** form should therefore enforce ~8 fields + an identification; the **reporting-person** and
-**director** forms need only first/last name. (This is also why a screening profile can't auto-produce a
-*valid* person-party — it rarely carries `tax_reg_number` + a full ID document — so it seeds an analyst-
-completed draft.)
+With the curated path on the lenient `t_person` (B5), a **person-party** form needs only first/last name to be
+VALID — same as the reporting-person and director forms — and should still *offer* the richer fields
+(`gender`, `birthdate`, `id_number`, `nationality1`, `residence`, `tax_reg_number`, phone, address,
+identification) which flow through when supplied. (This also means a screening profile now produces a *valid*
+person-party even when it carries only a name + a few attributes — no analyst completion needed just to pass
+the XSD gate, though analysts should still enrich it for FIU business-rule completeness.)
 
 ---
 

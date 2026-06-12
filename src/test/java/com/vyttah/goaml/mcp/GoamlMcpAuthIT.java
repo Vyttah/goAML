@@ -8,11 +8,13 @@ import io.modelcontextprotocol.client.McpClient;
 import io.modelcontextprotocol.client.McpSyncClient;
 import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -20,6 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +42,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  *   <li>without a token, is rejected — proving the MCP transport is not publicly reachable.</li>
  * </ol>
  *
- * <p>The token is minted directly here (mirroring {@code JwtService}'s claims) so the test does not depend
- * on a provisioned tenant/user — {@code goaml_whoami} only reads the resolved identity, no DB row needed.
+ * <p>The token is minted directly here (mirroring {@code JwtService}'s claims). Since B16 added a
+ * disabled-user check to {@code JwtAuthFilter}, the {@code sub} must reference an ACTIVE {@code app_user};
+ * the test seeds one platform user and mints every token against its id (roles still come from the claim).
  */
 @SpringBootTest(classes = GoamlApplication.class, webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -56,11 +60,29 @@ class GoamlMcpAuthIT {
     @Autowired
     JwtProperties jwtProperties;
 
+    @Autowired
+    JdbcTemplate jdbcTemplate;
+
+    /** An ACTIVE platform user whose id backs every minted token (B16 — JwtAuthFilter rejects unknown subs). */
+    private UUID userId;
+
+    @BeforeEach
+    void seedActiveUser() {
+        userId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO public.app_user
+                  (id, tenant_id, email, password_hash, first_name, last_name, status, created_at, updated_at)
+                VALUES (?, NULL, ?, '', 'Mcp', 'User', 'ACTIVE', ?, ?)
+                ON CONFLICT (id) DO NOTHING
+                """, userId, "mcp-user-" + userId + "@demo.local",
+                OffsetDateTime.now(), OffsetDateTime.now());
+    }
+
     private String mintToken(List<String> roles, String schema) {
         Instant now = Instant.now();
         return Jwts.builder()
                 .issuer(jwtProperties.issuer())
-                .subject(UUID.randomUUID().toString())
+                .subject(userId.toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(300)))
                 .claim("email", "mcp-user@demo.local")

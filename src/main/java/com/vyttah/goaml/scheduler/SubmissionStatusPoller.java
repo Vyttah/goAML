@@ -7,7 +7,8 @@ import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.submission.SubmissionService;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -25,23 +26,42 @@ import java.util.List;
  * {@code finally} per tenant, so a pooled thread can't leak one tenant's schema into the next iteration.
  */
 @Slf4j
-@RequiredArgsConstructor
 @Component
 public class SubmissionStatusPoller {
 
     private static final String SUBMITTED = "SUBMITTED";
     private static final String ACTIVE = "ACTIVE";
+    /** B8/decision #4: per-tenant poll-failure counter; G-OPS alerts on {@code goaml_poller_errors_total}. */
+    static final String POLLER_ERRORS_METRIC = "goaml.poller.errors";
 
     private final TenantRepository tenantRepository;
     private final ReportRepository reportRepository;
     private final SubmissionService submissionService;
     private final RetryService retryService;
     private final SchedulerProperties properties;
+    private final Counter pollerErrors;
 
-    /** Timer entry point. Guarded by the enabled flag; swallows everything so the schedule survives. */
+    public SubmissionStatusPoller(TenantRepository tenantRepository, ReportRepository reportRepository,
+                                  SubmissionService submissionService, RetryService retryService,
+                                  SchedulerProperties properties, MeterRegistry meterRegistry) {
+        this.tenantRepository = tenantRepository;
+        this.reportRepository = reportRepository;
+        this.submissionService = submissionService;
+        this.retryService = retryService;
+        this.properties = properties;
+        this.pollerErrors = Counter.builder(POLLER_ERRORS_METRIC)
+                .description("Per-tenant FIU status-poll failures (the cycle continues; the tenant is skipped)")
+                .register(meterRegistry);
+    }
+
+    /**
+     * Timer entry point. Guarded by two flags ({@code goaml.scheduler.enabled} master switch — set false on
+     * web replicas by Helm so only the dedicated poller pod polls — and the finer {@code status-poll.enabled});
+     * swallows everything so the schedule survives.
+     */
     @Scheduled(fixedDelayString = "${goaml.scheduler.status-poll.interval}")
     public void scheduledPoll() {
-        if (!properties.statusPoll().enabled()) {
+        if (!properties.enabled() || !properties.statusPoll().enabled()) {
             return;
         }
         try {
@@ -82,6 +102,7 @@ public class SubmissionStatusPoller {
                 }
             } catch (RuntimeException e) {
                 skipped++;
+                pollerErrors.increment();
                 log.warn("Skipping tenant {} ({}): {}",
                         tenant.getId(), tenant.getSchemaName(), e.getMessage());
             } finally {

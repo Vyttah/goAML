@@ -187,6 +187,8 @@ class ScreeningSeedE2ETest {
                 .audience().add("goaml").and()
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plus(60, ChronoUnit.SECONDS)))
+                .id(UUID.randomUUID().toString())            // B10 — unique jti (single-use)
+                .claim("org", COMPANY_ID)                    // B11 — signed org must match the companyId
                 .signWith(keys.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }

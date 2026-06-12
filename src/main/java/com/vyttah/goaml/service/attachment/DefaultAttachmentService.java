@@ -35,6 +35,7 @@ public class DefaultAttachmentService implements AttachmentService {
     private final AttachmentRepository attachmentRepository;
     private final S3StorageClient s3StorageClient;
     private final AuditService auditService;
+    private final AttachmentScanner attachmentScanner;
 
     @Override
     public Attachment add(UUID reportId, UUID tenantId, UUID actorUserId,
@@ -42,6 +43,11 @@ public class DefaultAttachmentService implements AttachmentService {
         Report report = requireReport(reportId);
         requireEditable(report);
         validate(filename, bytes);
+        // B15: sniff magic bytes (reject executables + declared-vs-actual mismatch), then run the pluggable
+        // AV scanner (no-op unless goaml.attachments.av.enabled=true). Both run BEFORE the bytes are stored,
+        // so a renamed binary never reaches S3 or the FIU submission ZIP.
+        AttachmentContentInspector.inspect(filename, contentType, bytes);
+        attachmentScanner.scan(filename, contentType, bytes);
 
         UUID attachmentId = UUID.randomUUID();
         String key = s3Key(tenantId, reportId, attachmentId, filename);

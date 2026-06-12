@@ -13,4 +13,7 @@ import java.util.UUID;
 public interface ImportJobRepository extends JpaRepository<ImportJob, UUID> {
 
     List<ImportJob> findAllByOrderByCreatedAtDesc();
+
+    /** B6 delete-guard: did this user run any import in the current tenant? */
+    boolean existsByCreatedBy(UUID createdBy);
 }

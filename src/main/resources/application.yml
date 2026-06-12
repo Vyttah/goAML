@@ -92,6 +92,12 @@ goaml:
     #   federated — only POST /api/v1/auth/federated/token (suite token-exchange); native login is off.
     #   both      — suite deployments that allow direct logins AND token-exchange.
     mode: ${GOAML_AUTH_MODE:native}
+    # B14 — in-memory fixed-window throttle on POST /api/v1/auth/login + /auth/federated/token, keyed by
+    # (client IP + email/source). Over the limit in a window → 429. Per-instance (no shared infra); with N
+    # replicas the effective limit is limit×N, which is acceptable for this control.
+    rate-limit:
+      max-attempts-per-window: ${GOAML_AUTH_RATE_LIMIT_MAX:10}
+      window: ${GOAML_AUTH_RATE_LIMIT_WINDOW:PT1M}   # ISO-8601 duration (PT1M = 1 minute)
   jwt:
     # Dev fallback only — in Phase 6 the signing key is sourced from AWS Secrets Manager.
     # HS256 requires ≥ 256 bits of entropy (32 random bytes). Replace per environment.
@@ -108,11 +114,21 @@ goaml:
       # Bucket holding report attachments (Phase 8); per-tenant key prefixes. Create it once locally:
       # `aws --endpoint-url http://localhost:4566 s3 mb s3://goaml-attachments`.
       bucket: ${GOAML_S3_BUCKET:goaml-attachments}
+  tenant:
+    # A2: on boot, run the per-tenant Flyway against every ACTIVE tenant schema (before serving traffic)
+    # so a tenant provisioned before a later tenant migration is brought up to date. Fail-fast: a migration
+    # failure blocks startup. Idempotent (already-current schemas no-op). Set false only in tests that don't
+    # want the boot-time sweep.
+    migrate-on-startup: ${GOAML_TENANT_MIGRATE_ON_STARTUP:true}
   b2b:
     # Lifetime of a cached goAML B2B session token in Redis. Re-auth happens on expiry or a 401.
     token-ttl: ${GOAML_B2B_TOKEN_TTL:20m}
   scheduler:
     # Phase 9: the background poller that refreshes FIU submission status across tenants.
+    # B8 top-level master switch. The Helm chart injects GOAML_SCHEDULER_ENABLED=false on the web replicas
+    # (and true on a single dedicated poller pod) so the FIU is polled exactly once per cycle. When false the
+    # @Scheduled poll method no-ops on this instance.
+    enabled: ${GOAML_SCHEDULER_ENABLED:true}
     status-poll:
       enabled: ${GOAML_SCHEDULER_STATUS_POLL_ENABLED:true}
       # ISO-8601 duration — @Scheduled(fixedDelayString) accepts ISO-8601 or millis, NOT the "5m" suffix.
@@ -126,6 +142,13 @@ goaml:
     email:
       enabled: ${GOAML_NOTIFICATIONS_EMAIL_ENABLED:false}
       from: ${GOAML_NOTIFICATIONS_EMAIL_FROM:no-reply@goaml.vyttah.com}  # must be an SES-verified sender
+  attachments:
+    # B15: anti-malware scanning of uploaded attachments. Magic-byte sniffing (reject executables +
+    # declared-vs-actual content-type mismatch) ALWAYS runs. The pluggable AttachmentScanner (ClamAV/
+    # GuardDuty/etc.) is OFF by default so the product runs with no AV infra; flip to true once a real
+    # scanner bean is wired for production.
+    av:
+      enabled: ${GOAML_ATTACHMENTS_AV_ENABLED:false}
   ingestion:
     # Phase 11: file import (goAML XML + DPMSR CSV). Synchronous, so the row cap bounds in-request work.
     max-rows: ${GOAML_INGESTION_MAX_ROWS:500}   # max CSV data rows per upload; larger files are rejected

@@ -32,6 +32,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final String PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final UserStatusCache userStatusCache;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -52,7 +53,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        UUID userId = UUID.fromString(claims.getSubject());
+        UUID userId;
+        try {
+            userId = UUID.fromString(claims.getSubject());
+        } catch (IllegalArgumentException | NullPointerException ex) {
+            // Malformed/absent subject — treat like an invalid token (→ 401) rather than a 500.
+            chain.doFilter(request, response);
+            return;
+        }
+
+        // B16 — reject a still-valid token held by a disabled/deleted user. The signature + expiry passed,
+        // but a 15-minute window is too long to keep honouring a revoked account; a short-TTL cache keeps
+        // this off the hot path. Not ACTIVE / not found → leave the context empty (→ downstream 401).
+        if (!userStatusCache.isActive(userId)) {
+            chain.doFilter(request, response);
+            return;
+        }
+
         String email = claims.get("email", String.class);
         String tenantIdStr = claims.get("tenant", String.class);
         UUID tenantId = tenantIdStr == null ? null : UUID.fromString(tenantIdStr);

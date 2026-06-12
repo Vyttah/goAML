@@ -11,6 +11,7 @@ import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
 import com.vyttah.goaml.repository.federated.TrustedServiceRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.service.tenant.TenantProvisioningService;
@@ -77,6 +78,7 @@ public class DevDataSeeder implements CommandLineRunner {
     private final TrustedServiceRepository trustedServices;
     private final TenantExternalRefRepository tenantExternalRefs;
     private final TenantGoamlPersonRepository goamlPersons;
+    private final TenantGoamlConfigRepository goamlConfigs;
 
     /**
      * The AML company id mapped to the demo tenant (screening-push tenant resolution). Defaults to {@code 1001};
@@ -103,7 +105,23 @@ public class DevDataSeeder implements CommandLineRunner {
         }
 
         seedSuiteIntegration(tenantId);
+        warnIfNoGoamlConfig(tenantId);
         logBanner();
+    }
+
+    /**
+     * D8 foot-gun guard: the seeder deliberately does NOT create a {@code tenant_goaml_config} row (the real
+     * {@code rentity_id} + FIU endpoint are environment-specific and must be set via the admin UI). Without
+     * one, a built report gets {@code rentity_id=0} and validates INVALID — silently, in fresh envs. Emit a
+     * loud WARN so a reviewer knows to set the config before expecting a VALID report.
+     */
+    private void warnIfNoGoamlConfig(UUID tenantId) {
+        if (goamlConfigs.findByTenantId(tenantId).isEmpty()) {
+            log.warn("[dev-seed] demo tenant {} has NO tenant_goaml_config — reports will validate INVALID "
+                    + "(rentity_id=0) until an admin sets one (POST /api/v1/admin/goaml-config). This is "
+                    + "expected on a fresh dev seed; set a real rentity_id + FIU base URL to file successfully.",
+                    tenantId);
+        }
     }
 
     private UUID resolveOrProvisionDemoTenant() {
@@ -121,12 +139,13 @@ public class DevDataSeeder implements CommandLineRunner {
     /** Idempotent suite-integration fixtures so the AML→goAML screening push works against the local seed. */
     private void seedSuiteIntegration(UUID tenantId) {
         if (trustedServices.findBySourceSystem(SourceSystem.SCREENING).isEmpty()) {
-            // jit_provisioning=true + default_role=MLRO: a cockpit user hitting POST /auth/federated/token is
-            // auto-created as an MLRO in the demo tenant, so the goAML-as-microservice flow (create AND
-            // approve/submit, direct from the AML cockpit) works with no manual per-user seeding.
+            // A5: jit_provisioning=true + default_role=ANALYST. A federated cockpit user hitting
+            // POST /auth/federated/token is auto-created as an ANALYST (least privilege) in the demo tenant —
+            // they can build/validate but NOT approve or submit. MLRO is granted only by explicit goAML admin
+            // action, so segregation-of-duties is preserved on the live cockpit path (no auto-MLRO).
             trustedServices.save(new TrustedService(UUID.randomUUID(), SourceSystem.SCREENING,
-                    "AML screening software (dev)", DEV_SCREENING_PUBLIC_KEY_PEM, true, "ACTIVE", "MLRO"));
-            log.info("[dev-seed] registered SCREENING trusted_service (dev public key, JIT→MLRO)");
+                    "AML screening software (dev)", DEV_SCREENING_PUBLIC_KEY_PEM, true, "ACTIVE", "ANALYST"));
+            log.info("[dev-seed] registered SCREENING trusted_service (dev public key, JIT→ANALYST)");
         }
         if (tenantExternalRefs.findBySourceSystemAndExternalOrgRef(
                 SourceSystem.SCREENING, screeningCompanyId).isEmpty()) {

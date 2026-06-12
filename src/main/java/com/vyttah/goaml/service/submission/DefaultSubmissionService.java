@@ -12,6 +12,8 @@ import com.vyttah.goaml.engine.packaging.Attachment;
 import com.vyttah.goaml.engine.packaging.PackagingException;
 import com.vyttah.goaml.engine.packaging.PackagingLimits;
 import com.vyttah.goaml.engine.packaging.ReportZipPackager;
+import com.vyttah.goaml.engine.validation.ValidationResult;
+import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
 import com.vyttah.goaml.integration.aws.S3AccessException;
 import com.vyttah.goaml.integration.aws.S3StorageClient;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
@@ -53,6 +55,7 @@ public class DefaultSubmissionService implements SubmissionService {
     private final S3StorageClient s3StorageClient;
     private final AuditService auditService;
     private final NotificationService notificationService;
+    private final XsdSchemaValidator xsdSchemaValidator;
 
     @Override
     public SubmissionResult submit(UUID reportId, UUID tenantId, UUID actorUserId) {
@@ -66,11 +69,17 @@ public class DefaultSubmissionService implements SubmissionService {
                     "Report " + reportId + " is " + report.getStatus() + " — must be " + required + " to submit");
         }
 
+        // C9 defense-in-depth: re-validate the persisted XML against the XSD before it can leave for the FIU.
+        // The XSD gate already runs at every write of report_xml, so this is normally a no-op — but it means
+        // any future code path that wrote bad XML can never reach the regulator.
+        byte[] xmlBytes = report.getReportXml().getBytes(StandardCharsets.UTF_8);
+        revalidateStoredXml(reportId, xmlBytes);
+
         B2bTenantConfig cfg = b2bConfig(tenantId);
         List<Attachment> attachments = loadAttachments(reportId);
         byte[] zip;
         try {
-            zip = packager.zip(report.getReportXml().getBytes(StandardCharsets.UTF_8),
+            zip = packager.zip(xmlBytes,
                     report.getEntityReference() + ".xml", attachments, PackagingLimits.UAE_DEFAULT);
         } catch (PackagingException e) {
             throw new SubmissionExceptions.SubmissionPackagingException(
@@ -78,6 +87,7 @@ public class DefaultSubmissionService implements SubmissionService {
         }
 
         Submission submission = new Submission(UUID.randomUUID(), reportId, "SUBMITTED");
+        submission.setSubmittedBy(actorUserId);
         try {
             String reportKey = b2bClient.postReport(cfg, zip, report.getEntityReference() + ".zip");
             submission.setReportkey(reportKey);
@@ -157,6 +167,22 @@ public class DefaultSubmissionService implements SubmissionService {
         } catch (RuntimeException e) {
             log.warn("Notification for report {} ({}) failed: {}",
                     report.getEntityReference(), status, e.getMessage());
+        }
+    }
+
+    /**
+     * C9: re-run the XSD validator on the persisted report XML; refuse to submit if it no longer conforms.
+     * Cheap (schema compiled once) and a pure read — never mutates the report.
+     */
+    private void revalidateStoredXml(UUID reportId, byte[] xmlBytes) {
+        if (xmlBytes == null || xmlBytes.length == 0) {
+            throw new SubmissionExceptions.StoredXmlInvalidException(
+                    "Report " + reportId + " has no stored XML to submit");
+        }
+        ValidationResult result = xsdSchemaValidator.validate(xmlBytes);
+        if (!result.isValid()) {
+            throw new SubmissionExceptions.StoredXmlInvalidException(
+                    "Report " + reportId + " stored XML failed XSD re-validation at submit: " + result.errors());
         }
     }
 

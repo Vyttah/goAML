@@ -10,8 +10,11 @@ import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
+import com.vyttah.goaml.repository.attachment.AttachmentRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
+import com.vyttah.goaml.repository.ingestion.ImportJobRepository;
+import com.vyttah.goaml.repository.notification.NotificationRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
@@ -46,6 +49,9 @@ class DefaultAdminServiceTest {
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
     private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
     private final ReportRepository reportRepository = mock(ReportRepository.class);
+    private final AttachmentRepository attachmentRepository = mock(AttachmentRepository.class);
+    private final ImportJobRepository importJobRepository = mock(ImportJobRepository.class);
+    private final NotificationRepository notificationRepository = mock(NotificationRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final AuditService auditService = mock(AuditService.class);
 
@@ -53,6 +59,7 @@ class DefaultAdminServiceTest {
 
     private final DefaultAdminService service = new DefaultAdminService(provisioning, tenantRepository,
             appUserRepository, roleRepository, configRepository, personRepository, reportRepository,
+            attachmentRepository, importJobRepository, notificationRepository,
             jurisdictionRegistry, passwordEncoder, auditService);
 
     private final UUID tenantId = UUID.randomUUID();
@@ -155,9 +162,8 @@ class DefaultAdminServiceTest {
     @Test
     void deleteUserRemovesWhenUnreferenced() {
         UUID uid = UUID.randomUUID();
-        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
-        when(reportRepository.existsByCreatedBy(uid)).thenReturn(false);
-        when(reportRepository.existsByReviewedBy(uid)).thenReturn(false);
+        when(appUserRepository.findByIdForUpdate(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        // all reference checks return false (default mock behavior) → deletable
 
         service.deleteUser(tenantId, uid, UUID.randomUUID());
 
@@ -167,8 +173,41 @@ class DefaultAdminServiceTest {
     @Test
     void deleteUserBlockedWhenReferencedByReports() {
         UUID uid = UUID.randomUUID();
-        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(appUserRepository.findByIdForUpdate(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
         when(reportRepository.existsByCreatedBy(uid)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.deleteUser(tenantId, uid, UUID.randomUUID()))
+                .isInstanceOf(AdminExceptions.UserReferencedException.class);
+        verify(appUserRepository, never()).delete(any(AppUser.class));
+    }
+
+    @Test
+    void deleteUserBlockedWhenOnlyUploadedAnAttachment() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findByIdForUpdate(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(attachmentRepository.existsByUploadedBy(uid)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.deleteUser(tenantId, uid, UUID.randomUUID()))
+                .isInstanceOf(AdminExceptions.UserReferencedException.class);
+        verify(appUserRepository, never()).delete(any(AppUser.class));
+    }
+
+    @Test
+    void deleteUserBlockedWhenOnlyRanAnImport() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findByIdForUpdate(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(importJobRepository.existsByCreatedBy(uid)).thenReturn(true);
+
+        assertThatThrownBy(() -> service.deleteUser(tenantId, uid, UUID.randomUUID()))
+                .isInstanceOf(AdminExceptions.UserReferencedException.class);
+        verify(appUserRepository, never()).delete(any(AppUser.class));
+    }
+
+    @Test
+    void deleteUserBlockedWhenOnlyHasNotifications() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findByIdForUpdate(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(notificationRepository.existsByRecipientUserId(uid)).thenReturn(true);
 
         assertThatThrownBy(() -> service.deleteUser(tenantId, uid, UUID.randomUUID()))
                 .isInstanceOf(AdminExceptions.UserReferencedException.class);
@@ -178,7 +217,7 @@ class DefaultAdminServiceTest {
     @Test
     void deleteUserCannotDeleteSelfOrUnknownTenant() {
         UUID uid = UUID.randomUUID();
-        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        when(appUserRepository.findByIdForUpdate(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
         assertThatThrownBy(() -> service.deleteUser(tenantId, uid, uid))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.deleteUser(UUID.randomUUID(), uid, UUID.randomUUID()))

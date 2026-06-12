@@ -66,47 +66,75 @@ public final class ScreeningPartyMapper {
     private static DpmsrCreateRequest.Entity legalEntity(ScreeningPartyPayload p) {
         ScreeningPartyPayload.LegalCustomer c = p.legal();
         if (c == null) {
-            return new DpmsrCreateRequest.Entity("Unknown", null, null, null, null, null, directors(p.directors()));
+            // No legal payload: emit only the directors we have. The entity name is the single mandatory
+            // t_entity field, so an absent name yields INVALID (caught by the XSD gate, never filed) rather
+            // than a fabricated "Unknown" reaching the FIU (B4: omit, do not fabricate).
+            return new DpmsrCreateRequest.Entity(
+                    null, null, null, null, null, null, directors(p.directors()), null, null, null, null);
         }
         return new DpmsrCreateRequest.Entity(
-                blankToUnknown(c.legalName()),
+                emptyToNull(c.legalName()),
                 c.commercialName(),
                 firstNonBlank(c.incorporationNumber(), c.licenseNumber()),
                 c.incorporationState(),
                 c.incorporationCountry(),
                 phone(c.phone()),
-                directors(p.directors()));
+                directors(p.directors()),
+                // B4 — previously had no slot and were dropped: carry them through (omitted when absent).
+                toOffset(c.dateOfIncorporation()),
+                c.trn(),
+                null,
+                address(c.address()));
     }
 
     private static DpmsrCreateRequest.Person naturalPerson(ScreeningPartyPayload.NaturalCustomer c) {
         if (c == null) {
-            return new DpmsrCreateRequest.Person(genderCode(null), "Unknown", "Unknown",
-                    null, null, null, null, null, null, null, null, null, null);
+            // No natural payload at all: omit everything except a placeholder gender. first/last name are
+            // mandatory on t_person, so this yields INVALID (gate-caught) rather than a fabricated name.
+            return new DpmsrCreateRequest.Person(genderCode(null), null, null,
+                    null, null, null, null, null, null, null, null, null, null, null, null);
         }
-        String[] name = names(null, c.firstName(), c.lastName());
         String idNumber = firstNonBlank(c.emiratesId(), firstIdNumber(c.identifications()));
-        // The goAML identifications block requires a coded type + issue/expiry dates a screening profile
-        // rarely carries; the required top-level id_number captures the identifier, so we omit the block.
+        // B4: omit when absent — no countryOfBirth←nationality / residence←nationality substitution, no
+        // name→"Unknown" fabrication. The lenient t_person keeps the XML valid with these fields omitted.
         return new DpmsrCreateRequest.Person(
-                genderCode(c.gender()), name[0], name[1], toOffset(c.dob()),
-                firstNonBlank(c.countryOfBirth(), c.nationality()), c.nationality(),
-                firstNonBlank(c.residence(), c.nationality()),
-                idNumber, null, c.occupation(), phone(c.phone()), address(c.address()), null);
+                genderCode(c.gender()), emptyToNull(c.firstName()), emptyToNull(c.lastName()), toOffset(c.dob()),
+                c.countryOfBirth(), c.nationality(), c.residence(),
+                idNumber, null, c.occupation(), phone(c.phone()), address(c.address()),
+                identifications(c.identifications()), c.email(), c.alias());
+    }
+
+    /** Maps the screening identifications onto the curated identifications (omitted when none). */
+    private static List<DpmsrCreateRequest.Identification> identifications(
+            List<ScreeningPartyPayload.Identification> ids) {
+        List<ScreeningPartyPayload.Identification> list = nullSafe(ids);
+        if (list.isEmpty()) {
+            return null;
+        }
+        List<DpmsrCreateRequest.Identification> out = new ArrayList<>();
+        for (ScreeningPartyPayload.Identification id : list) {
+            out.add(new DpmsrCreateRequest.Identification(
+                    id.type(), id.number(), toOffset(id.issueDate()), toOffset(id.expiryDate()),
+                    id.issueCountry()));
+        }
+        return out;
     }
 
     private static DpmsrCreateRequest.Party relatedParty(ScreeningPartyPayload.RelatedParty rp, String reason) {
         String comments = relatedComments(rp);
         if ("LEGAL".equalsIgnoreCase(rp.partyType())) {
+            // B4: omit when absent (no "Unknown"); the entity name is mandatory, so a truly nameless related
+            // entity yields INVALID at the gate rather than a fabricated name in the filed XML.
             DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
-                    firstNonBlank(rp.legalName(), rp.fullName(), "Unknown"), null,
+                    firstNonBlank(rp.legalName(), rp.fullName()), null,
                     rp.incorporationNumber(), null, rp.incorporationCountry(), phone(rp.phone()), null);
             return new DpmsrCreateRequest.Party(reason, comments, entity, null);
         }
         String[] name = names(rp.fullName(), rp.firstName(), rp.lastName());
+        // B4: omit countryOfBirth (no nationality substitution) and residence when absent.
         DpmsrCreateRequest.Person person = new DpmsrCreateRequest.Person(
-                genderCode(null), name[0], name[1], toOffset(rp.dob()), rp.nationality(), rp.nationality(),
-                firstNonBlank(rp.residence(), rp.nationality()), rp.idNumber(), null, null, phone(rp.phone()),
-                null, null);
+                genderCode(null), name[0], name[1], toOffset(rp.dob()), null, rp.nationality(),
+                rp.residence(), rp.idNumber(), null, null, phone(rp.phone()), null, null);
         return new DpmsrCreateRequest.Party(reason, comments, null, person);
     }
 
@@ -179,16 +207,20 @@ public final class ScreeningPartyMapper {
 
     // ----- small helpers -----
 
-    /** {first, last}; splits {@code fullName} when explicit names are blank; never blank (→ "Unknown"). */
+    /**
+     * {first, last}; splits {@code fullName} when explicit names are blank. B4: <b>omits</b> (null) what is
+     * genuinely absent rather than fabricating "Unknown" — first/last are mandatory on {@code t_person}, so a
+     * truly nameless party yields INVALID at the gate (never filed) instead of a fabricated name in the FIU XML.
+     */
     private static String[] names(String fullName, String firstName, String lastName) {
         if (notBlank(firstName)) {
-            return new String[]{firstName, notBlank(lastName) ? lastName : "Unknown"};
+            return new String[]{firstName, emptyToNull(lastName)};
         }
         if (notBlank(fullName)) {
             String[] parts = fullName.trim().split("\\s+", 2);
-            return new String[]{parts[0], parts.length > 1 ? parts[1] : "Unknown"};
+            return new String[]{parts[0], parts.length > 1 ? parts[1] : null};
         }
-        return new String[]{"Unknown", "Unknown"};
+        return new String[]{null, null};
     }
 
     private static String firstIdNumber(List<ScreeningPartyPayload.Identification> ids) {
@@ -236,6 +268,11 @@ public final class ScreeningPartyMapper {
 
     private static String blankToUnknown(String s) {
         return notBlank(s) ? s : "Unknown";
+    }
+
+    /** Null for an absent/blank value — used everywhere B4 chooses omission over fabrication. */
+    private static String emptyToNull(String s) {
+        return notBlank(s) ? s : null;
     }
 
     private static String firstNonBlank(String... values) {

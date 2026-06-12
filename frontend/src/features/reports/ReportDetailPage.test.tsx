@@ -147,6 +147,38 @@ describe('ReportDetailPage', () => {
     expect(screen.getByText('looks good')).toBeInTheDocument();
   });
 
+  it('renders client metadata read-only when /detail includes it', async () => {
+    server.use(
+      http.get(`*/api/v1/reports/${ID}/detail`, () =>
+        HttpResponse.json(
+          report({
+            clientMetadata: {
+              transactionDate: '2026-06-01',
+              internalReference: 'AML-77',
+              executedByCompany: 'Risky Trading FZE',
+            },
+          }),
+        ),
+      ),
+    );
+    stubAttachments();
+    renderDetail('ANALYST');
+
+    expect(await screen.findByText('Client metadata')).toBeInTheDocument();
+    expect(screen.getByText('AML-77')).toBeInTheDocument();
+    expect(screen.getByText('Risky Trading FZE')).toBeInTheDocument();
+    expect(screen.getByText(/Never included in the goAML XML/i)).toBeInTheDocument();
+  });
+
+  it('omits the client-metadata card when /detail has none', async () => {
+    stubReport('VALID');
+    stubAttachments();
+    renderDetail('ANALYST');
+
+    await screen.findByText('DPMSR-1');
+    expect(screen.queryByText('Client metadata')).not.toBeInTheDocument();
+  });
+
   it('checks FIU status on demand', async () => {
     stubReport('SUBMITTED');
     stubAttachments();

@@ -1,0 +1,17 @@
+{{- if .Values.pdb.enabled -}}
+# Keep at least one request-serving pod available during voluntary disruptions (node drains, cluster
+# upgrades, rollouts). Selects only the web pods (not the dedicated poller, which is intentionally a single
+# replica and can tolerate a brief gap in polling).
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "goaml.fullname" . }}
+  labels:
+    {{- include "goaml.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "goaml.selectorLabels" . | nindent 6 }}
+      goaml.io/role: web
+{{- end }}

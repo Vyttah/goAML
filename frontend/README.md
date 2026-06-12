@@ -71,6 +71,12 @@ src/
 - **Auth:** `POST /api/v1/auth/login` → a JWT held in `localStorage` + memory. There is **no `/me`** —
   identity (`sub/email/tenant/schema/roles`) is decoded from the token's claims. A request interceptor
   attaches `Authorization: Bearer …`; a 401 clears the token and routes to `/login` (no refresh token).
+  The 15-min token is also watched client-side: ~2 min before `exp` a non-blocking notification warns the
+  user to save and re-login (`auth/expiryWarning.ts` pure helpers + `auth/SessionExpiryWarning.tsx`), and
+  the DPMSR builder autosaves its form to `sessionStorage` so a mid-build expiry/reload doesn't lose work.
+- **Token storage (accepted risk):** the token lives in `localStorage` (XSS-readable; an HttpOnly cookie
+  would not be). This is a deliberate same-origin-SPA trade-off, bounded by the 15-min TTL and meant to be
+  paired with the CSP below. See the `auth/tokenStore.ts` header. Moving to cookies is out of scope.
 - **Serving:** dev uses Vite's proxy (same-origin, no CORS). In prod the built `dist/` is served by the
   Spring jar with an SPA fallback (the **Gradle node task** that wires `dist/` → `static/` lands in
   **Phase 14**). A narrow env-gated CORS bean (`goaml.web.allowed-origins`) covers the dev-SPA-→-remote case.
@@ -83,13 +89,30 @@ Vitest + RTL + MSW. We gate the **logic + key flows** (api client/interceptor, a
 the DPMSR Zod schema + payload builder, and each feature's primary flow) rather than presentational markup.
 `tsc --noEmit` + ESLint are also gates. Run `npm test`.
 
-## Known backend gaps surfaced in the UI (not faked)
+## Content-Security-Policy
 
-These have no endpoint yet and are flagged in the UI as future backend adds:
+A CSP is **recommended for production** but is **not** shipped as an `index.html` `<meta>` tag — Vite's dev
+server injects inline scripts and uses `eval`/WebSocket for HMR, which a strict `script-src` breaks, and a
+meta CSP can't be relaxed per-environment. Serve it as a response **header** from the Spring jar (the prod
+SPA host) or the ingress instead. A ready-to-use baseline lives commented in `index.html`:
 
-- **Report XML preview** and **re-fetching an existing report's validation result** (validation messages
-  only come back at create time).
-- **Attachment download** (upload/list/remove exist; no GET-bytes endpoint).
+```
+default-src 'self';
+script-src 'self';
+style-src 'self' 'unsafe-inline';   /* AntD injects runtime styles */
+img-src 'self' data:;
+font-src 'self' data:;
+connect-src 'self';                 /* add the API origin if VITE_API_BASE_URL targets a remote backend */
+object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+```
+
+This is the mitigation paired with the `localStorage` token trade-off above.
+
+## Backend gaps (now closed)
+
+The three Phase-13 "surfaced not faked" gaps — **report XML preview**, **re-fetching the stored validation
+result**, and **attachment download** — now have endpoints and are wired in `ReportDetailPage` (View XML
+modal + download, the Validation card, and the attachment download button).
 
 ## Notes
 

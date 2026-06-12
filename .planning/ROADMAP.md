@@ -114,3 +114,23 @@ See [docs/10-b2b-submission-protocol.md](../docs/10-b2b-submission-protocol.md) 
 
 UAE goAML XSD · per-tenant B2B URLs + credentials · UAE Business Rejection Rules · real UAE lookup
 exports · CSV import template · AWS account specifics. Detail: [docs/09 §4](../docs/09-build-order-and-roadmap.md).
+
+## Backlog — remaining report types (the other 16 of 17)
+
+> **Tracked, not dropped.** The product scope was deliberately **phased, DPMSR-first** (PROJECT.md →
+> Report scope). Only **DPMSR** has a full curated build/validate/lifecycle today; the other **16** goAML
+> report types are a future-backlog item recorded here so they're never silently lost.
+
+- **The 17 `report_type` codes** in the authoritative `goAMLSchema.xsd` (5.0.2, the `report_type` enum):
+  `AIF, AIFT, CIR, CNMRA, DPMSR, ECDD, ECDDT, HRC, HRCA, IRR, ITR, PNMRA, PSTR, REAR, SAR, SIR, STR`.
+- **Built today:** **DPMSR** end-to-end (curated `DpmsrCreateRequest` + `DpmsrReportBuilder` + the full
+  REST/MCP/CLI lifecycle). The engine is **XSD-generated**, so the JAXB model already *covers* all 17 shapes,
+  and `EngineGoldenTest` exercises 7 modeled codes (`DPMSR, SAR, AIF, ECDD, STR, AIFT, ECDDT`) at the
+  marshal+XSD-validate level — but there is **no curated request DTO / builder / validation-rule set /
+  lifecycle wiring** for any non-DPMSR type yet.
+- **Likely next (per the phased decision):** `STR` / `SAR` (baseline suspicious-activity) and the sanctions
+  pair `PNMRA` / `CNMRA`. The meanings of `CIR / IRR / ITR / PSTR / SIR` are still **TBC** from the UAE
+  "Different Types of Reports v1.2" reference (an external input).
+- **Per-type work needed:** a curated request DTO (or reuse the full-fidelity payload), report-type-specific
+  mandatory/conditional **business rules** + jurisdiction lookups, builder coverage, golden samples, and the
+  surface wiring (REST/MCP/CLI + SPA). Sequence each as its own phase when a real client need lands.

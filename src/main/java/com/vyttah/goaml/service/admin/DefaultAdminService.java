@@ -14,8 +14,11 @@ import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
+import com.vyttah.goaml.repository.attachment.AttachmentRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
+import com.vyttah.goaml.repository.ingestion.ImportJobRepository;
+import com.vyttah.goaml.repository.notification.NotificationRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
@@ -53,6 +56,9 @@ public class DefaultAdminService implements AdminService {
     private final TenantGoamlConfigRepository configRepository;
     private final TenantGoamlPersonRepository personRepository;
     private final ReportRepository reportRepository;
+    private final AttachmentRepository attachmentRepository;
+    private final ImportJobRepository importJobRepository;
+    private final NotificationRepository notificationRepository;
     private final JurisdictionRegistry jurisdictionRegistry;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
@@ -133,21 +139,36 @@ public class DefaultAdminService implements AdminService {
     @Override
     @Transactional
     public void deleteUser(UUID tenantId, UUID userId, UUID actingUserId) {
-        AppUser user = appUserRepository.findById(userId)
+        // B6: lock the user row FOR UPDATE up front so the reference-checks → delete sequence is serialized
+        // against a concurrent op on the same user (closes the check-then-delete TOCTOU race). No cross-schema
+        // FK can backstop this (the tenant tables that reference a user live in tenant_<id>, not public).
+        AppUser user = appUserRepository.findByIdForUpdate(userId)
                 .filter(u -> tenantId.equals(u.getTenantId()))
                 .orElseThrow(() -> new AdminExceptions.UserNotFoundException(
                         "No user " + userId + " in this tenant"));
         if (user.getId().equals(actingUserId)) {
             throw new IllegalArgumentException("You cannot delete your own account");
         }
-        // Block a destructive delete that would orphan an audit reference; disable the user instead.
-        if (reportRepository.existsByCreatedBy(userId) || reportRepository.existsByReviewedBy(userId)) {
+        // Block a destructive delete that would orphan a reference anywhere in the tenant. We check every
+        // table that soft-references a user id (no FK, because those tables are tenant-schema and the user is
+        // in public). Anything referenced → block with 409 and steer the admin to disable instead.
+        if (isReferencedAnywhere(userId)) {
             throw new AdminExceptions.UserReferencedException(
-                    "This user authored or reviewed reports and cannot be deleted — disable the user instead");
+                    "This user is referenced by reports, attachments, imports, or notifications and cannot be "
+                            + "deleted — disable the user instead");
         }
         appUserRepository.delete(user); // shared FKs (user_role, refresh_token, external_identity) cascade
         auditService.record("ADMIN.USER_DELETE", null, null, TenantContext.get(),
                 "deleted user " + user.getEmail());
+    }
+
+    /** True if the user is referenced by any tenant record that would be orphaned by a hard delete (B6). */
+    private boolean isReferencedAnywhere(UUID userId) {
+        return reportRepository.existsByCreatedBy(userId)
+                || reportRepository.existsByReviewedBy(userId)
+                || attachmentRepository.existsByUploadedBy(userId)
+                || importJobRepository.existsByCreatedBy(userId)
+                || notificationRepository.existsByRecipientUserId(userId);
     }
 
     @Override

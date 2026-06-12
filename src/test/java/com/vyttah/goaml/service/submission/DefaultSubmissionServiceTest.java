@@ -5,6 +5,8 @@ import com.vyttah.goaml.b2b.ReportStatus;
 import com.vyttah.goaml.b2b.error.B2bTransportException;
 import com.vyttah.goaml.b2b.error.B2bValidationException;
 import com.vyttah.goaml.engine.packaging.ReportZipPackager;
+import com.vyttah.goaml.engine.validation.ValidationResult;
+import com.vyttah.goaml.engine.validation.XsdSchemaValidator;
 import com.vyttah.goaml.integration.aws.S3StorageClient;
 import com.vyttah.goaml.model.entity.attachment.Attachment;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
@@ -51,13 +53,21 @@ class DefaultSubmissionServiceTest {
     private final S3StorageClient s3StorageClient = mock(S3StorageClient.class);
     private final AuditService auditService = mock(AuditService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final XsdSchemaValidator xsdSchemaValidator = mock(XsdSchemaValidator.class);
 
     private final DefaultSubmissionService service = new DefaultSubmissionService(
             reportRepository, submissionRepository, configRepository, attachmentRepository, b2bClient,
-            new ReportZipPackager(), s3StorageClient, auditService, notificationService);
+            new ReportZipPackager(), s3StorageClient, auditService, notificationService, xsdSchemaValidator);
 
     private final UUID tenantId = UUID.randomUUID();
     private final UUID actor = UUID.randomUUID();
+
+    {
+        // C9: by default the stored-XML re-validation passes (an empty ValidationResult is valid). Tests that
+        // exercise the tampered-XML path override this. Unit-mocked so the dummy fixture XML need not be
+        // XSD-perfect; the real re-validation is integration-covered via the engine elsewhere.
+        when(xsdSchemaValidator.validate(any())).thenReturn(new ValidationResult());
+    }
 
     private Report validReport() {
         Report r = new Report(UUID.randomUUID(), "PAY-1", "DPMSR", 3177, "VALID", "{}", actor);
@@ -89,7 +99,24 @@ class DefaultSubmissionServiceTest {
         verify(submissionRepository).save(sub.capture());
         assertThat(sub.getValue().getReportkey()).isEqualTo("RK-1");
         assertThat(sub.getValue().getStatus()).isEqualTo("SUBMITTED");
+        // D6: the submission attempt row records the acting MLRO, self-contained for compliance.
+        assertThat(sub.getValue().getSubmittedBy()).isEqualTo(actor);
         verify(auditService).record(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void submitRefusesWhenStoredXmlFailsReValidation() {
+        // C9 defense-in-depth: a report whose persisted XML no longer conforms to the XSD must not reach the
+        // FIU, even though its status says VALID. Simulate by stubbing the validator to report an error.
+        Report report = validReport();
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        ValidationResult invalid = new ValidationResult();
+        invalid.error("report", "XSD", "tampered stored XML");
+        when(xsdSchemaValidator.validate(any())).thenReturn(invalid);
+
+        assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
+                .isInstanceOf(SubmissionExceptions.StoredXmlInvalidException.class);
+        verify(b2bClient, never()).postReport(any(), any(), any());
     }
 
     @Test

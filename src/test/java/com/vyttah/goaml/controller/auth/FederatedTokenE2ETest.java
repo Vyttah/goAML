@@ -190,6 +190,7 @@ class FederatedTokenE2ETest {
                 .audience().add("goaml").and()
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plus(60, ChronoUnit.SECONDS)))
+                .id(java.util.UUID.randomUUID().toString())  // B10 — unique jti (single-use)
                 .claim("email", email)
                 .claim("org", org)
                 .signWith(key, Jwts.SIG.RS256)

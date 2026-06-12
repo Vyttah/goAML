@@ -62,6 +62,77 @@ autoscaling:
   maxReplicas: 6
   targetCPUUtilizationPercentage: 75
 
+# Submission-status poller (Phase 9). The poller has NO distributed lock by design — it is only safe to
+# run on ONE replica, otherwise N replicas each call the FIU per cycle (rate-limit / IP-reputation risk
+# with a regulator) and fire duplicate author+MLRO notifications. The main Deployment defaults to ≥2
+# replicas (+HPA), so the poller must NOT run there once you scale out.
+#
+# Recommended topology for any multi-replica install: set poller.dedicated=true. That (a) disables the
+# scheduler on the main Deployment (GOAML_SCHEDULER_ENABLED=false) and (b) renders a separate single-replica
+# poller Deployment (no HPA) with the scheduler enabled — so exactly one process polls.
+#
+# scheduler.enabled is passed to the app as the GOAML_SCHEDULER_ENABLED env var; the Java @Scheduled poller
+# must honour it (see docs/16-operations-dr-retention.md "Poller topology" + the G3 note in
+# .planning/reviews/e2e-audit-remediation-progress.md).
+scheduler:
+  # Whether the MAIN Deployment runs the poller. Auto-forced to false when poller.dedicated=true.
+  enabled: true
+
+poller:
+  # When true: main Deployment runs with the scheduler OFF; a dedicated single-replica poller Deployment
+  # (scheduler ON) is rendered. Use this whenever replicaCount>1 or autoscaling.enabled=true.
+  dedicated: false
+  # Resources for the dedicated poller pod (smaller than the request-serving pods).
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      memory: 1024Mi
+
+# PodDisruptionBudget — keep at least one pod up during voluntary disruptions (node drains, rollouts).
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# NetworkPolicy — default-deny ingress, then allow the ingress controller (app traffic) and Prometheus
+# (metrics scrape). Off by default so a cluster without a CNI that enforces NetworkPolicy isn't silently
+# "secured". Adjust the selectors to match your ingress-controller / monitoring namespaces+labels.
+networkPolicy:
+  enabled: false
+  # Namespace label selector for the ingress controller (e.g. ingress-nginx).
+  ingressControllerNamespaceLabels:
+    kubernetes.io/metadata.name: ingress-nginx
+  # Namespace label selector for the Prometheus/monitoring stack.
+  monitoringNamespaceLabels:
+    kubernetes.io/metadata.name: monitoring
+
+# ServiceMonitor for the Prometheus Operator (scrapes /actuator/prometheus). Off by default — only render
+# it where the Prometheus Operator CRDs are installed.
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  path: /actuator/prometheus
+  # Extra labels so the cluster's Prometheus selects this ServiceMonitor (e.g. release: kube-prometheus-stack).
+  labels: {}
+
+# PrometheusRule (Prometheus Operator) — submission-pipeline alerts. Off by default — only render it where
+# the Prometheus Operator CRDs are installed. Thresholds are starting points; tune per environment.
+# NOTE: the poller-error alert uses goaml_poller_errors_total — the Micrometer counter goaml.poller.errors
+# is added by the application (Wave 3 / G3). Until that ships the rule simply never fires (absent metric).
+prometheusRule:
+  enabled: false
+  # Extra labels so the cluster's Prometheus selects this PrometheusRule (e.g. release: kube-prometheus-stack).
+  labels: {}
+  rules:
+    pollerErrorsWindow: 15m
+    http5xxWindow: 5m
+    http5xxRatio: "0.05"        # alert when >5% of requests are 5xx over the window
+    readinessFlapWindow: 10m
+    readinessFlapCount: "3"     # alert after 3 readiness transitions in the window
+    absentScrapeWindow: 5m      # alert when the target stops being scraped (proxy for "poller not running")
+
 # Non-secret env → rendered into a ConfigMap and injected via envFrom.
 config:
   SPRING_PROFILES_ACTIVE: "prod"

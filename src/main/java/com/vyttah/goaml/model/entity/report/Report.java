@@ -59,6 +59,16 @@ public class Report {
     @Column(name = "validation_errors", columnDefinition = "jsonb")
     private String validationErrors;
 
+    /**
+     * Opaque client-supplied metadata (A3) stored verbatim as the raw JSON string — captured-not-filed
+     * context the AML cockpit attaches on create. NEVER reaches the engine / marshalled XML; returned only in
+     * the report detail view. Mapped as {@code String} via {@link JdbcTypeCode} like the other JSONB columns.
+     */
+    @Setter
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "client_metadata", columnDefinition = "jsonb")
+    private String clientMetadata;
+
     @Setter
     @Column(name = "reviewed_by")
     private UUID reviewedBy;

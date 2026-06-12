@@ -43,6 +43,9 @@ public class DefaultReportService implements ReportService {
 
     private static final String REPORT_CODE = "DPMSR";
 
+    /** Cap on the opaque {@code clientMetadata} blob (A3) — 16 KiB; over this is a 422. */
+    private static final int MAX_CLIENT_METADATA_BYTES = 16 * 1024;
+
     private final DpmsrRequestMapper requestMapper;
     private final DpmsrReportBuilder reportBuilder;
     private final ReportRepository reportRepository;
@@ -54,13 +57,13 @@ public class DefaultReportService implements ReportService {
     @Override
     public ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId) {
         DpmsrCreateRequest filled = withDefaultReportingPerson(request, tenantId);
-        return doCreate(of(filled), filled, tenantId, actorUserId);
+        return doCreate(of(filled), filled, filled.clientMetadata(), tenantId, actorUserId);
     }
 
     @Override
     public ReportResult create(DpmsrReportPayload payload, UUID tenantId, UUID actorUserId) {
         DpmsrReportPayload filled = withDefaultReportingPerson(payload, tenantId);
-        return doCreate(filled, filled, tenantId, actorUserId);
+        return doCreate(filled, filled, filled.clientMetadata(), tenantId, actorUserId);
     }
 
     @Override
@@ -94,7 +97,7 @@ public class DefaultReportService implements ReportService {
     private static DpmsrCreateRequest withReportingPerson(DpmsrCreateRequest r, DpmsrCreateRequest.Person rp) {
         return new DpmsrCreateRequest(r.rentityBranch(), r.entityReference(), r.submissionDate(),
                 r.fiuRefNumber(), r.reason(), r.action(), r.indicators(), rp, r.location(), r.parties(),
-                r.goods());
+                r.goods(), r.clientMetadata());
     }
 
     private static DpmsrCreateRequest.Person toPerson(TenantGoamlPerson p) {
@@ -119,7 +122,7 @@ public class DefaultReportService implements ReportService {
     private static DpmsrReportPayload withReportingPerson(DpmsrReportPayload p, TPersonRegistrationInReport rp) {
         return new DpmsrReportPayload(p.rentityBranch(), p.entityReference(), p.submissionDate(),
                 p.fiuRefNumber(), rp, p.location(), p.reason(), p.action(), p.indicators(), p.parties(),
-                p.goods());
+                p.goods(), p.clientMetadata());
     }
 
     private static TPersonRegistrationInReport toRegistrationPerson(TenantGoamlPerson p) {
@@ -135,13 +138,18 @@ public class DefaultReportService implements ReportService {
 
     /**
      * Shared create path for both contracts: {@code src} drives the engine build; {@code persist} is the
-     * original contract object stored verbatim as the report's input JSONB.
+     * original contract object stored verbatim as the report's input JSONB. {@code clientMetadata} (A3) is the
+     * caller's opaque captured-not-filed JSON — persisted verbatim to its own column, never built into the
+     * engine input (it is not read by {@code src.toInput(...)}) and so never reaches the marshalled XML.
      */
-    private ReportResult doCreate(DpmsrInputSource src, Object persist, UUID tenantId, UUID actorUserId) {
+    private ReportResult doCreate(DpmsrInputSource src, Object persist, JsonNode clientMetadata,
+                                  UUID tenantId, UUID actorUserId) {
         if (reportRepository.existsByEntityReference(src.entityReference())) {
             throw new ReportExceptions.DuplicateEntityReferenceException(
                     "A report already exists with entity_reference " + src.entityReference());
         }
+
+        String clientMetadataJson = clientMetadataJson(clientMetadata);
 
         int rentityId = resolveRentityId(tenantId);
         ValidatedReport validated = buildAndValidate(src, tenantId);
@@ -153,12 +161,30 @@ public class DefaultReportService implements ReportService {
                 rentityId, status, toJson(persist), actorUserId);
         report.setReportXml(validated.xml());
         report.setValidationErrors(toJson(messages));
+        report.setClientMetadata(clientMetadataJson);
         reportRepository.save(report);
 
         auditService.record("REPORT.CREATE", actorUserId, null, TenantContext.get(),
                 REPORT_CODE + " " + src.entityReference() + " -> " + status);
 
         return new ReportResult(report.getId(), status, messages);
+    }
+
+    /**
+     * Serialize the optional client metadata to its verbatim JSON string for the {@code client_metadata}
+     * column, enforcing the size cap. Returns {@code null} (column stays NULL) when no metadata was supplied.
+     */
+    private String clientMetadataJson(JsonNode clientMetadata) {
+        if (clientMetadata == null || clientMetadata.isNull()) {
+            return null;
+        }
+        String json = toJson(clientMetadata);
+        int bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
+        if (bytes > MAX_CLIENT_METADATA_BYTES) {
+            throw new ReportExceptions.ClientMetadataTooLargeException(
+                    "clientMetadata is " + bytes + " bytes; the maximum is " + MAX_CLIENT_METADATA_BYTES);
+        }
+        return json;
     }
 
     /** The shared engine path: resolve the tenant's rentity_id + jurisdiction, build + validate. */
@@ -213,7 +239,20 @@ public class DefaultReportService implements ReportService {
                 report.getRentityId(), report.getCreatedAt(),
                 parseInput(report.getInput()), parseMessages(report.getValidationErrors()),
                 report.getReviewedBy(), report.getReviewedAt(), report.getReviewRemark(),
-                report.getReportXml() != null && !report.getReportXml().isBlank());
+                report.getReportXml() != null && !report.getReportXml().isBlank(),
+                parseClientMetadata(report.getClientMetadata()));
+    }
+
+    /** The stored client metadata (JSONB) parsed back to a JSON tree, or {@code null} when none was stored. */
+    private JsonNode parseClientMetadata(String clientMetadata) {
+        if (clientMetadata == null || clientMetadata.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(clientMetadata);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to parse stored client metadata JSON", e);
+        }
     }
 
     /** The stored filing input (JSONB) parsed back to a JSON tree for the read view. */

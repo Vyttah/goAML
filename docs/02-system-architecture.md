@@ -15,14 +15,15 @@ That one application is designed to expose **four surfaces** over the same core 
 
 | Surface | What it is | Status |
 |---------|-----------|--------|
-| **REST API** (`/api/v1/...`) | The primary HTTP interface, JWT-secured. The React UI and external systems call it. | Partially built (auth + me + admin ping). |
-| **React UI** (`frontend/`) | Single-page app (React + TypeScript + Vite + Ant Design) served as static assets. | ⚠️ Not yet built (Phase 13). |
-| **MCP server** (`mcp/`) | Model-Context-Protocol tools so AI agents (the Vyttah "AML Co-Pilot") can build/validate/submit reports. | ⚠️ Not yet built (Phase 12). |
-| **CLI** (`cli/`) | The same jar run with `--cli` (picocli) for scripted/offline use. | ⚠️ Not yet built (Phase 12). |
+| **REST API** (`/api/v1/...`) | The primary HTTP interface, JWT-secured. The React UI and external systems call it. | ✅ Built (full report lifecycle, admin, lookups, imports, notifications, integration + federated auth). |
+| **React UI** (`frontend/`) | Single-page app (React + TypeScript + Vite + Ant Design) served as static assets. | ✅ Built (Phase 13). |
+| **MCP server** (`mcp/`) | Model-Context-Protocol tools so AI agents (the Vyttah "AML Co-Pilot") can build/validate/submit reports. | ✅ Built (Phase 12; SSE at `/api/v1/mcp/**`). |
+| **CLI** (`cli/`) | The same jar run with `--cli` (picocli) for scripted/offline use. | ✅ Built (Phase 12). |
 
-> Today only the REST API surface exists, and only its auth/identity slice. The engine
-> (build/validate/marshal/zip) exists and is fully tested but is **not yet wired to any HTTP
-> endpoint** — that wiring is Phase 7.
+> **All four surfaces are now built** and delegate to the same engine/services (REST/MCP/CLI parity). The
+> engine (build/validate/marshal/zip) is wired to HTTP via the report lifecycle API (Phase 7). The status
+> notes further down this doc are historical — see [ROADMAP.md](../.planning/ROADMAP.md) /
+> [`.planning/STATE.md`](../.planning/STATE.md) for authoritative live status.
 
 ---
 
@@ -68,24 +69,24 @@ layout is **layer-first** (controllers / services / repositories / model split b
 | `config/tenant/` | Schema-per-tenant Hibernate plumbing (resolver, connection provider, ThreadLocal context, customizer). | ✅ | [06](06-multitenancy-and-security.md) |
 | `security/` | JWT auth filter/service, RBAC, user principal, security config. | ✅ | [06](06-multitenancy-and-security.md) |
 | `model/entity/` + `repository/` | JPA entities (no `Entity` suffix) + Spring Data repositories, split per feature (shared `public` schema + per-tenant). | ✅ | [07](07-persistence-and-migrations.md) |
-| `model/dto/` + `model/mapper/` | Request/response DTOs + MapStruct mappers, per feature. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
-| `service/` | Orchestration as interface + `Default*` impl, per feature. Today: `auth`, `tenant` (provisioning), `audit`, `report` (create/validate/persist), `submission` (package + B2B submit + status), `attachment` (S3 upload/list/remove). | ✅ (partial) | [05](05-engine.md), [06](06-multitenancy-and-security.md), [07](07-persistence-and-migrations.md) |
-| `controller/` | Thin REST controllers per feature (today: `auth`, `me`, `admin`, `report` + `report` attachments) — no repos injected directly; delegate to services. | ✅ (partial) | [06](06-multitenancy-and-security.md) |
+| `model/dto/` + `model/mapper/` | Request/response DTOs + mappers, per feature (note: the dominant pattern is hand-written static `from()` factories alongside MapStruct — see CONVENTIONS.md). | ✅ | [06](06-multitenancy-and-security.md) |
+| `service/` | Orchestration as interface + `Default*` impl, per feature: `auth` (+ federated), `tenant`, `audit`, `report` (create/validate/persist/review), `submission` (package + B2B submit + status), `attachment` (S3), `notification`, `ingestion`, `admin`, `integration` (accounting/screening), `screening`. | ✅ | [05](05-engine.md), [06](06-multitenancy-and-security.md), [07](07-persistence-and-migrations.md) |
+| `controller/` | Thin REST controllers per feature (`auth` + federated, `me`, `admin`, `lookup`, `report` + attachments, `notification`, `ingestion`, `integration`, `screening`, `reportability`) — no repos injected directly; delegate to services. | ✅ | [06](06-multitenancy-and-security.md) |
 | `config/` | App config beans (today: `SecurityCryptoConfig` → BCrypt encoder; `config/tenant/*`). | ✅ | [03](03-tech-stack-and-local-dev.md) |
 | `exception/` | `GlobalExceptionHandler` (`@RestControllerAdvice`). | ✅ | [06](06-multitenancy-and-security.md) |
-| `b2b/` | goAML B2B REST client (`GoamlB2bClient`/`RestGoamlB2bClient` + `TokenManager` Redis token cache): PostReport, OData status, delete, MessageBoard, lookups; typed errors. **Built, tested (not yet wired to an endpoint — Phase 7).** | ✅ | [10](10-b2b-submission-protocol.md) |
-| `integration/aws/` | AWS clients. **`GoamlSecretsClient` (Secrets Manager, Phase 6) + `S3StorageClient` (S3 attachments, Phase 8) built**; `SesClient` (Phase 10) planned. | ✅ (partial) | — |
+| `b2b/` | goAML B2B REST client (`GoamlB2bClient`/`RestGoamlB2bClient` + `TokenManager` Redis token cache): PostReport, OData status, delete, MessageBoard, lookups; typed errors. **Built + wired** to the submission service / report lifecycle API (Phase 7). | ✅ | [10](10-b2b-submission-protocol.md) |
+| `integration/aws/` | AWS clients: `GoamlSecretsClient` (Secrets Manager, Phase 6), `S3StorageClient` (S3 attachments, Phase 8), `SesClient` (SES email, Phase 10 — gated off by default). All built. | ✅ | — |
 | `ingestion/` | File import as a persisted `import_job` with row-level results: goAML **XML** (`GoamlXmlImporter`, reuses unmarshal+validators) + flat **DPMSR CSV** (`CsvImporter` → `DpmsrCreateRequest` → `ReportService.create`); `POST/GET /api/v1/imports`; sync + per-row isolation. **Built** (Phase 11). | ✅ | — |
 | `notification/` | Per-tenant in-app store (`service/notification/` + `model/entity/notification/`) + SES email (`integration/aws/SesClient`), fired off report transitions at the `SubmissionService` seam to author + tenant MLROs; email gated off by default; `GET/POST /api/v1/notifications`. **Built** (Phase 10). | ✅ | — |
 | `scheduler/` | `@Scheduled` submission-status poller (`SubmissionStatusPoller`) across tenants + bounded transient `RetryService`. **Built** (Phase 9). | ✅ | — |
-| `mcp/`, `cli/` | MCP tools + picocli commands. | ⚠️ Phase 12 | — |
+| `mcp/`, `cli/` | MCP tools (Spring AI, SSE `/api/v1/mcp/**`) + picocli `--cli` commands — same services as REST (parity), tenant-scoped + role-gated, MLRO-gated dry-run-first submission. **Built** (Phase 12). | ✅ | [13](13-plugin-mcp-cli.md) |
 
 ---
 
 ## 4. How a report flows end-to-end (target picture)
 
-This is the intended full lifecycle. Today, steps 1–3 (build/validate/package) work in the engine;
-steps 4–6 (persist/submit/track) are future phases.
+This is the full lifecycle, and it is **all built now**: steps 1–3 (build/validate/package) in the engine,
+steps 4–6 (persist/submit/track) via the report lifecycle API + the b2b client + the scheduler/poller.
 
 ```
    structured input (UI / REST JSON / CSV / imported XML)

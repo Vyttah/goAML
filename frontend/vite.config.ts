@@ -34,6 +34,9 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
+    // The AntD form-heavy flow specs do many userEvent keystrokes; under full-suite parallel load a
+    // few brush against the 5s default. Give them headroom so the gate is deterministic.
+    testTimeout: 15000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],

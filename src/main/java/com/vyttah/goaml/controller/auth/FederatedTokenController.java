@@ -2,15 +2,19 @@ package com.vyttah.goaml.controller.auth;
 
 import com.vyttah.goaml.model.dto.auth.FederatedTokenRequest;
 import com.vyttah.goaml.model.dto.auth.LoginResponse;
+import com.vyttah.goaml.security.LoginRateLimiter;
 import com.vyttah.goaml.service.auth.FederatedAuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Federated token-exchange endpoint (Phase 1.5). Called <strong>server-to-server</strong> by a sibling
@@ -26,9 +30,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class FederatedTokenController {
 
     private final FederatedAuthService federatedAuthService;
+    private final LoginRateLimiter rateLimiter;
 
     @PostMapping("/token")
-    public ResponseEntity<LoginResponse> token(@Valid @RequestBody FederatedTokenRequest request) {
+    public ResponseEntity<LoginResponse> token(@Valid @RequestBody FederatedTokenRequest request,
+                                               HttpServletRequest http) {
+        // B14 — throttle the federated exchange per (client IP + source system) so the on-ramp can't be
+        // hammered. 429 on exceed. The assertion's own short lifetime + replay store bound abuse further.
+        String key = "federated:" + AuthController.clientIp(http) + ":" + request.sourceSystem();
+        if (!rateLimiter.tryAcquire(key)) {
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,
+                    "Too many token-exchange attempts; try again shortly");
+        }
         return ResponseEntity.ok(federatedAuthService.exchange(request));
     }
 }

@@ -23,7 +23,7 @@ class RetryServiceTest {
     private final Sleeper recordingSleeper = millis -> sleeps.incrementAndGet();
 
     private RetryService service(int maxAttempts) {
-        SchedulerProperties props = new SchedulerProperties(
+        SchedulerProperties props = new SchedulerProperties(true,
                 new SchedulerProperties.StatusPoll(true, Duration.ZERO),
                 new SchedulerProperties.Retry(maxAttempts, Duration.ofSeconds(2)));
         return new RetryService(props, recordingSleeper);

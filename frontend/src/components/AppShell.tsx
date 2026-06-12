@@ -56,7 +56,11 @@ export function AppShell() {
         />
         <Space>
           {isTenantUser && <NotificationBell />}
-          {identity?.roles[0] && <Tag color="blue">{identity.roles[0]}</Tag>}
+          {identity?.roles.map((role) => (
+            <Tag color="blue" key={role}>
+              {role}
+            </Tag>
+          ))}
           <Typography.Text style={{ color: 'rgba(255,255,255,0.85)' }}>
             {identity?.email}
           </Typography.Text>

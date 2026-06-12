@@ -33,7 +33,9 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 - **Phases 1–14 ALL complete** (the standalone product is fully built — engine, REST API, SPA, infra, and the
   Phase-12 plugin/MCP/CLI), plus the **XSD-first foundation** (domain xjc-generated from goAML 5.0.2 + XSD gate
   + DPMSR builder) and the **Vyttah layer-first refactor**. **Phase 1.5** (suite integration + federated auth)
-  remains **deferred — decide later** (a separate track; see Recent Decisions).
+  is **DONE/merged** (1.5a/b/c — 2026-06-08→09; accounting is REST, not RabbitMQ; see Recent Decisions). The
+  later **suite-cockpit track (A–D)** + the **frontend-direct pivot** built the AML cockpit on top; only **Phase
+  E (live FIU B2B, external)** remains.
 - **Full-schema fidelity (done, branch `feature/full-schema-fidelity`):** a third real DPMSR sample exposed
   ~13 fields the curated `DpmsrCreateRequest` dropped. The REST report API now binds the full-fidelity
   **`DpmsrReportPayload`** (the xjc-generated leaf types directly, via a scoped enum Jackson module) so a
@@ -89,8 +91,10 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
   GETs). Per-tenant/per-report failures logged + skipped; the scheduled method never throws (would suppress
   future runs); `TenantContext` cleared per tenant. Testcontainers IT (two tenants transition + isolation).
   Commits `015ea61`…`9530bf3` (+ 9.4). Per-step docs: `steps/PHASE-9.1..9.4`.
-- **Branch:** `phase-14/infra` (off `main`; Phases 6–11 + 13 + XSD-first are on `main`). Merge to `main` on
-  Phase 14 close.
+- **Branch (current):** `feature/goaml-frontend-direct` (the frontend-direct pivot; goAML-side G1 pieces are
+  here, planning checkpoints on top). All standalone phases 1–14 + XSD-first + Phase 1.5 (1.5a/b/c) are merged
+  to `main`; this branch carries the frontend-direct goAML enablers + planning. (Historic: Phase 14 was built
+  on `phase-14/infra`, since merged.)
 - **Build/tests:** ✅ green — backend `./gradlew test jacocoTestCoverageVerification` → `BUILD SUCCESSFUL`;
   frontend `cd frontend && npm test` (58) / `npm run typecheck` / `npm run lint` / `npm run build`;
   `docker build -t goaml:dev .` builds + boots; `helm lint helm/goaml` clean.
@@ -101,11 +105,13 @@ the UAE FIU (goAML Web B2B REST), filing on behalf of many client Reporting Enti
 
 ## Next Action — the standalone build is COMPLETE
 
-All 14 roadmap phases are done. There is no next *build* phase for the standalone product. Open options
-(decide later):
-1. **Phase 1.5** — Vyttah-suite integration + federated auth (RabbitMQ accounting consumer → reportability →
-   auto-create DPMSR draft → MLRO 1-click; screening REST push; `/auth/federated/token` + `external_identity`).
-   Deferred; design in [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md).
+All 14 roadmap phases **and Phase 1.5 (suite integration + federated auth)** are done. There is no next
+*build* phase for the standalone product. Open items:
+1. **Phase 1.5 — DONE/merged** (1.5a federated auth, 1.5b accounting via **REST** [not RabbitMQ], 1.5c
+   screening). Followed by the suite-cockpit track (A–D) + the frontend-direct pivot. Design:
+   [plans/integration-and-auth-architecture.md](plans/integration-and-auth-architecture.md) +
+   [plans/goaml-as-aml-microservice.md](plans/goaml-as-aml-microservice.md). Remaining: **Phase E** (live FIU,
+   external) + the two-paths UX decision (checkpoint below).
 2. **Go-live prerequisites (external, gate live correctness not the build):** an AWS account/EKS/ECR/RDS; a
    GitHub remote + CD secrets; **the PII-sample history purge BEFORE any first push to a remote** (real-PII
    sample XMLs are in git history); per-tenant FIU B2B URLs + credentials; real UAE lookup exports + BRRs.
@@ -133,7 +139,7 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
 | Done | Phase |
 |------|-------|
 | ✅ | 1 Skeleton · 2 Multi-tenancy+security · 3 domain/ · 4 engine builders+marshaller · 5 engine validation+jurisdiction+lookups · 6 integration/aws/ + b2b/ client · 7 persistence + service + web REST · 8 S3 attachments · 9 scheduler · 10 notifications · 11 ingestion · **12 plugin/MCP/CLI** · 13 frontend · 14 infra |
-| ⬜ | 1.5 suite-integration (deferred — decide later) |
+| ✅ | 1.5 suite-integration + federated auth (1.5a/b/c done/merged) · suite-cockpit track A–D · frontend-direct pivot |
 
 (Full table + Phase 6 recap in [ROADMAP.md](ROADMAP.md) and
 [docs/09-build-order-and-roadmap.md](../docs/09-build-order-and-roadmap.md).)
@@ -210,8 +216,10 @@ detail→import→notifications→reference→admin) + dev seeder; **Phase 14** 
 - **External inputs gate live correctness** (not the build): UAE XSD, per-tenant B2B URLs + credentials,
   UAE Business Rejection Rules, real lookup exports, CSV template, AWS account specifics. See
   [docs/09 §4 Open Items](../docs/09-build-order-and-roadmap.md).
-- **Known gaps** between plan and current code (no Emirates-ID validation yet, no XSD gate, ANALYST/MLRO
-  not yet enforced, etc.) — see [docs/09 §5](../docs/09-build-order-and-roadmap.md).
+- **Known gaps** between plan and current code: the **XSD gate and RBAC (ANALYST/MLRO) are both built and
+  enforced now** (this line was stale — `XsdSchemaValidator` gates every `report_xml` write; `@PreAuthorize`
+  + the JWT filter enforce roles). The remaining real gap is **no Emirates-ID / UAE Business-Rejection-Rule
+  validation yet** (awaits the FIU BRR doc). See [docs/09 §5](../docs/09-build-order-and-roadmap.md).
 
 ---
 

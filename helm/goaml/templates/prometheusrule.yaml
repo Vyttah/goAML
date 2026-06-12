@@ -1,0 +1,76 @@
+{{- if .Values.prometheusRule.enabled -}}
+# Prometheus Operator PrometheusRule — submission-pipeline alerts. Requires the Prometheus Operator CRDs
+# (monitoring.coreos.com/v1). Off by default. Thresholds come from values.yaml prometheusRule.rules.
+#
+# Metric provenance:
+#   - goaml_poller_errors_total      : Micrometer counter goaml.poller.errors (added by the app, Wave 3/G3).
+#                                       Until that ships the PollerErrors rule simply never fires.
+#   - http_server_requests_seconds_* : Spring Boot Micrometer HTTP server timer (always present).
+#   - up                             : the scrape target's liveness (Prometheus-synthesised). Used as a
+#                                       heartbeat proxy for "the goAML process (incl. the poller) is running"
+#                                       — there is no dedicated stale-SUBMITTED gauge yet (see docs/16).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "goaml.fullname" . }}
+  labels:
+    {{- include "goaml.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: goaml.submission-pipeline
+      rules:
+        # The poller is erroring (expired FIU creds, FIU outage, mapping bug). SUBMITTED reports stop
+        # progressing to ACCEPTED/REJECTED while this fires.
+        - alert: GoamlPollerErrors
+          expr: increase(goaml_poller_errors_total{job=~".*{{ include "goaml.name" . }}.*"}[{{ .Values.prometheusRule.rules.pollerErrorsWindow }}]) > 0
+          for: {{ .Values.prometheusRule.rules.pollerErrorsWindow }}
+          labels:
+            severity: warning
+            component: goaml-poller
+          annotations:
+            summary: "goAML submission-status poller is erroring"
+            description: "goaml_poller_errors_total increased over the last {{ .Values.prometheusRule.rules.pollerErrorsWindow }}. SUBMITTED reports may be stuck. Check FIU credentials/connectivity and the poller logs."
+
+        # No successful scrape of the goAML target — the process (which also runs the single poller) is
+        # down or unreachable. Proxy for both "API down" and "nothing is polling FIU status".
+        - alert: GoamlTargetDown
+          expr: absent(up{job=~".*{{ include "goaml.name" . }}.*"} == 1)
+          for: {{ .Values.prometheusRule.rules.absentScrapeWindow }}
+          labels:
+            severity: critical
+            component: goaml
+          annotations:
+            summary: "goAML target is not being scraped / is down"
+            description: "No goAML pod has reported up=1 for {{ .Values.prometheusRule.rules.absentScrapeWindow }}. The API and the status poller may be down; SUBMITTED reports will not progress."
+
+        # Elevated HTTP 5xx ratio — the API (incl. submit) is failing for callers.
+        - alert: GoamlHttp5xxRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job=~".*{{ include "goaml.name" . }}.*",status=~"5.."}[{{ .Values.prometheusRule.rules.http5xxWindow }}]))
+              /
+              sum(rate(http_server_requests_seconds_count{job=~".*{{ include "goaml.name" . }}.*"}[{{ .Values.prometheusRule.rules.http5xxWindow }}]))
+            ) > {{ .Values.prometheusRule.rules.http5xxRatio }}
+          for: {{ .Values.prometheusRule.rules.http5xxWindow }}
+          labels:
+            severity: warning
+            component: goaml-api
+          annotations:
+            summary: "goAML HTTP 5xx rate is elevated"
+            description: "More than {{ .Values.prometheusRule.rules.http5xxRatio }} of requests returned 5xx over the last {{ .Values.prometheusRule.rules.http5xxWindow }}."
+
+        # Readiness flapping — the pod is repeatedly leaving/rejoining the Service (DB blips, slow GC,
+        # crash-loops). up transitioning many times is the cluster-visible proxy for readiness flaps.
+        - alert: GoamlReadinessFlapping
+          expr: changes(up{job=~".*{{ include "goaml.name" . }}.*"}[{{ .Values.prometheusRule.rules.readinessFlapWindow }}]) > {{ .Values.prometheusRule.rules.readinessFlapCount }}
+          for: {{ .Values.prometheusRule.rules.readinessFlapWindow }}
+          labels:
+            severity: warning
+            component: goaml
+          annotations:
+            summary: "goAML readiness is flapping"
+            description: "A goAML target changed up/down more than {{ .Values.prometheusRule.rules.readinessFlapCount }} times in {{ .Values.prometheusRule.rules.readinessFlapWindow }}. Check DB connectivity, resource limits, and crash loops."
+{{- end }}

@@ -3,16 +3,19 @@ package com.vyttah.goaml.controller.lookup;
 import com.vyttah.goaml.GoamlApplication;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.security.JwtService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -37,9 +40,24 @@ class LookupApiTest {
 
     @Autowired MockMvc mvc;
     @Autowired JwtService jwtService;
+    @Autowired JdbcTemplate jdbcTemplate;
+
+    /** A real ACTIVE app_user so the token's sub passes the B16 disabled-user check in JwtAuthFilter. */
+    private UUID userId;
+
+    @BeforeEach
+    void seedUser() {
+        userId = UUID.randomUUID();
+        jdbcTemplate.update("""
+                INSERT INTO public.app_user
+                  (id, tenant_id, email, password_hash, first_name, last_name, status, created_at, updated_at)
+                VALUES (?, NULL, ?, 'hash', 'Look', 'Up', 'ACTIVE', ?, ?)
+                ON CONFLICT (id) DO NOTHING
+                """, userId, "lookup-" + userId + "@test", OffsetDateTime.now(), OffsetDateTime.now());
+    }
 
     private String token() {
-        AppUser user = new AppUser(UUID.randomUUID(), UUID.randomUUID(), "lookup@test", "hash",
+        AppUser user = new AppUser(userId, null, "lookup-" + userId + "@test", "hash",
                 "Look", "Up", "ACTIVE");
         return jwtService.issueAccessToken(user, "public").token();
     }

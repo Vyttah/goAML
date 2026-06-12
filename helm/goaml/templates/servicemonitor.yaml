@@ -1,0 +1,23 @@
+{{- if .Values.serviceMonitor.enabled -}}
+# Prometheus Operator ServiceMonitor — scrapes /actuator/prometheus on the goAML Service.
+# Requires the Prometheus Operator CRDs (monitoring.coreos.com/v1). Off by default.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "goaml.fullname" . }}
+  labels:
+    {{- include "goaml.labels" . | nindent 4 }}
+    {{- with .Values.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "goaml.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: {{ .Values.serviceMonitor.path | quote }}
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      scheme: http
+{{- end }}

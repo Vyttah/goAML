@@ -149,8 +149,10 @@ class ScreeningFilingE2ETest {
 
     @Test
     void unmappedCompanyIsNotFound() throws Exception {
+        // The assertion's org must match the requested company (B11) to reach the tenant-resolution path;
+        // company 999 is mapped to no tenant → 404.
         mvc.perform(post("/api/v1/integration/screening/filings")
-                        .header("X-Service-Assertion", assertion())
+                        .header("X-Service-Assertion", assertionFor("999"))
                         .contentType(APPLICATION_JSON).content(legalFilingPayload("999", "DEAL-3")))
                 .andExpect(status().isNotFound());
     }
@@ -201,12 +203,19 @@ class ScreeningFilingE2ETest {
     }
 
     private static String assertion() {
+        return assertionFor(COMPANY_ID);
+    }
+
+    /** Mint an assertion whose signed {@code org} claim is {@code org} (B11 cross-check), unique jti per call. */
+    private static String assertionFor(String org) {
         return Jwts.builder()
                 .issuer("SCREENING")
                 .subject("screening-system")
                 .audience().add("goaml").and()
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plus(60, ChronoUnit.SECONDS)))
+                .id(UUID.randomUUID().toString())            // B10 — unique jti (single-use)
+                .claim("org", org)                           // B11 — signed org must match the companyId
                 .signWith(keys.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }

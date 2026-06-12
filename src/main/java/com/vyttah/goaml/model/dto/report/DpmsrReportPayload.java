@@ -1,5 +1,6 @@
 package com.vyttah.goaml.model.dto.report;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.vyttah.goaml.domain.generated.ReportPartyType;
 import com.vyttah.goaml.domain.generated.TAddress;
 import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
@@ -25,6 +26,10 @@ import java.util.List;
  *
  * <p>Persisted verbatim as the report's {@code input} JSONB (the generated enums bind by schema value via
  * {@code GeneratedEnumJacksonModule}) so a report can be re-validated / re-edited losslessly.
+ *
+ * <p>{@code clientMetadata} (A3) is an optional opaque JSON object stored verbatim to its own
+ * {@code report.client_metadata} column and returned in the detail view — captured-not-filed context that is
+ * <b>never</b> mapped onto the engine input ({@link #toInput} ignores it) and so never reaches the goAML XML.
  */
 public record DpmsrReportPayload(
         String rentityBranch,
@@ -40,7 +45,20 @@ public record DpmsrReportPayload(
         String action,
         List<String> indicators,
         @NotNull List<ReportPartyType> parties,
-        @NotNull List<TTransItem> goods) implements DpmsrInputSource {
+        @NotNull List<TTransItem> goods,
+        JsonNode clientMetadata) implements DpmsrInputSource {
+
+    /**
+     * Convenience constructor without {@code clientMetadata} (defaults to {@code null}) for programmatic /
+     * test callers; the JSON-binding create endpoint uses the full canonical constructor.
+     */
+    public DpmsrReportPayload(
+            String rentityBranch, String entityReference, OffsetDateTime submissionDate, String fiuRefNumber,
+            TPersonRegistrationInReport reportingPerson, TAddress location, String reason, String action,
+            List<String> indicators, List<ReportPartyType> parties, List<TTransItem> goods) {
+        this(rentityBranch, entityReference, submissionDate, fiuRefNumber, reportingPerson, location, reason,
+                action, indicators, parties, goods, null);
+    }
 
     /** Map onto the engine input, injecting the server-resolved {@code rentity_id}. */
     @Override

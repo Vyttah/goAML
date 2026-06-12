@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/msw/server';
@@ -9,6 +9,10 @@ import { setToken } from '../../auth/tokenStore';
 import { makeToken } from '../../test/util';
 import { DpmsrBuilderPage } from './DpmsrBuilderPage';
 import type { ValidationMessage } from '../../types';
+
+const DRAFT_KEY = 'goaml.dpmsrDraft';
+
+afterEach(() => sessionStorage.clear());
 
 function stubLookups() {
   server.use(
@@ -159,5 +163,64 @@ describe('DpmsrBuilderPage', () => {
     expect(panel).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /view report/i }));
     expect(await screen.findByText('REPORT DETAIL PAGE')).toBeInTheDocument();
+  });
+
+  it('restores an autosaved draft on mount', async () => {
+    stubLookups();
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({ entityReference: 'DRAFT-REF-99', reason: 'restored reason' }),
+    );
+
+    renderBuilder();
+
+    expect(await screen.findByText(/Restored an unsaved draft/i)).toBeInTheDocument();
+    expect((document.getElementById('entityReference') as HTMLInputElement).value).toBe(
+      'DRAFT-REF-99',
+    );
+  });
+
+  it('clears the saved draft after a successful create', async () => {
+    stubLookups();
+    const captured: Captured = { body: null };
+    stubCreate(captured);
+    // Pre-seed a draft so we can prove it gets cleared on success.
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ entityReference: 'OLD' }));
+
+    renderBuilder();
+    await fillMinimalValidForm();
+    await userEvent.click(screen.getByRole('button', { name: /create.*validate/i }));
+
+    expect(await screen.findByText('Report created')).toBeInTheDocument();
+    await waitFor(() => expect(sessionStorage.getItem(DRAFT_KEY)).toBeNull());
+  });
+
+  it('shows a field-level (inline) error for a known-invalid field, keeping the summary too', async () => {
+    stubLookups();
+    const captured: Captured = { body: null };
+    // The server returns INVALID with a field-pathed message; the page maps it inline AND keeps the
+    // bottom summary. (PersonFields' own required rules already block AntD on empty names, so this
+    // exercises the server/Zod-style path→field surfacing on an otherwise-submittable form.)
+    stubCreate(captured, 'INVALID', [
+      {
+        severity: 'ERROR',
+        path: 'report.goods[0].item_type',
+        code: 'MANDATORY',
+        message: 'Item type required',
+      },
+    ]);
+
+    renderBuilder();
+    await fillMinimalValidForm();
+    // Clear the goods estimated value — InputNumber + AntD required surfaces an inline field error
+    // before submit, proving errors render at the field (not only in a summary).
+    const value = document.getElementById('goods_0_estimatedValue') as HTMLInputElement;
+    await userEvent.clear(value);
+    await userEvent.click(screen.getByRole('button', { name: /create.*validate/i }));
+
+    const item = value.closest('.ant-form-item');
+    await waitFor(() =>
+      expect(item?.querySelector('.ant-form-item-explain-error')).toBeInTheDocument(),
+    );
   });
 });

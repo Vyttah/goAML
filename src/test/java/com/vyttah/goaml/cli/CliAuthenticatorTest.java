@@ -7,6 +7,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.nio.charset.StandardCharsets;
@@ -26,7 +27,9 @@ class CliAuthenticatorTest {
 
     private static final String SECRET = "cli-test-secret-please-replace-with-a-long-random-value-1234567890";
     private final JwtProperties props = new JwtProperties(SECRET, "goaml", 15);
-    private final CliAuthenticator authenticator = new CliAuthenticator(new JwtService(props));
+    // Custom (non-default) secret → the B2 guard passes under any profile; pass an empty Environment.
+    private final CliAuthenticator authenticator =
+            new CliAuthenticator(new JwtService(props, new MockEnvironment()));
 
     @AfterEach
     void tearDown() {

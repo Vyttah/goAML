@@ -1,12 +1,15 @@
 package com.vyttah.goaml.security;
 
+import com.vyttah.goaml.model.entity.federated.ConsumedAssertion;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
 import com.vyttah.goaml.model.entity.federated.TrustedService;
+import com.vyttah.goaml.repository.federated.ConsumedAssertionRepository;
 import com.vyttah.goaml.repository.federated.TrustedServiceRepository;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.security.KeyFactory;
@@ -14,6 +17,8 @@ import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.List;
 
@@ -31,8 +36,11 @@ import java.util.List;
  *   <li>{@code email} — the user's email (optional)</li>
  *   <li>{@code org}   — the source org reference for tenant resolution (optional)</li>
  *   <li>{@code roles} — advisory role hints (optional; goAML stays authoritative for actual roles)</li>
- *   <li>{@code exp}/{@code iat} — required; the lifetime must not exceed {@link #MAX_ASSERTION_LIFETIME}
- *                       so a leaked assertion has a small replay window</li>
+ *   <li>{@code jti}   — required; the assertion's unique id. Recorded on first use so a second
+ *                       presentation of the same {@code jti} before its {@code exp} is rejected as a replay</li>
+ *   <li>{@code iat}   — required; together with {@code exp} the lifetime must not exceed
+ *                       {@link #MAX_ASSERTION_LIFETIME} so a leaked assertion has a small replay window</li>
+ *   <li>{@code exp}   — required</li>
  * </ul>
  *
  * <p>goAML looks up the {@link TrustedService} for the declared source to obtain the public key, then
@@ -49,6 +57,7 @@ public class ServiceCredentialValidator {
     static final Duration MAX_ASSERTION_LIFETIME = Duration.ofMinutes(5);
 
     private final TrustedServiceRepository trustedServices;
+    private final ConsumedAssertionRepository consumedAssertions;
 
     /**
      * @param sourceSystem the source the caller declares (used to select the verification key)
@@ -88,9 +97,14 @@ public class ServiceCredentialValidator {
         if (claims.getExpiration() == null) {
             throw new ServiceCredentialException("Service assertion must set exp");
         }
-        Instant issuedAt = claims.getIssuedAt() == null ? null : claims.getIssuedAt().toInstant();
+        // iat is REQUIRED (B10): without it the lifetime cap below could not be enforced, so a signer could
+        // mint an assertion with a years-long exp. Reject when absent.
+        if (claims.getIssuedAt() == null) {
+            throw new ServiceCredentialException("Service assertion must set iat");
+        }
+        Instant issuedAt = claims.getIssuedAt().toInstant();
         Instant expiresAt = claims.getExpiration().toInstant();
-        if (issuedAt != null && Duration.between(issuedAt, expiresAt).compareTo(MAX_ASSERTION_LIFETIME) > 0) {
+        if (Duration.between(issuedAt, expiresAt).compareTo(MAX_ASSERTION_LIFETIME) > 0) {
             throw new ServiceCredentialException("Service assertion lifetime exceeds the allowed maximum");
         }
 
@@ -104,6 +118,14 @@ public class ServiceCredentialValidator {
             throw new ServiceCredentialException("Service assertion must carry the external user id (sub)");
         }
 
+        // jti is REQUIRED (B10) — it anchors single-use semantics. Recording it (and rejecting a second use
+        // before exp) gives replay protection that survives restarts and holds across replicas.
+        String jti = claims.getId();
+        if (jti == null || jti.isBlank()) {
+            throw new ServiceCredentialException("Service assertion must carry a unique id (jti)");
+        }
+        consumeOnce(jti, sourceSystem, expiresAt);
+
         return new VerifiedServiceAssertion(
                 service,
                 sourceSystem,
@@ -111,6 +133,30 @@ public class ServiceCredentialValidator {
                 claims.get("email", String.class),
                 claims.get("org", String.class),
                 roleHints(claims));
+    }
+
+    /**
+     * Records the assertion's {@code jti} as consumed, rejecting a replay. Opportunistically purges already
+     * expired rows first so the store stays small. The insert is the authority: a duplicate primary key (a
+     * concurrent or sequential replay) surfaces as a {@link DataIntegrityViolationException}, which we map to
+     * a replay rejection — closing the read-then-write race without a lock.
+     */
+    private void consumeOnce(String jti, SourceSystem sourceSystem, Instant expiresAt) {
+        try {
+            consumedAssertions.deleteExpired(OffsetDateTime.now(ZoneOffset.UTC));
+        } catch (RuntimeException ignored) {
+            // Cleanup is best-effort; never let it block a legitimate verification.
+        }
+        if (consumedAssertions.existsById(jti)) {
+            throw new ServiceCredentialException("Service assertion has already been used (replay)");
+        }
+        try {
+            consumedAssertions.save(new ConsumedAssertion(jti, sourceSystem,
+                    expiresAt.atOffset(ZoneOffset.UTC)));
+        } catch (DataIntegrityViolationException duplicate) {
+            // Lost the race — another verification consumed the same jti first.
+            throw new ServiceCredentialException("Service assertion has already been used (replay)");
+        }
     }
 
     @SuppressWarnings("unchecked")

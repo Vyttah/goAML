@@ -35,6 +35,14 @@ describe('AppShell', () => {
     expect(screen.getByText('DASHBOARD CONTENT')).toBeInTheDocument();
   });
 
+  it('renders ALL of the user roles, not just the first', () => {
+    setToken(makeToken({ email: 'multi@acme.test', roles: ['MLRO', 'ANALYST'] }));
+    renderWithProviders(shellRoutes(), ['/dashboard']);
+
+    expect(screen.getByText('MLRO')).toBeInTheDocument();
+    expect(screen.getByText('ANALYST')).toBeInTheDocument();
+  });
+
   it('hides the Admin link for non-admins and shows it for admins', () => {
     setToken(makeToken({ roles: ['ANALYST'] }));
     const { unmount } = renderWithProviders(shellRoutes(), ['/dashboard']);

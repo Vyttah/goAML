@@ -60,7 +60,8 @@ six party subjects).
   types** directly (`TPersonRegistrationInReport`, `List<ReportPartyType>`, `List<TTransItem>`, `TAddress`),
   so **every** DPMSR/activity field is reachable without a parallel DTO model that would drift from the XSD.
   Two entry forms:
-  - the **record constructor** (good for programmatic callers — the future RabbitMQ consumer / plugin), and
+  - the **record constructor** (good for programmatic callers — the suite-integration feeds / MCP / plugin;
+    note the once-planned RabbitMQ accounting consumer was dropped in favour of **REST**, see PROJECT.md), and
   - a fluent **`DpmsrReportInput.builder()`** (good for hand-coding and tests).
 - **`DpmsrReportBuilder`** (`@Component`) — `Report build(DpmsrReportInput)` and
   `ValidatedReport buildAndValidate(DpmsrReportInput, String jurisdictionCode)`. It applies the

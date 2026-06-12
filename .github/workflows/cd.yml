@@ -1,40 +1,69 @@
 name: CD
 
-# On main: always build the production image (validates the Dockerfile). Push to ECR + helm-upgrade to EKS
-# are GATED on AWS secrets being present, so this is inert until an account/cluster is wired.
+# Runs ONLY after CI succeeds on main (C4: deploy is gated on the test/coverage gate, so a red main
+# never builds/pushes/deploys). On success it always builds the production image (validates the
+# Dockerfile); ECR push + helm-upgrade to EKS are additionally GATED on AWS secrets being present, so
+# this is inert until an account/cluster is wired.
 #
 # Required repo secrets/vars to enable deploy:
 #   AWS_ROLE_ARN     (OIDC role to assume)        AWS_REGION
 #   ECR_REPOSITORY   (e.g. 123.dkr.ecr.<region>.amazonaws.com/goaml)
 #   EKS_CLUSTER      (cluster name)
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
 
 permissions:
   contents: read
-  id-token: write   # for AWS OIDC
+  id-token: write       # for AWS OIDC
+  security-events: write # for the Trivy SARIF upload
 
 jobs:
   image:
-    name: Build image (+ gated deploy)
+    name: Build image (+ scan + gated deploy)
     runs-on: ubuntu-latest
+    # Only proceed when the triggering CI run went green.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     env:
+      # The image is tagged with the commit CI actually validated (the workflow_run head sha).
+      IMAGE_SHA: ${{ github.event.workflow_run.head_sha }}
       # Secrets can't be used directly in `if:`; map presence to a plain string here.
       DEPLOY_ENABLED: ${{ secrets.AWS_ROLE_ARN != '' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - uses: docker/setup-buildx-action@v3
 
-      # Always build (and load) the image so the Dockerfile is exercised on every main push.
+      # Always build (and load) the image so the Dockerfile is exercised on every successful CI run.
       - name: Build image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: false
           load: true
-          tags: goaml:${{ github.sha }}
+          tags: goaml:${{ env.IMAGE_SHA }}
+
+      # ---- vulnerability scan (C4) ----
+      # Fails the run on HIGH/CRITICAL OS+library vulns so a vulnerable image is never pushed.
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: goaml:${{ env.IMAGE_SHA }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Upload Trivy SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-results.sarif
 
       # ---- gated deploy (only when AWS secrets exist) ----
       - name: Configure AWS credentials
@@ -51,9 +80,9 @@ jobs:
       - name: Tag + push image to ECR
         if: env.DEPLOY_ENABLED == 'true'
         run: |
-          docker tag goaml:${{ github.sha }} ${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
-          docker tag goaml:${{ github.sha }} ${{ secrets.ECR_REPOSITORY }}:latest
-          docker push ${{ secrets.ECR_REPOSITORY }}:${{ github.sha }}
+          docker tag goaml:${{ env.IMAGE_SHA }} ${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_SHA }}
+          docker tag goaml:${{ env.IMAGE_SHA }} ${{ secrets.ECR_REPOSITORY }}:latest
+          docker push ${{ secrets.ECR_REPOSITORY }}:${{ env.IMAGE_SHA }}
           docker push ${{ secrets.ECR_REPOSITORY }}:latest
 
       - name: Set up Helm
@@ -67,9 +96,9 @@ jobs:
           helm upgrade --install goaml ./helm/goaml \
             --namespace goaml --create-namespace \
             --set image.repository="${{ secrets.ECR_REPOSITORY }}" \
-            --set image.tag="${{ github.sha }}" \
+            --set image.tag="${{ env.IMAGE_SHA }}" \
             --wait --timeout 5m
 
       - name: Deploy skipped (no AWS secrets)
         if: env.DEPLOY_ENABLED != 'true'
-        run: echo "AWS_ROLE_ARN not set — built the image only. Configure AWS secrets to enable ECR push + EKS deploy."
+        run: echo "AWS_ROLE_ARN not set — built + scanned the image only. Configure AWS secrets to enable ECR push + EKS deploy."

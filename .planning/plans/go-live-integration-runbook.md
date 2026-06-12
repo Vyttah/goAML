@@ -123,6 +123,78 @@ Two models; use either or both (same report is visible to all tenant users).
 
 ---
 
+## Phase G — Rollback & incident operations
+
+> Operational playbook for when a deploy goes wrong or the FIU is unreachable. Keep it concise and act on it.
+> Backup/restore + retention live in [docs/16-operations-dr-retention.md](../../docs/16-operations-dr-retention.md).
+
+### G.1 Deployment rollback (`helm rollback`)
+
+The chart deploys an **immutable image tag** (the CD pipeline sets `image.tag` to the commit/image SHA, never
+`latest`), so a rollback is a clean swap back to the previous good release.
+
+```bash
+# What's deployed + history
+helm -n <ns> list
+helm -n <ns> history goaml
+
+# Roll back to the immediately previous revision (or a specific one)
+helm -n <ns> rollback goaml            # previous
+helm -n <ns> rollback goaml <REVISION> # specific known-good revision
+
+# Confirm: pods roll to the prior image SHA and go Ready (readiness is DB-aware)
+kubectl -n <ns> rollout status deploy/goaml
+kubectl -n <ns> get pods -l app.kubernetes.io/instance=goaml -o jsonpath='{range .items[*]}{.spec.containers[0].image}{"\n"}{end}'
+```
+
+- **Image SHA pinning:** always deploy a digest/SHA tag (CD does). A rollback then deterministically restores
+  the exact prior binary. Never rely on a mutable tag for production.
+- **Caveat — schema is forward-only:** an app rollback does **not** revert a Flyway migration that already
+  ran. This is safe when migrations are **additive/backward-compatible** (the old app ignores the new
+  column/table) — which is the standard we hold. If a migration was destructive, this is a **restore** event,
+  not a rollback (see G.3 / docs/16 §7).
+
+### G.2 Bad-migration handling (Flyway forward-only)
+
+- Flyway has **no down-migrations** and `ddl-auto: none`. **Never edit or delete a committed migration** — it
+  breaks the checksum and the app won't start.
+- **Fix a bad migration with a new forward migration** (a corrective `V<next>__…`).
+- If the bad migration only added something unused, roll the app back (G.1) and ship the corrective migration
+  next. If it **corrupted/destroyed data**: PITR-restore the DB to just before it ran (docs/16 §3), then
+  deploy the **known-good app image** whose migrations match that schema version — do not let a newer app
+  migrate the restored DB until the corrected migration exists.
+- Tenant migrations run per schema on startup (the A2 startup runner migrates all ACTIVE tenants before
+  serving traffic). After a restore, expect that runner to migrate up to the running app's version on boot.
+
+### G.3 Extended FIU outage — MLRO playbook
+
+Submission goes over the FIU's goAML B2B REST. When the FIU is down or rejecting transport, the submit call
+surfaces as a **502** (transport failure) and the report **stays SUBMITTED → never advances** (the poller
+keeps retrying status). This is the **designed** behaviour — nothing is lost, nothing is auto-resubmitted.
+
+**What the operator/MLRO should do:**
+1. **Confirm it's the FIU, not us.** Check `/actuator/health` UP, recent deploys, and the poller logs /
+   the `GoamlPollerErrors` + `GoamlTargetDown` alerts (Helm `prometheusRule`). A 502/timeout pattern to the
+   FIU base URL = FIU-side; a 4xx = our data/creds.
+2. **Do not mass-resubmit.** Submit is idempotent on `entity_reference`, but hammering a struggling regulator
+   endpoint risks rate-limiting / IP reputation. Let the poller back off; it re-checks status on schedule.
+3. **For a report stuck SUBMITTED:** leave it. When the FIU recovers, the poller transitions it to
+   ACCEPTED/REJECTED automatically; no manual action needed. Only re-submit (manual MLRO action) if the FIU
+   confirms it never received the report.
+4. **For a fresh report that can't be submitted at all (502 on submit):** keep it **VALID/APPROVED** (do not
+   force-fail it). Retry the submit once the FIU is back. The report and its XML persist.
+5. **Communicate:** notify the affected tenant MLRO(s) that filings are queued pending FIU availability, and
+   note the FIU outage window. Filing-deadline obligations are a compliance call — escalate to compliance if
+   an outage threatens a statutory submission deadline.
+6. **After recovery:** verify the backlog drains (SUBMITTED → ACCEPTED/REJECTED) via the dashboard / poll
+   logs; re-submit only the handful the FIU confirms it never got.
+
+**Safety levers (no redeploy needed):**
+- `auto_submit=false` keeps a human (MLRO 1-click) in the loop — recommended during/after an outage.
+- A `FAILED`/`REJECTED` report never blocks others; fix the data and refile under a new reference.
+
+---
+
 ## Quick reference — the endpoints
 
 | Purpose | Method & path | Auth |

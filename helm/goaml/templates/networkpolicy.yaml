@@ -1,0 +1,40 @@
+{{- if .Values.networkPolicy.enabled -}}
+# Default-deny ingress to the goAML pods, then explicitly allow:
+#   1. the ingress controller (user/API + SPA + MCP traffic on :8080), and
+#   2. Prometheus (metrics scrape of /actuator/prometheus on :8080).
+# Egress is intentionally NOT restricted here — goAML must reach Postgres, Redis, AWS (Secrets Manager /
+# S3 / SES), and the per-tenant FIU B2B endpoints, whose addresses vary by environment. Add an egress
+# allow-list per environment if your security posture requires it.
+#
+# NOTE: NetworkPolicy is only enforced if your CNI supports it (Calico, Cilium, etc.). Adjust the namespace
+# selectors below to match where your ingress controller and monitoring stack actually run.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "goaml.fullname" . }}
+  labels:
+    {{- include "goaml.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "goaml.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Application traffic from the ingress controller.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.ingressControllerNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8080
+    # Metrics scrape from the monitoring/Prometheus namespace.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.monitoringNamespaceLabels | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: 8080
+{{- end }}

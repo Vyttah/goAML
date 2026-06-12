@@ -15,4 +15,7 @@ public interface AttachmentRepository extends JpaRepository<Attachment, UUID> {
     List<Attachment> findByReportIdOrderByCreatedAt(UUID reportId);
 
     Optional<Attachment> findByIdAndReportId(UUID id, UUID reportId);
+
+    /** B6 delete-guard: did this user upload any attachment in the current tenant? */
+    boolean existsByUploadedBy(UUID uploadedBy);
 }

@@ -133,7 +133,9 @@ conversion (no hand-written conversion in controllers/services). Generated sourc
 
 ### 3.7 config / exception / util
 `config/` — one class per concern (`SecurityConfig`, `SecurityCryptoConfig`, `JwtProperties`, the multi-tenancy
-Hibernate classes, future `RabbitMQConfig`/`*ApiConfig`). `exception/GlobalExceptionHandler`
+Hibernate classes, the scheduler/integration `*Properties`/`*ApiConfig`). *(An early draft listed a
+`RabbitMQConfig` — the accounting integration is **REST, not RabbitMQ**, so there is none; see PROJECT.md.)*
+`exception/GlobalExceptionHandler`
 (`@RestControllerAdvice`). `util/` — stateless `<Thing>Util(s)`.
 
 ### 3.8 security

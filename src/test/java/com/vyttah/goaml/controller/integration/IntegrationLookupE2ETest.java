@@ -87,6 +87,7 @@ class IntegrationLookupE2ETest {
                 .audience().add("goaml").and()
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plus(60, ChronoUnit.SECONDS)))
+                .id(UUID.randomUUID().toString())            // B10 — unique jti (single-use)
                 .signWith(keys.getPrivate(), Jwts.SIG.RS256)
                 .compact();
     }

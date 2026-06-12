@@ -53,4 +53,15 @@ public final class SubmissionExceptions {
             super(message, cause);
         }
     }
+
+    /**
+     * C9 defense-in-depth: the report's persisted XML failed re-validation against the goAML XSD at submit
+     * time. The XSD gate guarantees no unvalidated XML is stored, but re-checking here means any future code
+     * path that wrote bad XML can never reach the FIU. → {@code 409} (the report must be rebuilt).
+     */
+    public static class StoredXmlInvalidException extends RuntimeException {
+        public StoredXmlInvalidException(String message) {
+            super(message);
+        }
+    }
 }

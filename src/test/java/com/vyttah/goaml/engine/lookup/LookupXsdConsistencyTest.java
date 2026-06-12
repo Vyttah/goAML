@@ -52,6 +52,18 @@ class LookupXsdConsistencyTest {
         assertLookupSubsetOfEnum("lookups/ae/report_indicators.json", "report_indicator_type");
     }
 
+    /**
+     * The country lookup is the cockpit/feed's authoritative resolver for nationality / residence / address /
+     * identification country codes — an entry the XSD won't accept is a silent field-omission risk in filed XML
+     * (the {@code country_type} fields are optional on the lenient subjects, so the XSD gate can't catch the
+     * loss). Pin {@code countries.json} as a subset of the XSD {@code country_type} enum so the regenerated file
+     * can never silently drift (audit finding A1).
+     */
+    @Test
+    void countriesLookupIsSubsetOfCountryType() throws Exception {
+        assertLookupSubsetOfEnum("lookups/ae/countries.json", "country_type");
+    }
+
     private void assertLookupSubsetOfEnum(String lookupResource, String simpleTypeName) throws Exception {
         Set<String> codes = lookupCodes(lookupResource);
         Set<String> enumValues = xsdEnumValues(simpleTypeName);

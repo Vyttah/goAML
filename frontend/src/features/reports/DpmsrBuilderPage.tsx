@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Button,
@@ -28,6 +28,8 @@ import { buildDpmsrPayload } from '../../lib/dpmsrForm';
 import { toDpmsrPayload } from '../../lib/dpmsrPayload';
 import { validateDpmsr } from '../../lib/dpmsrSchema';
 import { errorMessage } from '../../api/client';
+import { clearDpmsrDraft, loadDpmsrDraft, saveDpmsrDraft } from './dpmsrDraft';
+import { applyZodIssuesToForm } from './dpmsrFieldErrors';
 import type { CreateReportResponse } from '../../types';
 import type { DpmsrCreateRequest } from '../../types/dpmsr';
 
@@ -37,6 +39,8 @@ const INITIAL_VALUES = {
   parties: [{ _type: 'person', person: {} }],
   goods: [{ currencyCode: 'AED' }],
 };
+
+const AUTOSAVE_DEBOUNCE_MS = 600;
 
 /**
  * DPMSR report builder — a guided form mirroring `DpmsrCreateRequest`. On submit it normalizes the
@@ -50,6 +54,28 @@ export function DpmsrBuilderPage() {
   const [result, setResult] = useState<CreateReportResponse | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [zodIssues, setZodIssues] = useState<{ path: string; message: string }[]>([]);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Restore an autosaved draft once on mount (a mid-build reload/expiry doesn't lose the work).
+  useEffect(() => {
+    const draft = loadDpmsrDraft();
+    if (draft) {
+      form.setFieldsValue(draft);
+      setDraftRestored(true);
+    }
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, [form]);
+
+  // Debounced autosave of the raw form values to sessionStorage.
+  const onValuesChange = () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveDpmsrDraft(form.getFieldsValue(true) as Record<string, unknown>);
+    }, AUTOSAVE_DEBOUNCE_MS);
+  };
 
   const onFinish = async (values: Record<string, unknown>) => {
     setSubmitError(null);
@@ -60,11 +86,16 @@ export function DpmsrBuilderPage() {
     const check = validateDpmsr(payload);
     if (!check.ok) {
       setZodIssues(check.issues);
+      applyZodIssuesToForm(form, check.issues);
       return;
     }
 
     try {
       const response = await createReport.mutateAsync(toDpmsrPayload(payload as DpmsrCreateRequest));
+      // The draft is now persisted server-side — drop the local autosave.
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      clearDpmsrDraft();
+      setDraftRestored(false);
       setResult(response);
     } catch (err) {
       setSubmitError(errorMessage(err, 'Failed to create report'));
@@ -79,7 +110,28 @@ export function DpmsrBuilderPage() {
         (report code DPMSR, currency AED) and your entity ID automatically.
       </Typography.Paragraph>
 
-      <Form form={form} layout="vertical" initialValues={INITIAL_VALUES} onFinish={onFinish}>
+      {draftRestored && (
+        <Alert
+          type="info"
+          showIcon
+          closable
+          style={{ marginBottom: 16 }}
+          message="Restored an unsaved draft from this session"
+          description="We recovered your in-progress report. Review the fields, then create & validate when ready."
+          onClose={() => {
+            clearDpmsrDraft();
+            setDraftRestored(false);
+          }}
+        />
+      )}
+
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={INITIAL_VALUES}
+        onFinish={onFinish}
+        onValuesChange={onValuesChange}
+      >
         <Card title="Report header" style={{ marginBottom: 16 }}>
           <Row gutter={12}>
             <Col span={8}>

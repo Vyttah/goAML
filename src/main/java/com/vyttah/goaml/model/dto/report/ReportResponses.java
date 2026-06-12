@@ -66,11 +66,12 @@ public final class ReportResponses {
     public record ReportDetailView(UUID id, String entityReference, String reportCode, String status,
                                    Integer rentityId, OffsetDateTime createdAt, JsonNode input,
                                    List<ValidationMessage> validationMessages, UUID reviewedBy,
-                                   OffsetDateTime reviewedAt, String reviewRemark, boolean hasXml) {
+                                   OffsetDateTime reviewedAt, String reviewRemark, boolean hasXml,
+                                   JsonNode clientMetadata) {
         public static ReportDetailView from(ReportDetail d) {
             return new ReportDetailView(d.id(), d.entityReference(), d.reportCode(), d.status(), d.rentityId(),
                     d.createdAt(), d.input(), d.validationMessages(), d.reviewedBy(), d.reviewedAt(),
-                    d.reviewRemark(), d.hasXml());
+                    d.reviewRemark(), d.hasXml(), d.clientMetadata());
         }
     }
 }

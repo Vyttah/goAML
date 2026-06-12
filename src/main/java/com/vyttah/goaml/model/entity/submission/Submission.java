@@ -36,6 +36,11 @@ public class Submission {
     @Column(nullable = false, length = 16)
     private String status;
 
+    /** The acting MLRO who triggered this submission (D6). Null on poller-driven status updates. */
+    @Setter
+    @Column(name = "submitted_by")
+    private UUID submittedBy;
+
     @Setter
     @Column
     private String errors;

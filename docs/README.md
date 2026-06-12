@@ -3,11 +3,13 @@
 > **Audience:** a developer joining this project who knows nothing about AML, goAML, the
 > business, or this codebase. These docs are written to take you from zero to productive.
 >
-> **Status (as of this writing):** Phases 1–11 **+ 13** of 14 complete, **plus** the XSD-first foundation
-> (domain xjc-generated from the real goAML **5.0.2** XSD + an XSD validation gate + a DPMSR builder) and the
-> Vyttah layer-first refactor. Backend suite green (`./gradlew test`); the **`frontend/` React SPA** (Phase
-> 13) is built with 58 Vitest specs green. Next up: **Phase 14 — infra (Dockerfile + Helm + CI/CD)**, then
-> Phase 12 (plugin/MCP/CLI) last. Live status: [`.planning/STATE.md`](../.planning/STATE.md).
+> **Status (as of this writing):** **all 14 phases complete** (the standalone product), **plus** the
+> XSD-first foundation (domain xjc-generated from the real goAML **5.0.2** XSD + an XSD validation gate + a
+> DPMSR builder), the Vyttah layer-first refactor, and **Phase 1.5** (suite integration + federated auth —
+> 1.5a/b/c all done). Build order ran **13 → 14 → 12** (Phase 12 plugin/MCP/CLI was last). Backend suite green
+> (`./gradlew test`); the **`frontend/` React SPA** is built with Vitest specs green (run on Node 18). What
+> remains is **external go-live** (per-tenant FIU creds, real lookup exports, AWS account) — not build work.
+> Live status & next step: [`.planning/STATE.md`](../.planning/STATE.md).
 
 ---
 
@@ -29,6 +31,7 @@
 | 11 | [11 — Glossary](11-glossary.md) | Every acronym and term in one place. Keep this open in a tab. |
 | 12 | [12 — Frontend (SPA)](12-frontend.md) | The Phase 13 React + Ant Design SPA: stack, layout, how it talks to the API (JWT-claims identity, 401→login), local run, and testing. |
 | 15 | [15 — DPMSR field requirements](15-dpmsr-field-requirements.md) | **Mandatory vs optional** for every DPMSR field (from the goAML XSD), for the frontend "required" markers — incl. the context-dependent person rules + a regeneration recipe. |
+| 16 | [16 — Operations: Backup, DR & Retention](16-operations-dr-retention.md) | **Policy draft (needs sign-off):** RPO/RTO, RDS backup/PITR + restore, S3 versioning/lifecycle, tenant-schema export/restore, the ≥5-year AML records-retention schedule, Flyway rollback stance, and the single-poller topology. |
 | — | [CONVENTIONS.md](CONVENTIONS.md) | The repo's **layer-first folder structure & coding conventions** (Vyttah standard, adapted). The authoritative structure reference. |
 
 ---

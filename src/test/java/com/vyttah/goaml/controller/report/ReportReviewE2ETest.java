@@ -87,37 +87,44 @@ class ReportReviewE2ETest {
     @Test
     void reviewGateRunsValidThroughPendingReviewToApprovedThenSubmits() {
         when(b2bClient.postReport(any(), any(), any())).thenReturn("RK-REV");
-        String mlro = user("mlro", "MLRO");
+        String author = user("author", "MLRO");   // creates + submits-for-review
+        String approver = user("approver", "MLRO"); // a DIFFERENT user approves (A5 segregation of duties)
 
-        String reportId = createValid("REV-1", mlro);
+        String reportId = createValid("REV-1", author);
 
         // submit directly → blocked, must be APPROVED
-        ResponseEntity<JsonNode> early = post("/api/v1/reports/" + reportId + "/submit", "", mlro);
+        ResponseEntity<JsonNode> early = post("/api/v1/reports/" + reportId + "/submit", "", author);
         assertThat(early.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(early.getBody().get("message").asText()).contains("must be APPROVED");
 
         // submit for review → PENDING_REVIEW, shows in the queue
-        ResponseEntity<JsonNode> forReview = post("/api/v1/reports/" + reportId + "/submit-for-review", "", mlro);
+        ResponseEntity<JsonNode> forReview = post("/api/v1/reports/" + reportId + "/submit-for-review", "", author);
         assertThat(forReview.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(forReview.getBody().get("status").asText()).isEqualTo("PENDING_REVIEW");
-        assertThat(get("/api/v1/reports/review-queue", mlro).getBody().toString()).contains("REV-1");
+        assertThat(get("/api/v1/reports/review-queue", approver).getBody().toString()).contains("REV-1");
 
-        // approve → APPROVED with reviewer recorded
+        // A5: the AUTHOR cannot approve their own report → 409 (still PENDING_REVIEW)
+        ResponseEntity<JsonNode> selfApprove = post("/api/v1/reports/" + reportId + "/approve",
+                "{\"remark\":\"self\"}", author);
+        assertThat(selfApprove.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(selfApprove.getBody().get("message").asText()).contains("author");
+
+        // a DIFFERENT reviewer approves → APPROVED with reviewer recorded
         ResponseEntity<JsonNode> approved = post("/api/v1/reports/" + reportId + "/approve",
-                "{\"remark\":\"looks good\"}", mlro);
+                "{\"remark\":\"looks good\"}", approver);
         assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(approved.getBody().get("status").asText()).isEqualTo("APPROVED");
         assertThat(approved.getBody().get("reviewedBy").isNull()).isFalse();
 
         // the D.3 read view surfaces the review trail (reviewer + remark) from the approval
-        ResponseEntity<JsonNode> detail = get("/api/v1/reports/" + reportId + "/detail", mlro);
+        ResponseEntity<JsonNode> detail = get("/api/v1/reports/" + reportId + "/detail", approver);
         assertThat(detail.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(detail.getBody().get("status").asText()).isEqualTo("APPROVED");
         assertThat(detail.getBody().get("reviewedBy").isNull()).isFalse();
         assertThat(detail.getBody().get("reviewRemark").asText()).isEqualTo("looks good");
 
-        // now submit succeeds
-        ResponseEntity<JsonNode> submitted = post("/api/v1/reports/" + reportId + "/submit", "", mlro);
+        // now submit succeeds (by the MLRO approver)
+        ResponseEntity<JsonNode> submitted = post("/api/v1/reports/" + reportId + "/submit", "", approver);
         assertThat(submitted.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(submitted.getBody().get("status").asText()).isEqualTo("SUBMITTED");
     }

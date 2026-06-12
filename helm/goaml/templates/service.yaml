@@ -13,3 +13,5 @@ spec:
       name: http
   selector:
     {{- include "goaml.selectorLabels" . | nindent 4 }}
+    # Route only to the request-serving pods, never the dedicated poller pod (poller.dedicated).
+    goaml.io/role: web

@@ -18,4 +18,7 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     List<Notification> findByRecipientUserIdAndReadAtIsNullOrderByCreatedAtDesc(UUID recipientUserId);
 
     Optional<Notification> findByIdAndRecipientUserId(UUID id, UUID recipientUserId);
+
+    /** B6 delete-guard: does this user have any notification in the current tenant? */
+    boolean existsByRecipientUserId(UUID recipientUserId);
 }
