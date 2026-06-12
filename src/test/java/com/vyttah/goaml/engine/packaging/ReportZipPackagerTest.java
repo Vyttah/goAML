@@ -75,6 +75,41 @@ class ReportZipPackagerTest {
                 .hasMessageContaining("Attachment count");
     }
 
+    @Test
+    void slashedEntityReferenceBecomesAFlatEntryName() throws Exception {
+        // entity_reference values like "INV/2026/001" must not nest directories inside the submission ZIP
+        byte[] xml = "<report/>".getBytes(StandardCharsets.UTF_8);
+
+        byte[] zip = packager.zip(xml, "INV/2026/001.xml", List.of(), PackagingLimits.UAE_DEFAULT);
+
+        assertThat(readZip(zip)).containsOnlyKeys("INV_2026_001.xml");
+    }
+
+    @Test
+    void dotDotSegmentsCannotEscapeTheZipRoot() throws Exception {
+        byte[] xml = "<report/>".getBytes(StandardCharsets.UTF_8);
+        Attachment sneaky = new Attachment("../../etc/passwd.pdf",
+                "X".getBytes(StandardCharsets.UTF_8), "application/pdf");
+
+        byte[] zip = packager.zip(xml, "report.xml", List.of(sneaky), PackagingLimits.UAE_DEFAULT);
+
+        Map<String, byte[]> entries = readZip(zip);
+        assertThat(entries.keySet()).allSatisfy(name -> {
+            assertThat(name).doesNotContain("/").doesNotContain("\\").doesNotContain("..");
+        });
+        assertThat(entries).containsKey("etc_passwd.pdf");
+    }
+
+    @Test
+    void sanitizeEntryNameReplacesCollapsesAndBoundsLength() {
+        assertThat(ReportZipPackager.sanitizeEntryName("PAY-1.xml")).isEqualTo("PAY-1.xml");
+        assertThat(ReportZipPackager.sanitizeEntryName("a  b!!c.pdf")).isEqualTo("a_b_c.pdf");
+        assertThat(ReportZipPackager.sanitizeEntryName("..")).isEqualTo("attachment");
+        String longName = "x".repeat(300) + ".xml";
+        String bounded = ReportZipPackager.sanitizeEntryName(longName);
+        assertThat(bounded).hasSizeLessThanOrEqualTo(128).endsWith(".xml");
+    }
+
     // ----- helpers -----
 
     private static Map<String, byte[]> readZip(byte[] zip) throws Exception {

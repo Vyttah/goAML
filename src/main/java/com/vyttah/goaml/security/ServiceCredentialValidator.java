@@ -9,6 +9,9 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
@@ -49,6 +52,8 @@ import java.util.List;
 @RequiredArgsConstructor
 @Component
 public class ServiceCredentialValidator {
+
+    private static final Logger log = LoggerFactory.getLogger(ServiceCredentialValidator.class);
 
     /** Inbound assertions must target goAML. */
     static final String EXPECTED_AUDIENCE = "goaml";
@@ -144,8 +149,10 @@ public class ServiceCredentialValidator {
     private void consumeOnce(String jti, SourceSystem sourceSystem, Instant expiresAt) {
         try {
             consumedAssertions.deleteExpired(OffsetDateTime.now(ZoneOffset.UTC));
-        } catch (RuntimeException ignored) {
-            // Cleanup is best-effort; never let it block a legitimate verification.
+        } catch (DataAccessException e) {
+            // Cleanup is best-effort; never let a store hiccup block a legitimate verification — but a
+            // narrow catch + a log line means a real failure is at least visible (it used to be silent).
+            log.debug("Expired-assertion cleanup failed (continuing): {}", e.getMessage());
         }
         if (consumedAssertions.existsById(jti)) {
             throw new ServiceCredentialException("Service assertion has already been used (replay)");

@@ -93,6 +93,40 @@ class CsvImporterTest {
     }
 
     @Test
+    void countryOfBirthComesOnlyFromItsOwnColumnNeverFromNationality() {
+        // person_country_of_birth ≠ person_nationality — they are distinct facts and must map separately
+        when(reportService.create(any(DpmsrCreateRequest.class), any(), any()))
+                .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()));
+        String header = HEADER + ",person_country_of_birth";
+
+        importer(500).importCsv((header + "\n"
+                + "REF-CB,2026-05-26,,cash sale,A,IND1,Sara,Khan,PERSON,buyer,John,Doe,1990-01-01,AE,784,"
+                + ",,,GOLD,1kg bar,60000,AED,SOLD,PK\n").getBytes(StandardCharsets.UTF_8), tenantId, actor);
+
+        ArgumentCaptor<DpmsrCreateRequest> req = ArgumentCaptor.forClass(DpmsrCreateRequest.class);
+        verify(reportService).create(req.capture(), any(), any());
+        DpmsrCreateRequest.Person person = req.getValue().parties().get(0).person();
+        assertThat(person.nationality()).isEqualTo("AE");
+        assertThat(person.countryOfBirth()).isEqualTo("PK");
+    }
+
+    @Test
+    void absentCountryOfBirthColumnLeavesItNullNotFabricated() {
+        when(reportService.create(any(DpmsrCreateRequest.class), any(), any()))
+                .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()));
+
+        importer(500).importCsv(csv(
+                "REF-NB,2026-05-26,,cash sale,A,IND1,Sara,Khan,PERSON,buyer,John,Doe,1990-01-01,AE,784,,,,GOLD,1kg bar,60000,AED,SOLD"
+        ), tenantId, actor);
+
+        ArgumentCaptor<DpmsrCreateRequest> req = ArgumentCaptor.forClass(DpmsrCreateRequest.class);
+        verify(reportService).create(req.capture(), any(), any());
+        DpmsrCreateRequest.Person person = req.getValue().parties().get(0).person();
+        assertThat(person.nationality()).isEqualTo("AE");
+        assertThat(person.countryOfBirth()).as("never fabricated from nationality").isNull();
+    }
+
+    @Test
     void entityRowMapsEntityParty() {
         when(reportService.create(any(DpmsrCreateRequest.class),any(), any()))
                 .thenReturn(new ReportResult(UUID.randomUUID(), "VALID", List.of()));

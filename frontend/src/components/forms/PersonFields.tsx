@@ -8,9 +8,11 @@ type NamePath = (string | number)[];
 /**
  * Person sub-form: identity + nationality/residence (country lookups), phone, address, and a dynamic
  * list of identifications. `name` is the path prefix to the person object (e.g. `['reportingPerson']`
- * or `[partyIndex, 'person']`).
+ * or `[partyIndex, 'person']`). `requireName` (default true) marks first/last name required — the
+ * reporting-person section turns it off because the whole section is optional (the server fills the
+ * tenant's configured MLRO when omitted).
  */
-export function PersonFields({ name }: { name: NamePath }) {
+export function PersonFields({ name, requireName = true }: { name: NamePath; requireName?: boolean }) {
   return (
     <>
       <Row gutter={12}>
@@ -20,12 +22,12 @@ export function PersonFields({ name }: { name: NamePath }) {
           </Form.Item>
         </Col>
         <Col span={9}>
-          <Form.Item label="First name" name={[...name, 'firstName']} rules={[{ required: true }]}>
+          <Form.Item label="First name" name={[...name, 'firstName']} rules={[{ required: requireName }]}>
             <Input />
           </Form.Item>
         </Col>
         <Col span={9}>
-          <Form.Item label="Last name" name={[...name, 'lastName']} rules={[{ required: true }]}>
+          <Form.Item label="Last name" name={[...name, 'lastName']} rules={[{ required: requireName }]}>
             <Input />
           </Form.Item>
         </Col>

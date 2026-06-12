@@ -70,10 +70,12 @@ class ImportApiE2ETest {
         tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "imp-e2e-" + UUID.randomUUID().toString().substring(0, 8), "Import E2E FZE", "AE",
                 "admin-" + UUID.randomUUID() + "@e2e.test", "P@ssw0rd!", "Adm", "In"));
+        // rentity_id 101 matches golden/DPMSR.xml — the importer rejects files whose rentity_id differs
+        // from the tenant's configured reporting entity.
         jdbcTemplate.update("""
                 INSERT INTO public.tenant_goaml_config
                   (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
-                VALUES (?, ?, 'AE', 3177, 'https://goaml.test/uae', 'goaml/imp/creds', 'TOKEN')
+                VALUES (?, ?, 'AE', 101, 'https://goaml.test/uae', 'goaml/imp/creds', 'TOKEN')
                 """, UUID.randomUUID(), tenant.getId());
     }
 

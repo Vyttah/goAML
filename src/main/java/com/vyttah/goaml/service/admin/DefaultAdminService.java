@@ -22,6 +22,7 @@ import com.vyttah.goaml.repository.notification.NotificationRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.security.UserStatusCache;
 import com.vyttah.goaml.service.audit.AuditService;
 import com.vyttah.goaml.service.tenant.TenantProvisioningService;
 import lombok.RequiredArgsConstructor;
@@ -62,6 +63,7 @@ public class DefaultAdminService implements AdminService {
     private final JurisdictionRegistry jurisdictionRegistry;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
+    private final UserStatusCache userStatusCache;
 
     @Override
     public Tenant provisionTenant(TenantProvisioningRequest request) {
@@ -131,6 +133,8 @@ public class DefaultAdminService implements AdminService {
         user.setSingleRole(role);
         user.setStatus(status);
         appUserRepository.save(user);
+        // Drop the cached ACTIVE verdict so a disable takes effect on the next request, not after the TTL.
+        userStatusCache.evict(userId);
         auditService.record("ADMIN.USER_UPDATE", null, null, TenantContext.get(),
                 "updated user " + user.getEmail() + " [" + roleName + ", " + status + "]");
         return user;
@@ -158,6 +162,8 @@ public class DefaultAdminService implements AdminService {
                             + "deleted — disable the user instead");
         }
         appUserRepository.delete(user); // shared FKs (user_role, refresh_token, external_identity) cascade
+        // Drop the cached ACTIVE verdict so the deleted user's live tokens are rejected immediately.
+        userStatusCache.evict(userId);
         auditService.record("ADMIN.USER_DELETE", null, null, TenantContext.get(),
                 "deleted user " + user.getEmail());
     }

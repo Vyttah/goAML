@@ -9,7 +9,7 @@ const base = {
 };
 
 describe('toDpmsrPayload', () => {
-  it('maps a person party to personMyClient and wraps phone with schema field names', () => {
+  it('maps a person party to the plain person slot and wraps phone with schema field names', () => {
     const req: DpmsrCreateRequest = {
       ...base,
       reportingPerson: { firstName: 'A', lastName: 'B', nationality: 'AE', ssn: '784', phone: { number: '050' } },
@@ -19,12 +19,13 @@ describe('toDpmsrPayload', () => {
 
     const out = toDpmsrPayload(req);
 
-    expect(out.reportingPerson.nationality1).toBe('AE');
-    expect(out.reportingPerson.ssn).toBe('784');
-    expect(out.reportingPerson.phones?.phone[0].tphNumber).toBe('050');
-    expect(out.parties[0].personMyClient?.firstName).toBe('J');
-    expect(out.parties[0].personMyClient?.passportNumber).toBe('P1');
-    expect(out.parties[0]).not.toHaveProperty('person');
+    expect(out.reportingPerson?.nationality1).toBe('AE');
+    expect(out.reportingPerson?.ssn).toBe('784');
+    expect(out.reportingPerson?.phones?.phone[0].tphNumber).toBe('050');
+    expect(out.parties[0].person?.firstName).toBe('J');
+    expect(out.parties[0].person?.passportNumber).toBe('P1');
+    // UAE DPMSR activity-report parties are plain person/entity — never the *_my_client variants.
+    expect(out.parties[0]).not.toHaveProperty('personMyClient');
     expect(out.goods[0].disposedValue).toBe(91000);
     expect(out.goods[0].registrationNumber).toBe('INV-1');
   });
@@ -53,7 +54,8 @@ describe('toDpmsrPayload', () => {
     expect(e.addresses?.address[0].address).toBe('AL RAS');
     expect(e.directorId?.[0].ssn).toBe('784198');
     expect(e.directorId?.[0].role).toBe('PRTNR');
-    expect(out.parties[0]).not.toHaveProperty('personMyClient');
+    expect(out.parties[0]).not.toHaveProperty('person');
+    expect(out.parties[0]).not.toHaveProperty('entityMyClient');
   });
 
   it('prunes empty wrappers and undefined fields but preserves a zero value', () => {
@@ -67,7 +69,20 @@ describe('toDpmsrPayload', () => {
 
     expect(out.reportingPerson).not.toHaveProperty('phones');
     expect(out.reportingPerson).not.toHaveProperty('ssn');
-    expect(out.parties[0].personMyClient).not.toHaveProperty('identification');
+    expect(out.parties[0].person).not.toHaveProperty('identification');
     expect(out.goods[0].estimatedValue).toBe(0);
+  });
+
+  it('omits reportingPerson entirely when not supplied (server fills the configured MLRO)', () => {
+    const req: DpmsrCreateRequest = {
+      entityReference: 'REF',
+      submissionDate: '2026-06-06T00:00:00Z',
+      parties: [{ person: { firstName: 'J', lastName: 'D' } }],
+      goods: [{ itemType: 'GOLD', estimatedValue: 90000 }],
+    };
+
+    const out = toDpmsrPayload(req);
+
+    expect(out).not.toHaveProperty('reportingPerson');
   });
 });

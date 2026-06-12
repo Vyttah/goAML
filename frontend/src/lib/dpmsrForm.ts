@@ -2,7 +2,9 @@ import dayjs from 'dayjs';
 
 /**
  * Turn raw AntD form values into the `DpmsrCreateRequest` JSON the backend expects:
- *  - Dayjs date values → ISO-8601 strings (OffsetDateTime),
+ *  - Dayjs date values → the picked local calendar date pinned to UTC midnight
+ *    (`YYYY-MM-DDT00:00:00Z`) so the date the user saw is the date that is filed — `.toISOString()`
+ *    would shift a UAE (+04:00) local-midnight birthdate to the previous day 20:00Z,
  *  - each party reduced to its selected branch (person XOR entity) via the UI-only `_type` flag,
  *  - empty strings / nulls / empty objects + arrays pruned so absent = not provided.
  *
@@ -18,7 +20,7 @@ function isEmpty(value: unknown): boolean {
 }
 
 function deepNormalize(value: unknown): unknown {
-  if (dayjs.isDayjs(value)) return value.toISOString();
+  if (dayjs.isDayjs(value)) return `${value.format('YYYY-MM-DD')}T00:00:00Z`;
   if (typeof value === 'string') return value.trim();
   if (Array.isArray(value)) {
     return value.map(deepNormalize).filter((v) => !isEmpty(v));

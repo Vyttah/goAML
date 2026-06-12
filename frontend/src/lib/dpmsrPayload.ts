@@ -14,7 +14,7 @@ import type {
   EntityJson,
   IdentificationJson,
   PartyJson,
-  PersonMyClientJson,
+  PersonJson,
   PhoneJson,
   PhonesWrapper,
   ReportingPersonJson,
@@ -24,7 +24,10 @@ import type {
  * Adapts the curated flat form shape ({@link DpmsrCreateRequest}) onto the backend's full-fidelity
  * {@link DpmsrReportPayload} (the xjc wrapper shape). Without this, the schema's wrapper elements
  * (`phones`/`addresses`/`directorId`/inline `identification`) and the renamed fields (`nationality1`,
- * `tphNumber`, `personMyClient`) wouldn't bind — phones/addresses/directors would be silently dropped.
+ * `tphNumber`) wouldn't bind — phones/addresses/directors would be silently dropped.
+ *
+ * Person parties bind to the plain `person` slot (lenient t_person), not `personMyClient` — UAE DPMSR
+ * activity-report parties are plain person/entity, matching the backend curated path and the FIU samples.
  *
  * The form is validated (Zod) on the curated shape first; this runs last, just before the POST.
  */
@@ -48,7 +51,10 @@ function identifications(ids?: DpmsrIdentification[]): IdentificationJson[] | un
   return ids && ids.length > 0 ? ids : undefined;
 }
 
-function reportingPerson(p: DpmsrPerson): ReportingPersonJson {
+function reportingPerson(
+  p: DpmsrCreateRequest['reportingPerson'],
+): ReportingPersonJson | undefined {
+  if (!p) return undefined;
   return {
     gender: p.gender,
     firstName: p.firstName,
@@ -66,7 +72,7 @@ function reportingPerson(p: DpmsrPerson): ReportingPersonJson {
   };
 }
 
-function personMyClient(p: DpmsrPerson): PersonMyClientJson {
+function partyPerson(p: DpmsrPerson): PersonJson {
   return {
     gender: p.gender,
     firstName: p.firstName,
@@ -124,7 +130,7 @@ function party(p: DpmsrCreateRequest['parties'][number]): PartyJson {
     reason: p.reason,
     comments: p.comments,
     entity: p.entity ? entity(p.entity) : undefined,
-    personMyClient: p.person ? personMyClient(p.person) : undefined,
+    person: p.person ? partyPerson(p.person) : undefined,
   };
 }
 

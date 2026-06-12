@@ -58,9 +58,22 @@ public class GoamlXmlImporter {
                     "A report already exists with entity_reference " + entityReference);
         }
 
+        Optional<TenantGoamlConfig> config = configRepository.findByTenantId(tenantId);
+
+        // Tenant binding: when the tenant has a configured reporting entity, an imported file claiming a
+        // DIFFERENT rentity_id is someone else's report — reject it instead of silently filing it under
+        // this tenant. (No config yet → no authoritative id to check against; the report stays INVALID
+        // until config exists anyway.)
+        Integer configuredRentityId = config.map(TenantGoamlConfig::getRentityId).orElse(null);
+        if (configuredRentityId != null && configuredRentityId != tree.getRentityId()) {
+            return ImportRowResult.failed(ROW, entityReference,
+                    "rentity_id " + tree.getRentityId() + " in the goAML XML does not match this tenant's "
+                            + "configured reporting entity (" + configuredRentityId + ")");
+        }
+
         // Re-marshal to canonical XML, then validate that (XSD) + the tree (business rules).
         byte[] canonical = marshaller.marshal(tree);
-        String jurisdiction = configRepository.findByTenantId(tenantId)
+        String jurisdiction = config
                 .map(c -> c.getJurisdictionCode().toLowerCase())
                 .orElse("ae");
 

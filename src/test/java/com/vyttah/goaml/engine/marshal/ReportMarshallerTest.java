@@ -46,6 +46,28 @@ class ReportMarshallerTest {
                 .isInstanceOf(MarshallingException.class);
     }
 
+    @Test
+    void unmarshalRejectsDoctypeAndNeverResolvesExternalEntities() {
+        // XXE hardening: caller-supplied XML (the goAML XML import) must not be able to declare a DOCTYPE,
+        // let alone pull file/network entities — the hardened SAX reader rejects it safely up front.
+        byte[] xxe = ("""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE report [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+                <report><entity_reference>&xxe;</entity_reference></report>
+                """).getBytes(StandardCharsets.UTF_8);
+
+        Throwable t = catchThrowable(() -> marshaller.unmarshal(xxe));
+        assertThat(t).isInstanceOf(MarshallingException.class);
+        assertThat(rootMessage(t)).containsIgnoringCase("doctype");
+    }
+
+    private static String rootMessage(Throwable t) {
+        while (t.getCause() != null && t.getCause() != t) {
+            t = t.getCause();
+        }
+        return String.valueOf(t.getMessage());
+    }
+
     private static Throwable catchThrowable(ThrowingRunnable r) {
         try { r.run(); return null; } catch (Throwable t) { return t; }
     }

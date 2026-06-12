@@ -3,6 +3,7 @@ package com.vyttah.goaml.config.tenant;
 import com.vyttah.goaml.GoamlApplication;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,6 +18,7 @@ import javax.sql.DataSource;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * A2 verification: the boot-time tenant-schema migrator brings an existing tenant schema — provisioned
@@ -85,6 +87,51 @@ class TenantSchemaMigratorTest {
         assertThat(columnExists(schema, "report", "client_metadata"))
                 .as("the migrator brought the existing tenant schema up to V8")
                 .isTrue();
+    }
+
+    @Autowired
+    MeterRegistry meterRegistry;
+
+    @Autowired
+    TenantMigrationProperties properties;
+
+    /**
+     * Failure isolation (default mode): one tenant whose migration fails (a non-empty schema with no Flyway
+     * history → Flyway refuses) must not stop the other tenants from being migrated — it is logged, counted
+     * on the failure metric, and skipped. With {@code fail-fast=true} the same situation aborts the sweep.
+     */
+    @Test
+    void aFailingTenantIsSkippedCountedAndDoesNotBlockTheOthersUnlessFailFast() {
+        tenantRepository.deleteAll();
+
+        // BAD tenant: a pre-existing non-empty schema without Flyway history → migrate() throws.
+        UUID badId = UUID.randomUUID();
+        String badSchema = "tenant_" + badId.toString().replace("-", "");
+        jdbc.execute("CREATE SCHEMA \"" + badSchema + "\"");
+        jdbc.execute("CREATE TABLE \"" + badSchema + "\".legacy_junk (id INT)");
+        tenantRepository.save(new Tenant(badId, "bad-" + badId, "Bad Tenant", "AE", badSchema, "ACTIVE"));
+
+        // GOOD tenant: a fresh schema Flyway can migrate from scratch.
+        UUID goodId = UUID.randomUUID();
+        String goodSchema = "tenant_" + goodId.toString().replace("-", "");
+        tenantRepository.save(new Tenant(goodId, "good-" + goodId, "Good Tenant", "AE", goodSchema, "ACTIVE"));
+
+        int migrated = migrator.migrateAllActiveTenants();
+
+        assertThat(migrated).as("the good tenant still migrated").isEqualTo(1);
+        assertThat(columnExists(goodSchema, "report", "client_metadata")).isTrue();
+        assertThat(meterRegistry.get("goaml.tenant.migration.failures")
+                .tag("tenant", badId.toString()).counter().count())
+                .as("the failed tenant fired the alert metric").isEqualTo(1.0);
+
+        // fail-fast mode restores the old all-or-nothing boot behavior.
+        TenantSchemaMigrator failFast = new TenantSchemaMigrator(
+                tenantRepository, dataSource, properties, meterRegistry, true);
+        assertThatThrownBy(failFast::migrateAllActiveTenants)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(badId.toString());
+
+        tenantRepository.deleteAll();
     }
 
     private boolean columnExists(String schema, String table, String column) {

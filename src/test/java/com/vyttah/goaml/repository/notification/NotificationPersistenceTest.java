@@ -58,6 +58,11 @@ class NotificationPersistenceTest {
                     reportId, "Report rejected", "The FIU rejected your report."));
             notificationRepository.saveAndFlush(new Notification(UUID.randomUUID(), other, "REPORT_FAILED",
                     reportId, "Submission failed", "A transport error occurred."));
+            // V10: REPORT_PENDING_REVIEW (the MLRO awaiting-review ping) must pass the type CHECK — the
+            // V9 constraint omitted it, so this insert used to violate the constraint.
+            notificationRepository.saveAndFlush(new Notification(UUID.randomUUID(), other,
+                    "REPORT_PENDING_REVIEW", reportId, "Report awaiting submission",
+                    "A validated draft awaits MLRO review."));
             return null;
         });
 

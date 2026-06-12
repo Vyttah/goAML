@@ -31,7 +31,8 @@ public class SubmissionStatusPoller {
 
     private static final String SUBMITTED = "SUBMITTED";
     private static final String ACTIVE = "ACTIVE";
-    /** B8/decision #4: per-tenant poll-failure counter; G-OPS alerts on {@code goaml_poller_errors_total}. */
+    /** B8/decision #4: poll-failure counter (per-tenant AND per-report failures); G-OPS alerts on
+     *  {@code goaml_poller_errors_total}. */
     static final String POLLER_ERRORS_METRIC = "goaml.poller.errors";
 
     private final TenantRepository tenantRepository;
@@ -50,7 +51,7 @@ public class SubmissionStatusPoller {
         this.retryService = retryService;
         this.properties = properties;
         this.pollerErrors = Counter.builder(POLLER_ERRORS_METRIC)
-                .description("Per-tenant FIU status-poll failures (the cycle continues; the tenant is skipped)")
+                .description("FIU status-poll failures, per tenant and per report (the cycle continues; the failed item is skipped)")
                 .register(meterRegistry);
     }
 
@@ -96,6 +97,9 @@ public class SubmissionStatusPoller {
                         succeeded++;
                     } catch (RuntimeException e) {
                         skipped++;
+                        // Count per-REPORT failures too — during an FIU outage every refresh fails here
+                        // (not in the per-tenant catch), and the G-OPS alert must still fire.
+                        pollerErrors.increment();
                         log.warn("Skipping report {} (tenant {}): {}",
                                 report.getId(), tenant.getId(), e.getMessage());
                     }

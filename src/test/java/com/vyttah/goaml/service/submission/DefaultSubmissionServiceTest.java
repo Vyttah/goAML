@@ -67,6 +67,8 @@ class DefaultSubmissionServiceTest {
         // exercise the tampered-XML path override this. Unit-mocked so the dummy fixture XML need not be
         // XSD-perfect; the real re-validation is integration-covered via the engine elsewhere.
         when(xsdSchemaValidator.validate(any())).thenReturn(new ValidationResult());
+        // The atomic submit-claim succeeds by default; the conflict test overrides it to 0.
+        when(reportRepository.claimForSubmission(any(), any())).thenReturn(1);
     }
 
     private Report validReport() {
@@ -117,6 +119,50 @@ class DefaultSubmissionServiceTest {
         assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
                 .isInstanceOf(SubmissionExceptions.StoredXmlInvalidException.class);
         verify(b2bClient, never()).postReport(any(), any(), any());
+    }
+
+    @Test
+    void concurrentSubmitLosingTheClaimIsConflictAndNeverReachesTheFiu() {
+        // The double-submit race: the status read said VALID, but another submit claimed the report first —
+        // the CAS update matches 0 rows and this caller must 409 without packaging or calling the FIU.
+        Report report = validReport();
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        when(reportRepository.claimForSubmission(report.getId(), "VALID")).thenReturn(0);
+
+        assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
+                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class)
+                .hasMessageContaining("concurrent");
+        verify(b2bClient, never()).postReport(any(), any(), any());
+        verify(submissionRepository, never()).save(any());
+    }
+
+    @Test
+    void submitClaimsBeforeAnyFiuTraffic() {
+        Report report = validReport();
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        stubConfig();
+        when(b2bClient.postReport(any(), any(), any())).thenReturn("RK-1");
+
+        service.submit(report.getId(), tenantId, actor);
+
+        var order = org.mockito.Mockito.inOrder(reportRepository, b2bClient);
+        order.verify(reportRepository).claimForSubmission(report.getId(), "VALID");
+        order.verify(b2bClient).postReport(any(), any(), any());
+    }
+
+    @Test
+    void missingStoredXmlIsConflictNotNpe() {
+        Report report = validReport();
+        report.setReportXml(null);
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
+                .isInstanceOf(SubmissionExceptions.StoredXmlInvalidException.class)
+                .hasMessageContaining("no stored XML");
+        verify(b2bClient, never()).postReport(any(), any(), any());
+        // the SUBMITTING claim was rolled back to the submittable status
+        assertThat(report.getStatus()).isEqualTo("VALID");
+        verify(reportRepository).save(report);
     }
 
     @Test
@@ -216,6 +262,71 @@ class DefaultSubmissionServiceTest {
 
         assertThat(submission.getStatus()).isEqualTo("SUBMITTED");
         // no transition (SUBMITTED → SUBMITTED) → no notification
+        verify(notificationService, never()).notifyReportTransition(any(), any(), any());
+    }
+
+    @Test
+    void refreshStatusNeverMapsNotAcceptedToAccepted() {
+        // The old contains("accept") matching mapped "Not Accepted" → ACCEPTED. It is not a known terminal
+        // status string, so it must stay SUBMITTED (polling continues) — never a false acceptance.
+        Report report = validReport();
+        report.setStatus("SUBMITTED");
+        Submission submission = new Submission(UUID.randomUUID(), report.getId(), "SUBMITTED");
+        submission.setReportkey("RK-1");
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        when(submissionRepository.findByReportIdOrderBySubmittedAtDesc(report.getId()))
+                .thenReturn(List.of(submission));
+        stubConfig();
+        when(b2bClient.getReportStatus(any(), any()))
+                .thenReturn(new ReportStatus("RK-1", "Not Accepted", null));
+
+        service.refreshStatus(report.getId(), tenantId);
+
+        assertThat(report.getStatus()).isEqualTo("SUBMITTED");
+        assertThat(submission.getStatus()).isEqualTo("SUBMITTED");
+        verify(notificationService, never()).notifyReportTransition(any(), any(), any());
+    }
+
+    @Test
+    void refreshStatusUnknownFiuStringStaysSubmitted() {
+        Report report = validReport();
+        report.setStatus("SUBMITTED");
+        Submission submission = new Submission(UUID.randomUUID(), report.getId(), "SUBMITTED");
+        submission.setReportkey("RK-1");
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        when(submissionRepository.findByReportIdOrderBySubmittedAtDesc(report.getId()))
+                .thenReturn(List.of(submission));
+        stubConfig();
+        when(b2bClient.getReportStatus(any(), any()))
+                .thenReturn(new ReportStatus("RK-1", "Some Future Status", null));
+
+        service.refreshStatus(report.getId(), tenantId);
+
+        assertThat(report.getStatus()).isEqualTo("SUBMITTED");
+        assertThat(submission.getStatus()).isEqualTo("SUBMITTED");
+    }
+
+    @Test
+    void refreshStatusNeverRegressesATerminalStatusOnAnUnknownFiuString() {
+        // A report the FIU already ACCEPTED must keep that outcome even if a later poll returns an
+        // unknown/in-flight status string — no downgrade back to SUBMITTED.
+        Report report = validReport();
+        report.setStatus("ACCEPTED");
+        Submission submission = new Submission(UUID.randomUUID(), report.getId(), "ACCEPTED");
+        submission.setReportkey("RK-1");
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+        when(submissionRepository.findByReportIdOrderBySubmittedAtDesc(report.getId()))
+                .thenReturn(List.of(submission));
+        stubConfig();
+        when(b2bClient.getReportStatus(any(), any()))
+                .thenReturn(new ReportStatus("RK-1", "Processing", null));
+
+        service.refreshStatus(report.getId(), tenantId);
+
+        assertThat(report.getStatus()).isEqualTo("ACCEPTED");
+        assertThat(submission.getStatus()).isEqualTo("ACCEPTED");
+        verify(reportRepository, never()).save(any());
+        verify(submissionRepository, never()).save(any());
         verify(notificationService, never()).notifyReportTransition(any(), any(), any());
     }
 

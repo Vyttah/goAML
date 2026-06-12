@@ -115,14 +115,23 @@ its origin in the CORS allow-list (`goaml.web.cors.*`).
 submitting (detection rules live in goAML — no rule drift across apps):
 
 ```json
-{ "amount": 90000, "currencyCode": "AED", "involvesPreciousMetalsOrStones": true }
+{ "amount": 90000, "currencyCode": "AED", "involvesPreciousMetalsOrStones": true,
+  "fundsType": "WIRE_TRANSFER", "counterpartyType": "LEGAL_ENTITY",
+  "wireScope": "INTERNATIONAL", "viaExchangeHouse": false }
 ```
 
-→ `{ "reportable": true, "reasons": ["cash ≥ AED 55,000", "precious-metals/stones dealing"] }`
+→ `{ "reportable": true, "reasons": ["International wire transfer … meets the DPMS threshold — reportable (UAE FIU goAML FAQ v1.10 Q51)"], "thresholdAed": 55000 }`
 
 `currencyCode` defaults to AED and **v1 checks AED only** (a non-AED currency is rejected — the caller
-converts first); `involvesPreciousMetalsOrStones` defaults to `true`. The DPMS cash threshold is
-**AED 55,000**.
+converts first); `involvesPreciousMetalsOrStones` defaults to `true`. The threshold is **AED 55,000**.
+
+The four funds-flow fields are **optional and additive** — omitting them keeps the original cash-trigger
+behavior. When supplied, the verdict follows the official trigger table (MOE Circular 08/AML/2021 + UAE
+FIU goAML FAQ v1.10 Q51; see [01 — Business Context](01-business-context.md) §6 for the table and the
+2025 legal-basis update): individual non-cash payments and cheques/cards are never reportable; company
+wires ≥ AED 55,000 are reportable except a local UAE bank wire not routed via an exchange house; all
+international wires ≥ AED 55,000 are reportable. Unknown wire details on an explicit wire are flagged
+reportable-for-review (conservative). Every reason cites the rule that fired.
 
 ---
 

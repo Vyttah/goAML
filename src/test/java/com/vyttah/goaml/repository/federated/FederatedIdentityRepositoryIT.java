@@ -2,6 +2,7 @@ package com.vyttah.goaml.repository.federated;
 
 import com.vyttah.goaml.GoamlApplication;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
+import com.vyttah.goaml.model.entity.federated.ConsumedAssertion;
 import com.vyttah.goaml.model.entity.federated.ExternalIdentity;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
 import com.vyttah.goaml.model.entity.federated.TenantExternalRef;
@@ -21,6 +22,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +47,7 @@ class FederatedIdentityRepositoryIT {
     @Autowired ExternalIdentityRepository externalIdentities;
     @Autowired TenantExternalRefRepository tenantExternalRefs;
     @Autowired TenantGoamlConfigRepository goamlConfigs;
+    @Autowired ConsumedAssertionRepository consumedAssertions;
 
     @Test
     void roundTripsTrustedServiceExternalIdentityAndTenantRef() {
@@ -88,6 +92,23 @@ class FederatedIdentityRepositoryIT {
         assertThatThrownBy(() -> externalIdentities.saveAndFlush(new ExternalIdentity(
                 UUID.randomUUID(), SourceSystem.SCREENING, "dup-user", null, admin.getId())))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void deleteExpiredPurgesOnlyExpiredConsumedAssertions() {
+        // Called from the auth filter with no surrounding transaction — the @Transactional on the repository
+        // method must open its own, or the @Modifying query throws and cleanup silently never runs.
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        consumedAssertions.save(new ConsumedAssertion("it-expired-jti", SourceSystem.ACCOUNTING,
+                now.minusMinutes(10)));
+        consumedAssertions.save(new ConsumedAssertion("it-live-jti", SourceSystem.ACCOUNTING,
+                now.plusMinutes(10)));
+
+        int deleted = consumedAssertions.deleteExpired(now);
+
+        assertThat(deleted).isGreaterThanOrEqualTo(1);
+        assertThat(consumedAssertions.existsById("it-expired-jti")).isFalse();
+        assertThat(consumedAssertions.existsById("it-live-jti")).isTrue();
     }
 
     @Test

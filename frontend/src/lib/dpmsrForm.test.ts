@@ -3,15 +3,28 @@ import dayjs from 'dayjs';
 import { buildDpmsrPayload } from './dpmsrForm';
 
 describe('buildDpmsrPayload', () => {
-  it('converts Dayjs dates to ISO strings', () => {
+  it('serializes Dayjs values as the picked local calendar date pinned to UTC midnight', () => {
     const payload = buildDpmsrPayload({
       entityReference: 'REF',
-      submissionDate: dayjs('2026-06-06T00:00:00.000Z'),
+      submissionDate: dayjs('2026-06-06'), // local-midnight pick, as the DatePicker produces
       reportingPerson: { firstName: 'A', lastName: 'B' },
       parties: [],
       goods: [],
     }) as { submissionDate: string };
-    expect(payload.submissionDate).toBe('2026-06-06T00:00:00.000Z');
+    expect(payload.submissionDate).toBe('2026-06-06T00:00:00Z');
+  });
+
+  it('never timezone-shifts a picked date (a 1990-05-01 birthdate stays 1990-05-01 in any local tz)', () => {
+    const payload = buildDpmsrPayload({
+      parties: [
+        {
+          _type: 'person',
+          person: { firstName: 'J', lastName: 'D', birthdate: dayjs('1990-05-01') },
+        },
+      ],
+    }) as { parties: Array<{ person: { birthdate: string } }> };
+    expect(payload.parties[0].person.birthdate).toContain('1990-05-01');
+    expect(payload.parties[0].person.birthdate).toBe('1990-05-01T00:00:00Z');
   });
 
   it('keeps only the selected party branch and drops the _type flag', () => {

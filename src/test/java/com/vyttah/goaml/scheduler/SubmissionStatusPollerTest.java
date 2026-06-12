@@ -121,6 +121,9 @@ class SubmissionStatusPollerTest {
 
         assertThat(summary).isEqualTo(new PollSummary(1, 2, 1, 1));
         verify(submissionService).refreshStatus(good.getId(), tId); // continued past the failure
+        // a per-REPORT failure must fire the alert metric too (an FIU outage fails every report here,
+        // never the per-tenant catch)
+        assertThat(pollerErrorCount()).isEqualTo(1.0);
     }
 
     @Test

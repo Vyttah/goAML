@@ -121,10 +121,12 @@ public class CsvImporter {
     private Party toParty(CSVRecord rec) {
         String type = req(rec, "party_type").toUpperCase();
         return switch (type) {
+            // country_of_birth comes ONLY from its own (optional) column — it is a distinct fact from
+            // nationality and must never be fabricated from it (a Pakistani-born UAE national exists).
             case "PERSON" -> new Party(opt(rec, "party_reason"), null, null, new Person(
                     null, req(rec, "person_first_name"), req(rec, "person_last_name"),
                     parseNullableDate(opt(rec, "person_birthdate")),
-                    opt(rec, "person_nationality"), opt(rec, "person_nationality"),
+                    opt(rec, "person_country_of_birth"), opt(rec, "person_nationality"),
                     null, opt(rec, "person_id_number"), null, null, null, null, null));
             case "ENTITY" -> new Party(opt(rec, "party_reason"), null, new Entity(
                     req(rec, "entity_name"), null, opt(rec, "entity_incorporation_number"),

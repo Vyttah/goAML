@@ -138,7 +138,7 @@ normalized report tree.
 | `entity_reference` | `VARCHAR(255)` NOT NULL **UNIQUE** | per-tenant idempotency key |
 | `report_code` | `VARCHAR(16)` NOT NULL | `DPMSR` (others later) |
 | `rentity_id` | `INTEGER` NOT NULL | from `tenant_goaml_config` |
-| `status` | `VARCHAR(16)` NOT NULL DEFAULT `'DRAFT'` | DRAFT/VALID/INVALID/SUBMITTED/ACCEPTED/REJECTED/FAILED |
+| `status` | `VARCHAR(16)` NOT NULL DEFAULT `'DRAFT'` | DRAFT/VALID/INVALID/PENDING_REVIEW/APPROVED/SUBMITTING/SUBMITTED/ACCEPTED/REJECTED/FAILED (SUBMITTING is the transient atomic submit-claim, V11) |
 | `input` | `JSONB` NOT NULL | the create request, persisted verbatim |
 | `report_xml` | `TEXT` NULL | marshalled goAML XML snapshot |
 | `validation_errors` | `JSONB` NULL | `[{severity,path,code,message}]` |

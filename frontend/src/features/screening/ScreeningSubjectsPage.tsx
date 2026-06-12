@@ -11,6 +11,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
+import dayjs from 'dayjs';
 import { useNavigate } from 'react-router-dom';
 import { useScreeningSubjects, useSeedReport } from './useScreening';
 import type { ScreeningSubjectView } from '../../api/screening';
@@ -50,7 +51,9 @@ export function ScreeningSubjectsPage() {
         subjectRef: active.subjectRef,
         body: {
           entityReference: values.entityReference,
-          submissionDate: new Date().toISOString(),
+          // Today's *local* calendar date pinned to UTC midnight — `new Date().toISOString()` would
+          // file the previous day for any positive-offset (e.g. UAE +04:00) user before 04:00.
+          submissionDate: `${dayjs().format('YYYY-MM-DD')}T00:00:00Z`,
           reason: values.reason,
           action: 'Filed',
           reportingPerson: { firstName: values.firstName, lastName: values.lastName },

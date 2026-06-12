@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 
@@ -18,7 +19,12 @@ public interface ConsumedAssertionRepository extends JpaRepository<ConsumedAsser
     /**
      * Opportunistic cleanup — drop rows whose assertion has already expired (a replay of an expired
      * assertion is rejected by the exp check anyway, so the row is redundant). Returns the number deleted.
+     *
+     * <p>{@code @Transactional} matters: the caller ({@code ServiceCredentialValidator} inside the auth
+     * filter) runs outside any transaction, and a {@code @Modifying} query without one throws — which used
+     * to be swallowed, so cleanup never actually ran.
      */
+    @Transactional
     @Modifying
     @Query("delete from ConsumedAssertion c where c.expiresAt < :now")
     int deleteExpired(@Param("now") OffsetDateTime now);

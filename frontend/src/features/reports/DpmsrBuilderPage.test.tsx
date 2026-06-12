@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import dayjs from 'dayjs';
 import { http, HttpResponse } from 'msw';
 import { server } from '../../test/msw/server';
 import { renderWithProviders } from '../../test/render';
@@ -95,8 +96,18 @@ async function selectItemType(code: string, label: string) {
   );
 }
 
+async function selectIndicator(code: string, label: string) {
+  // indicators is a lookup-backed multi-select; open it and click the matching option
+  const input = screen.getByLabelText('Indicators');
+  fireEvent.mouseDown(input);
+  await userEvent.click(
+    await screen.findByText(`${code} — ${label}`, { selector: '.ant-select-item-option-content' }),
+  );
+}
+
 async function fillMinimalValidForm() {
   await typeById('entityReference', 'REF-1');
+  await selectIndicator('ACTRC', 'Customer acting as undisclosed agent');
   await typeById('reportingPerson_firstName', 'Jane');
   await typeById('reportingPerson_lastName', 'Roe');
   await typeById('parties_0_person_firstName', 'John');
@@ -126,9 +137,11 @@ describe('DpmsrBuilderPage', () => {
     expect(body.entityReference).toBe('REF-1');
     expect(typeof body.submissionDate).toBe('string');
     expect((body.reportingPerson as Record<string, unknown>).firstName).toBe('Jane');
+    expect(body.indicators).toEqual(['ACTRC']);
     const parties = body.parties as Array<Record<string, unknown>>;
-    // a person party maps to the schema's personMyClient slot (full-fidelity payload shape)
-    expect((parties[0].personMyClient as Record<string, unknown>).firstName).toBe('John');
+    // a person party maps to the plain person slot (UAE DPMSR activity reports never use *_my_client)
+    expect((parties[0].person as Record<string, unknown>).firstName).toBe('John');
+    expect(parties[0]).not.toHaveProperty('personMyClient');
     expect(parties[0]).not.toHaveProperty('entity');
     const goods = body.goods as Array<Record<string, unknown>>;
     expect(goods[0].itemType).toBe('GOLD');
@@ -178,6 +191,44 @@ describe('DpmsrBuilderPage', () => {
     expect((document.getElementById('entityReference') as HTMLInputElement).value).toBe(
       'DRAFT-REF-99',
     );
+  });
+
+  it('restores a draft with nested dates (party birthdate + identification dates) without throwing', async () => {
+    stubLookups();
+    // Persist exactly what saveDpmsrDraft would: JSON.stringify turns nested Dayjs into ISO strings.
+    // Before the deep rehydration these strings reached AntD v5 DatePickers and threw at render.
+    sessionStorage.setItem(
+      DRAFT_KEY,
+      JSON.stringify({
+        entityReference: 'DRAFT-NESTED-1',
+        parties: [
+          {
+            _type: 'person',
+            person: {
+              firstName: 'John',
+              lastName: 'Doe',
+              birthdate: dayjs('1990-05-01'),
+              identifications: [{ issueDate: dayjs('2020-01-02'), expiryDate: dayjs('2030-01-02') }],
+            },
+          },
+        ],
+      }),
+    );
+
+    renderBuilder();
+
+    expect(await screen.findByText(/Restored an unsaved draft/i)).toBeInTheDocument();
+    expect((document.getElementById('entityReference') as HTMLInputElement).value).toBe(
+      'DRAFT-NESTED-1',
+    );
+    // the nested DatePicker values rendered as dates (i.e. they were rehydrated to Dayjs)
+    expect(
+      (document.getElementById('parties_0_person_birthdate') as HTMLInputElement).value,
+    ).toBe('1990-05-01');
+    expect(
+      (document.getElementById('parties_0_person_identifications_0_issueDate') as HTMLInputElement)
+        .value,
+    ).toBe('2020-01-02');
   });
 
   it('clears the saved draft after a successful create', async () => {

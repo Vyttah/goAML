@@ -10,8 +10,33 @@ import dayjs from 'dayjs';
 
 const DRAFT_KEY = 'goaml.dpmsrDraft';
 
-/** Form fields that hold a Dayjs value and must be rehydrated on restore. */
-const DATE_FIELDS = ['submissionDate'] as const;
+/**
+ * An ISO-8601 datetime as produced by `JSON.stringify(dayjs)` (Dayjs#toJSON → toISOString). Date-less
+ * strings (names, codes, references) never match, so they round-trip untouched.
+ */
+const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+/**
+ * Deep-walk a parsed draft and rehydrate every ISO datetime string back to Dayjs, at any depth. The
+ * DPMSR form has nested DatePickers everywhere (party birthdates, identification issue/expiry dates,
+ * entity incorporation dates, goods registration dates) — AntD v5 DatePickers throw at render if fed
+ * the raw strings.
+ */
+function rehydrateDates(value: unknown): unknown {
+  if (typeof value === 'string' && ISO_DATETIME_RE.test(value)) {
+    const d = dayjs(value);
+    return d.isValid() ? d : value;
+  }
+  if (Array.isArray(value)) return value.map(rehydrateDates);
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = rehydrateDates(raw);
+    }
+    return out;
+  }
+  return value;
+}
 
 function safeSessionStorage(): Storage | null {
   try {
@@ -36,23 +61,16 @@ export function clearDpmsrDraft(): void {
 }
 
 /**
- * Read a saved draft, rehydrating known date fields back to Dayjs. Returns null when there is no
- * draft or it can't be parsed (treated as no draft).
+ * Read a saved draft, rehydrating date fields (at any nesting depth) back to Dayjs. Returns null when
+ * there is no draft or it can't be parsed (treated as no draft).
  */
 export function loadDpmsrDraft(): Record<string, unknown> | null {
   const raw = safeSessionStorage()?.getItem(DRAFT_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (!parsed || typeof parsed !== 'object') return null;
-    for (const field of DATE_FIELDS) {
-      const value = parsed[field];
-      if (typeof value === 'string') {
-        const d = dayjs(value);
-        if (d.isValid()) parsed[field] = d;
-      }
-    }
-    return parsed;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    return rehydrateDates(parsed) as Record<string, unknown>;
   } catch {
     return null;
   }

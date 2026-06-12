@@ -65,8 +65,11 @@ class DpmsrCuratedWireFidelityTest {
         assertThat(vr.isValid()).as("errors=%s", vr.xsd().errors()).isTrue();
         String xml = vr.xml();
 
-        // reporting person
-        assertThat(xml).contains("<first_name>Sara</first_name>").contains("<last_name>Khan</last_name>");
+        // reporting person — including the previously-dropped tax_reg_number + alias slots (finding 13)
+        assertThat(xml).contains("<first_name>Sara</first_name>").contains("<last_name>Khan</last_name>")
+                .contains("<tax_reg_number>TRN-MLRO</tax_reg_number>")
+                .contains("<alias>SK</alias>")
+                .contains("<occupation>MLRO</occupation>");
 
         // entity + its carry-through fields (B4) + director
         assertThat(xml)
@@ -85,25 +88,38 @@ class DpmsrCuratedWireFidelityTest {
                 .contains("<first_name>Ravi</first_name>")
                 .contains("<last_name>Patel</last_name>");
 
-        // person party (lenient t_person) — name, ids, address, phone, identification, email, alias
+        // person party (lenient t_person) — name, ids, address, phone, identification, email, alias,
+        // plus the previously-unasserted facts: country_of_birth (≠ nationality), residence, occupation
         assertThat(xml)
                 .contains("<first_name>John</first_name>")
                 .contains("<last_name>Doe</last_name>")
                 .contains("<id_number>784-1990-1234567-1</id_number>")
                 .contains("<alias>JD</alias>")
                 .contains("john.doe@example.test")
+                .contains("<country_of_birth>PK</country_of_birth>")
+                .contains("<nationality1>IN</nationality1>")
+                .contains("<residence>AE</residence>")
+                .contains("<occupation>Trader</occupation>")
                 .contains("Marina Walk")                          // person address line
                 .contains("<tph_number>501112233</tph_number>")
                 // identification block
                 .contains("<type>PASSP</type>")
                 .contains("<number>P1234567</number>");
 
-        // goods — every optional field
+        // a +04:00 (UAE) local-midnight birthdate must file as the SAME calendar date — goAML dateTime has
+        // no zone, so a UTC conversion would file 1990-03-11T20:00:00 (the previous day)
+        assertThat(xml).contains("<birthdate>1990-03-12T00:00:00</birthdate>");
+
+        // goods — every optional field, including the previously-unasserted numerics/dates
         assertThat(xml)
                 .contains("<item_type>GOLD</item_type>")
                 .contains("<item_make>Emirates Gold</item_make>")
                 .contains("1kg cast bar")                         // description
                 .contains("<status_code>SOLD</status_code>")
+                .contains("<estimated_value>95000.00</estimated_value>")
+                .contains("<size>1000</size>")
+                .contains("<disposed_value>96000.00</disposed_value>")
+                .contains("<registration_date>2026-06-01T00:00:00</registration_date>")
                 .contains("<registration_number>REG-9</registration_number>")
                 .contains("<identification_number>ID-9</identification_number>")
                 .contains("<status_comments>Cash received in full</status_comments>");
@@ -126,8 +142,10 @@ class DpmsrCuratedWireFidelityTest {
 
         DpmsrCreateRequest.Identification id = new DpmsrCreateRequest.Identification(
                 "PASSP", "P1234567", odt("2020-01-01T00:00:00"), odt("2030-01-01T00:00:00"), "AE");
+        // birthdate at UAE local midnight (+04:00) — pins that the calendar date survives into the XML;
+        // country_of_birth (PK) deliberately differs from nationality (IN) so a swap/fabrication breaks here
         DpmsrCreateRequest.Person personParty = new DpmsrCreateRequest.Person(
-                "M", "John", "Doe", odt("1990-03-12T00:00:00"), "IN", "IN", "AE",
+                "M", "John", "Doe", OffsetDateTime.parse("1990-03-12T00:00:00+04:00"), "PK", "IN", "AE",
                 "784-1990-1234567-1", "TRN-P", "Trader", personPhone, personAddr, List.of(id),
                 "john.doe@example.test", "JD");
 
@@ -140,7 +158,8 @@ class DpmsrCuratedWireFidelityTest {
                 odt("2026-06-01T00:00:00"), new BigDecimal("96000.00"), "Cash received in full", "REG-9", "ID-9");
 
         DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
-                "F", "Sara", "Khan", null, null, null, null, null, null, "MLRO", null, null, null);
+                "F", "Sara", "Khan", null, null, null, null, null, "TRN-MLRO", "MLRO", null, null, null,
+                null, "SK");
 
         return new DpmsrCreateRequest("DXB", "B13-MAX", odt("2026-06-02T12:00:00"), null, "DPMS threshold met",
                 "Filed", List.of("DPMSJ", "DPMSI"), mlro, null, List.of(entityParty, personPartyWrap),

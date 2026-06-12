@@ -53,6 +53,20 @@ const personSchema = z.object({
   identifications: z.array(identificationSchema).optional(),
 });
 
+/**
+ * The reporting person (MLRO) is optional end-to-end: when omitted, the server fills it from the
+ * tenant's configured goAML person (`tenant_goaml_person`), so analysts aren't forced to re-type the
+ * MLRO. If the section is touched at all, it must carry both names — a partial reporting person would
+ * fail the XSD server-side.
+ */
+const reportingPersonSchema = personSchema
+  .extend({ firstName: optStr, lastName: optStr })
+  .optional()
+  .refine((p) => !p || (Boolean(p.firstName) && Boolean(p.lastName)), {
+    message:
+      'Provide both first and last name, or leave the reporting person blank to use your configured MLRO',
+  });
+
 const directorSchema = z.object({
   gender: optStr,
   firstName: nonEmpty,
@@ -117,8 +131,11 @@ export const dpmsrSchema = z.object({
   fiuRefNumber: optStr,
   reason: optStr,
   action: optStr,
-  indicators: z.array(z.string()).optional(),
-  reportingPerson: personSchema,
+  // goAML rejects reports without at least one report indicator.
+  indicators: z
+    .array(z.string(), { required_error: 'At least one report indicator is required' })
+    .min(1, 'At least one report indicator is required'),
+  reportingPerson: reportingPersonSchema,
   location: addressSchema,
   parties: z.array(partySchema).min(1, 'At least one party is required'),
   goods: z.array(goodsSchema).min(1, 'At least one goods item is required'),

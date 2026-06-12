@@ -9,6 +9,7 @@ import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
 import com.vyttah.goaml.engine.build.DpmsrReportBuilder;
 import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.engine.build.ValidatedReport;
+import com.vyttah.goaml.engine.validation.Severity;
 import com.vyttah.goaml.engine.validation.ValidationMessage;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.dto.report.DpmsrInputSource;
@@ -57,25 +58,34 @@ public class DefaultReportService implements ReportService {
     @Override
     public ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId) {
         DpmsrCreateRequest filled = withDefaultReportingPerson(request, tenantId);
-        return doCreate(of(filled), filled, filled.clientMetadata(), tenantId, actorUserId);
+        List<ValidationMessage> mapperMessages = new ArrayList<>();
+        return doCreate(of(filled, mapperMessages), filled, filled.clientMetadata(), tenantId, actorUserId,
+                mapperMessages);
     }
 
     @Override
     public ReportResult create(DpmsrReportPayload payload, UUID tenantId, UUID actorUserId) {
         DpmsrReportPayload filled = withDefaultReportingPerson(payload, tenantId);
-        return doCreate(filled, filled, filled.clientMetadata(), tenantId, actorUserId);
+        // The full-fidelity payload maps 1:1 onto the generated types — no normalization, no mapper messages.
+        return doCreate(filled, filled, filled.clientMetadata(), tenantId, actorUserId, List.of());
     }
 
     @Override
     public ReportValidationResult validate(DpmsrCreateRequest request, UUID tenantId) {
-        ValidatedReport validated = buildAndValidate(of(withDefaultReportingPerson(request, tenantId)), tenantId);
-        return new ReportValidationResult(statusOf(validated), mergeMessages(validated));
+        List<ValidationMessage> mapperMessages = new ArrayList<>();
+        ValidatedReport validated = buildAndValidate(
+                of(withDefaultReportingPerson(request, tenantId), mapperMessages), tenantId);
+        return new ReportValidationResult(statusOf(validated, mapperMessages),
+                mergeMessages(validated, mapperMessages));
     }
 
     @Override
     public ReportPreview previewXml(DpmsrCreateRequest request, UUID tenantId) {
-        ValidatedReport validated = buildAndValidate(of(withDefaultReportingPerson(request, tenantId)), tenantId);
-        return new ReportPreview(statusOf(validated), validated.xml(), mergeMessages(validated));
+        List<ValidationMessage> mapperMessages = new ArrayList<>();
+        ValidatedReport validated = buildAndValidate(
+                of(withDefaultReportingPerson(request, tenantId), mapperMessages), tenantId);
+        return new ReportPreview(statusOf(validated, mapperMessages), validated.xml(),
+                mergeMessages(validated, mapperMessages));
     }
 
     /**
@@ -143,7 +153,7 @@ public class DefaultReportService implements ReportService {
      * engine input (it is not read by {@code src.toInput(...)}) and so never reaches the marshalled XML.
      */
     private ReportResult doCreate(DpmsrInputSource src, Object persist, JsonNode clientMetadata,
-                                  UUID tenantId, UUID actorUserId) {
+                                  UUID tenantId, UUID actorUserId, List<ValidationMessage> mapperMessages) {
         if (reportRepository.existsByEntityReference(src.entityReference())) {
             throw new ReportExceptions.DuplicateEntityReferenceException(
                     "A report already exists with entity_reference " + src.entityReference());
@@ -154,8 +164,8 @@ public class DefaultReportService implements ReportService {
         int rentityId = resolveRentityId(tenantId);
         ValidatedReport validated = buildAndValidate(src, tenantId);
 
-        List<ValidationMessage> messages = mergeMessages(validated);
-        String status = statusOf(validated);
+        List<ValidationMessage> messages = mergeMessages(validated, mapperMessages);
+        String status = statusOf(validated, mapperMessages);
 
         Report report = new Report(UUID.randomUUID(), src.entityReference(), REPORT_CODE,
                 rentityId, status, toJson(persist), actorUserId);
@@ -196,8 +206,12 @@ public class DefaultReportService implements ReportService {
         return reportBuilder.buildAndValidate(input, jurisdiction);
     }
 
-    /** Adapt the curated {@link DpmsrCreateRequest} to a {@link DpmsrInputSource} via the request mapper. */
-    private DpmsrInputSource of(DpmsrCreateRequest request) {
+    /**
+     * Adapt the curated {@link DpmsrCreateRequest} to a {@link DpmsrInputSource} via the request mapper.
+     * Normalization findings (changed/emptied names) are appended to {@code mapperMessages} when the input
+     * is built, so the caller can merge them into the response.
+     */
+    private DpmsrInputSource of(DpmsrCreateRequest request, List<ValidationMessage> mapperMessages) {
         return new DpmsrInputSource() {
             @Override
             public String entityReference() {
@@ -206,7 +220,7 @@ public class DefaultReportService implements ReportService {
 
             @Override
             public DpmsrReportInput toInput(int rentityId) {
-                return requestMapper.toInput(request, rentityId);
+                return requestMapper.toInput(request, rentityId, mapperMessages);
             }
         };
     }
@@ -215,12 +229,16 @@ public class DefaultReportService implements ReportService {
         return configRepository.findByTenantId(tenantId).map(TenantGoamlConfig::getRentityId).orElse(0);
     }
 
-    private static String statusOf(ValidatedReport validated) {
-        return validated.isValid() ? "VALID" : "INVALID";
+    /** VALID only when the engine verdict is clean AND the mapper raised no ERROR (e.g. an emptied name). */
+    private static String statusOf(ValidatedReport validated, List<ValidationMessage> mapperMessages) {
+        boolean mapperClean = mapperMessages.stream().noneMatch(m -> m.severity() == Severity.ERROR);
+        return validated.isValid() && mapperClean ? "VALID" : "INVALID";
     }
 
-    private static List<ValidationMessage> mergeMessages(ValidatedReport validated) {
-        List<ValidationMessage> messages = new ArrayList<>(validated.rules().messages());
+    private static List<ValidationMessage> mergeMessages(ValidatedReport validated,
+                                                         List<ValidationMessage> mapperMessages) {
+        List<ValidationMessage> messages = new ArrayList<>(mapperMessages);
+        messages.addAll(validated.rules().messages());
         messages.addAll(validated.xsd().messages());
         return messages;
     }

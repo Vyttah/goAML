@@ -9,7 +9,13 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Marshals {@link OffsetDateTime} ↔ goAML's strict {@code YYYY-MM-DDTHH:MM:SS} format
- * (no timezone suffix, second-precision). Values are normalized to UTC on marshal.
+ * (no timezone suffix, second-precision).
+ *
+ * <p><strong>Marshal preserves the caller's wall-clock</strong>: the value is formatted at its
+ * <em>original</em> offset, never normalized to UTC. goAML dates are calendar facts (a birthdate, the
+ * submission day) — converting a {@code +04:00} local midnight to UTC would file the <em>previous</em>
+ * calendar date with the FIU. Unmarshal has no offset information in the XML, so the parsed local
+ * date-time is tagged UTC by convention (the wall-clock fields are what round-trip).
  */
 public final class GoamlDateTimeAdapter extends XmlAdapter<String, OffsetDateTime> {
 
@@ -22,6 +28,6 @@ public final class GoamlDateTimeAdapter extends XmlAdapter<String, OffsetDateTim
 
     @Override
     public String marshal(OffsetDateTime value) {
-        return value == null ? null : value.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime().format(FORMAT);
+        return value == null ? null : value.toLocalDateTime().format(FORMAT);
     }
 }

@@ -2,10 +2,13 @@ package com.vyttah.goaml.config.tenant;
 
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.flywaydb.core.Flyway;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.SmartInitializingSingleton;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
@@ -24,8 +27,14 @@ import java.util.List;
  *
  * <p><strong>When:</strong> it runs as a {@link SmartInitializingSingleton} — after all singletons are
  * constructed but still inside context refresh, i.e. <em>before</em> the embedded web server starts
- * accepting connections. A migration failure propagates out and blocks startup (fail-fast), so the app never
- * serves traffic against a half-migrated tenant.
+ * accepting connections.
+ *
+ * <p><strong>Failure isolation (the trade-off):</strong> by default a failing tenant migration (e.g. a new
+ * CHECK constraint hitting legacy rows in ONE tenant) no longer aborts startup for ALL tenants — the failed
+ * tenant is logged at ERROR, counted on the {@value #MIGRATION_FAILURES_METRIC} counter (tagged by tenant),
+ * and the sweep continues. The cost: that tenant keeps running on its OLD schema until fixed — requests
+ * touching a new table/column will fail for it — so the loud log + metric exist precisely to page someone.
+ * Operators who prefer the old all-or-nothing boot can set {@code goaml.tenant-migration.fail-fast=true}.
  *
  * <p><strong>Idempotent + safe with zero tenants:</strong> Flyway no-ops a schema already at the latest
  * version, and an empty tenant list makes the whole sweep a no-op. Gated by
@@ -39,15 +48,23 @@ public class TenantSchemaMigrator implements SmartInitializingSingleton {
     private static final String ACTIVE = "ACTIVE";
     private static final String TENANT_LOCATION = "classpath:db/migration/tenant";
 
+    /** Per-tenant migration-failure counter (tagged {@code tenant=<id>}); alert on any increment. */
+    static final String MIGRATION_FAILURES_METRIC = "goaml.tenant.migration.failures";
+
     private final TenantRepository tenantRepository;
     private final DataSource dataSource;
     private final TenantMigrationProperties properties;
+    private final MeterRegistry meterRegistry;
+    private final boolean failFast;
 
     public TenantSchemaMigrator(TenantRepository tenantRepository, DataSource dataSource,
-                                TenantMigrationProperties properties) {
+                                TenantMigrationProperties properties, MeterRegistry meterRegistry,
+                                @Value("${goaml.tenant-migration.fail-fast:false}") boolean failFast) {
         this.tenantRepository = tenantRepository;
         this.dataSource = dataSource;
         this.properties = properties;
+        this.meterRegistry = meterRegistry;
+        this.failFast = failFast;
     }
 
     @Override
@@ -61,7 +78,8 @@ public class TenantSchemaMigrator implements SmartInitializingSingleton {
 
     /**
      * Migrate every ACTIVE tenant schema forward. The tenant list comes from {@code public.tenant} (no tenant
-     * context is bound at boot). A failure on any schema aborts startup (fail-fast).
+     * context is bound at boot). A failing tenant is logged + counted and the sweep continues — unless
+     * {@code goaml.tenant-migration.fail-fast=true}, in which case the failure aborts startup.
      *
      * @return the number of tenant schemas migrated (for tests / logging)
      */
@@ -73,19 +91,29 @@ public class TenantSchemaMigrator implements SmartInitializingSingleton {
         }
         log.info("Tenant-schema startup migration: migrating {} ACTIVE tenant schema(s)", tenants.size());
         int migrated = 0;
+        int failed = 0;
         for (Tenant tenant : tenants) {
             try {
                 migrateSchema(tenant.getSchemaName());
                 migrated++;
             } catch (RuntimeException e) {
-                // Fail fast: a tenant left at an older schema state would break at runtime. Surface which
-                // tenant failed and block startup rather than serve traffic against it.
-                throw new IllegalStateException(
-                        "Tenant-schema startup migration failed for tenant " + tenant.getId()
-                                + " (" + tenant.getSchemaName() + "): " + e.getMessage(), e);
+                if (failFast) {
+                    throw new IllegalStateException(
+                            "Tenant-schema startup migration failed for tenant " + tenant.getId()
+                                    + " (" + tenant.getSchemaName() + "): " + e.getMessage(), e);
+                }
+                failed++;
+                Counter.builder(MIGRATION_FAILURES_METRIC)
+                        .description("Tenant schemas whose startup Flyway migration failed (running on the old schema)")
+                        .tag("tenant", tenant.getId().toString())
+                        .register(meterRegistry)
+                        .increment();
+                log.error("Tenant-schema startup migration FAILED for tenant {} ({}) — this tenant keeps "
+                                + "running on its previous schema version until fixed: {}",
+                        tenant.getId(), tenant.getSchemaName(), e.getMessage(), e);
             }
         }
-        log.info("Tenant-schema startup migration: {} schema(s) up to date", migrated);
+        log.info("Tenant-schema startup migration: {} schema(s) up to date, {} failed", migrated, failed);
         return migrated;
     }
 

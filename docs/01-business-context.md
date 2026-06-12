@@ -116,8 +116,20 @@ Notes:
 ## 6. Key UAE-specific facts the system encodes
 
 - **Currency:** AED (the report's `currency_code_local` must be AED for the UAE).
-- **DPMS cash threshold:** **AED 55,000** — below it, a precious-metals cash sale generally doesn't
-  need a DPMSR.
+- **DPMS threshold:** **AED 55,000**. The trigger rules (per **MOE Circular 08/AML/2021** and the
+  **UAE FIU goAML FAQ v1.10 Q51**, encoded in `ReportabilityDetector`):
+  - **Individuals** (resident or not): **cash** ≥ AED 55,000 → reportable; card / cheque / bank-transfer
+    payments by an individual → **not** reportable.
+  - **Legal persons / companies**: ≥ AED 55,000 in **cash or wire transfer** → reportable, **except** a
+    local UAE bank wire, which is not reportable **unless** routed via an exchange house. **All**
+    international wires ≥ AED 55,000 (inward and outward) are reportable.
+  - **Cheques** are never reportable (cards likewise).
+  - **Linked / installment payments** against one invoice count toward a **single** report at the time
+    the funds are received.
+
+  Legal basis: **Federal Decree-Law 10/2025 + Cabinet Resolution 134/2025** (which replaced
+  DL 20/2018 + CD 10/2019, effective 14 Oct / 14 Dec 2025). The threshold is unchanged at AED 55,000 and
+  the trigger rules remain per MOE Circular 08/AML/2021 + the FIU FAQ.
 - **Attachment limits** (from the UAE submission guide): **5 MB per file**, **20 MB per report**.
 - **Emirates ID** is the UAE national ID; passports are used for non-residents. *(Note: the code does
   not yet enforce Emirates-ID/passport format rules — see the gap note in [05 — The Engine](05-engine.md).)*

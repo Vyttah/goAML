@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -45,6 +45,9 @@ import java.util.UUID;
 public class DefaultAccountingIngestionService implements AccountingIngestionService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultAccountingIngestionService.class);
+
+    /** Filing timestamps are FIU-facing calendar facts — stamp them at UAE local time, not UTC. */
+    private static final ZoneId UAE = ZoneId.of("Asia/Dubai");
 
     private final TenantExternalRefRepository tenantExternalRefs;
     private final TenantRepository tenants;
@@ -83,8 +86,10 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
             }
 
             String[] mlro = reportingPerson(tenant.tenantId());
+            // The server-stamped submission_date is filed in the XML — generate it at UAE local time so the
+            // FIU sees the UAE calendar date (the marshaller preserves the wall-clock, never converts to UTC).
             DpmsrCreateRequest request = AccountingDpmsrMapper.toCreateRequest(
-                    payload, ref, OffsetDateTime.now(ZoneOffset.UTC), mlro[0], mlro[1]);
+                    payload, ref, OffsetDateTime.now(UAE), mlro[0], mlro[1]);
             ReportResult result = reportService.create(request, tenant.tenantId(), null);
             return finalizeDraft(tenant.tenantId(), ref, result, verdict.reasons());
         } finally {

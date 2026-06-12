@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -35,6 +35,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Service
 public class DefaultScreeningIngestionService implements ScreeningIngestionService {
+
+    /** Filing timestamps are FIU-facing calendar facts — stamp them at UAE local time, not UTC. */
+    private static final ZoneId UAE = ZoneId.of("Asia/Dubai");
 
     private final TenantExternalRefRepository tenantExternalRefs;
     private final TenantRepository tenants;
@@ -121,7 +124,7 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
             DpmsrCreateRequest request = new DpmsrCreateRequest(
                     null,                                   // rentityBranch
                     ref,                                    // entityReference (idempotency anchor)
-                    OffsetDateTime.now(ZoneOffset.UTC),     // submissionDate (server-stamped)
+                    OffsetDateTime.now(UAE),                // submissionDate (server-stamped, UAE local)
                     null,                                   // fiuRefNumber
                     payload.reason(),                       // reason
                     payload.action(),                       // action

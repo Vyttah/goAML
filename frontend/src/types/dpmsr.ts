@@ -48,6 +48,16 @@ export interface DpmsrPerson {
   identifications?: DpmsrIdentification[];
 }
 
+/**
+ * The reporting person (MLRO) — same shape as {@link DpmsrPerson} but with optional names: the whole
+ * section may be omitted (the server then fills the tenant's configured goAML person). The Zod mirror
+ * enforces names-together coherence when the section is filled at all.
+ */
+export type DpmsrReportingPerson = Omit<DpmsrPerson, 'firstName' | 'lastName'> & {
+  firstName?: string;
+  lastName?: string;
+};
+
 export interface DpmsrDirector {
   gender?: string;
   firstName: string;
@@ -110,7 +120,8 @@ export interface DpmsrCreateRequest {
   reason?: string;
   action?: string;
   indicators?: string[];
-  reportingPerson: DpmsrPerson;
+  /** Optional: when omitted, the server fills the tenant's configured goAML person (MLRO). */
+  reportingPerson?: DpmsrReportingPerson;
   location?: DpmsrAddress;
   parties: DpmsrParty[];
   goods: DpmsrGoods[];

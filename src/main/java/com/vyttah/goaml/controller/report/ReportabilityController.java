@@ -1,6 +1,7 @@
 package com.vyttah.goaml.controller.report;
 
 import com.vyttah.goaml.ingestion.reportability.ReportabilityDetector;
+import com.vyttah.goaml.ingestion.reportability.ReportabilityFacts;
 import com.vyttah.goaml.ingestion.reportability.ReportabilityVerdict;
 import com.vyttah.goaml.model.dto.reportability.ReportabilityCheckRequest;
 import com.vyttah.goaml.model.dto.reportability.ReportabilityCheckResponse;
@@ -41,7 +42,9 @@ public class ReportabilityController {
         }
         boolean precious = request.involvesPreciousMetalsOrStones() == null
                 || request.involvesPreciousMetalsOrStones();
-        ReportabilityVerdict verdict = detector.assess(request.amount(), precious);
+        ReportabilityVerdict verdict = detector.assess(new ReportabilityFacts(
+                request.amount(), precious, request.fundsType(), request.counterpartyType(),
+                request.wireScope(), request.viaExchangeHouse()));
         return new ReportabilityCheckResponse(verdict.reportable(), verdict.reasons(),
                 ReportabilityDetector.DPMS_CASH_THRESHOLD_AED);
     }

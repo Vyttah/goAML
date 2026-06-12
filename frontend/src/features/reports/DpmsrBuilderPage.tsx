@@ -173,7 +173,8 @@ export function DpmsrBuilderPage() {
               <Form.Item
                 label="Indicators"
                 name="indicators"
-                tooltip="Search and select goAML report indicators"
+                tooltip="goAML requires at least one report indicator"
+                rules={[{ required: true, message: 'At least one report indicator is required' }]}
               >
                 <CodeSelect set="report_indicators" multiple placeholder="Select indicators" />
               </Form.Item>
@@ -181,8 +182,12 @@ export function DpmsrBuilderPage() {
           </Row>
         </Card>
 
-        <Card title="Reporting person (MLRO)" style={{ marginBottom: 16 }}>
-          <PersonFields name={['reportingPerson']} />
+        <Card title="Reporting person (MLRO) — optional" style={{ marginBottom: 16 }}>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 0 }}>
+            Leave blank to file with your organisation&apos;s configured MLRO. If you fill anything
+            here, provide both first and last name.
+          </Typography.Paragraph>
+          <PersonFields name={['reportingPerson']} requireName={false} />
         </Card>
 
         <Card title="Location" style={{ marginBottom: 16 }}>

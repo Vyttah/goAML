@@ -4,6 +4,7 @@ import { validateDpmsr } from './dpmsrSchema';
 const validPayload = {
   entityReference: 'REF-1',
   submissionDate: '2026-06-06T00:00:00.000Z',
+  indicators: ['ACTRC'],
   reportingPerson: { firstName: 'Jane', lastName: 'Roe' },
   parties: [{ person: { firstName: 'John', lastName: 'Doe' } }],
   goods: [{ itemType: 'Gold bar', estimatedValue: 60000 }],
@@ -44,5 +45,29 @@ describe('validateDpmsr', () => {
       goods: [{ itemType: 'Gold' }],
     });
     expect(missingValue.ok).toBe(false);
+  });
+
+  it('requires at least one report indicator', () => {
+    const omitted = validateDpmsr({ ...validPayload, indicators: undefined });
+    expect(omitted.ok).toBe(false);
+    if (!omitted.ok) {
+      expect(omitted.issues.some((i) => i.path === 'indicators')).toBe(true);
+    }
+    expect(validateDpmsr({ ...validPayload, indicators: [] }).ok).toBe(false);
+  });
+
+  it('accepts an omitted reporting person (the server fills the configured MLRO)', () => {
+    expect(validateDpmsr({ ...validPayload, reportingPerson: undefined }).ok).toBe(true);
+  });
+
+  it('rejects a partially-filled reporting person (names must come together)', () => {
+    const partial = validateDpmsr({ ...validPayload, reportingPerson: { firstName: 'Jane' } });
+    expect(partial.ok).toBe(false);
+    if (!partial.ok) {
+      expect(partial.issues.some((i) => i.path === 'reportingPerson')).toBe(true);
+    }
+    expect(
+      validateDpmsr({ ...validPayload, reportingPerson: { occupation: 'MLRO' } }).ok,
+    ).toBe(false);
   });
 });

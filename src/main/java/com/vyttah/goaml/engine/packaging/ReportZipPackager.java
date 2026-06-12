@@ -76,9 +76,34 @@ public class ReportZipPackager {
     }
 
     private static void writeEntry(ZipOutputStream zos, String name, byte[] body) throws IOException {
-        zos.putNextEntry(new ZipEntry(name));
+        zos.putNextEntry(new ZipEntry(sanitizeEntryName(name)));
         zos.write(body);
         zos.closeEntry();
+    }
+
+    /** Longest entry name we will emit — generous for any real reference, hard cap for pathology. */
+    private static final int MAX_ENTRY_NAME_LENGTH = 128;
+
+    /**
+     * Sanitize a ZIP entry <em>filename</em> (never the content): entry names come from caller-supplied
+     * values (the report's {@code entity_reference}, attachment filenames), so {@code "INV/2026/001.xml"}
+     * would nest directories inside the submission ZIP and {@code ".."} segments could escape on a naive
+     * extractor. Allow {@code [A-Za-z0-9._-]}, replace everything else with {@code _}, collapse runs,
+     * refuse dot-only names, and bound the length (keeping the extension).
+     */
+    static String sanitizeEntryName(String name) {
+        String safe = name.replaceAll("[^A-Za-z0-9._-]", "_");
+        safe = safe.replaceAll("_{2,}", "_");
+        safe = safe.replaceAll("^[._]+", "");           // no leading dots/underscores (".." / hidden names)
+        if (safe.isEmpty() || safe.chars().allMatch(c -> c == '.')) {
+            safe = "attachment";
+        }
+        if (safe.length() > MAX_ENTRY_NAME_LENGTH) {
+            String ext = extensionOf(safe);
+            String suffix = ext.isEmpty() ? "" : "." + ext;
+            safe = safe.substring(0, MAX_ENTRY_NAME_LENGTH - suffix.length()) + suffix;
+        }
+        return safe;
     }
 
     private static String extensionOf(String filename) {

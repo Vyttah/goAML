@@ -123,6 +123,46 @@ class GoamlXmlImporterTest {
     }
 
     @Test
+    void mismatchedRentityIdIsRejectedWhenTenantHasAConfiguredOne() {
+        // A file claiming a different reporting entity than this tenant's configured rentity_id is someone
+        // else's report — reject the row, never persist it under this tenant.
+        Report tree = tree("REF-RENT");
+        tree.setRentityId(9999);
+        when(marshaller.unmarshal(any())).thenReturn(tree);
+        when(reportRepository.existsByEntityReference("REF-RENT")).thenReturn(false);
+        com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig config =
+                mock(com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig.class);
+        when(config.getRentityId()).thenReturn(3177);
+        when(configRepository.findByTenantId(tenantId)).thenReturn(Optional.of(config));
+
+        ImportRowResult result = importer.importXml("x".getBytes(), "r.xml", tenantId, actor);
+
+        assertThat(result.status()).isEqualTo("FAILED");
+        assertThat(result.errors().get(0)).contains("rentity_id 9999").contains("3177");
+        verify(reportRepository, never()).save(any());
+    }
+
+    @Test
+    void matchingRentityIdPassesTheTenantBindingCheck() {
+        Report tree = tree("REF-OK");
+        when(marshaller.unmarshal(any())).thenReturn(tree);
+        when(marshaller.marshal(tree)).thenReturn("<report/>".getBytes(StandardCharsets.UTF_8));
+        when(reportRepository.existsByEntityReference("REF-OK")).thenReturn(false);
+        com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig config =
+                mock(com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig.class);
+        when(config.getRentityId()).thenReturn(3177);  // == tree's rentity_id
+        when(config.getJurisdictionCode()).thenReturn("AE");
+        when(configRepository.findByTenantId(tenantId)).thenReturn(Optional.of(config));
+        when(xsdValidator.validate(any())).thenReturn(new ValidationResult());
+        when(reportValidator.validate(any(), anyString())).thenReturn(new ValidationResult());
+
+        ImportRowResult result = importer.importXml("x".getBytes(), "r.xml", tenantId, actor);
+
+        assertThat(result.status()).isEqualTo("VALID");
+        verify(reportRepository).save(any());
+    }
+
+    @Test
     void duplicateEntityReferenceFails() {
         when(marshaller.unmarshal(any())).thenReturn(tree("DUP"));
         when(reportRepository.existsByEntityReference("DUP")).thenReturn(true);

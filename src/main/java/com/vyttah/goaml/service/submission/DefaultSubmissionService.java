@@ -69,10 +69,32 @@ public class DefaultSubmissionService implements SubmissionService {
                     "Report " + reportId + " is " + report.getStatus() + " — must be " + required + " to submit");
         }
 
+        // Atomic submit-claim (CAS) BEFORE any packaging or FIU traffic: only one caller can flip
+        // required → SUBMITTING; a concurrent second submit sees update-count 0 and gets a 409 instead of
+        // sending a duplicate report to the FIU. Every failure path below restores the claimed status.
+        if (reportRepository.claimForSubmission(reportId, required) == 0) {
+            throw new SubmissionExceptions.ReportNotSubmittableException(
+                    "Report " + reportId + " is already being submitted (concurrent submit) or its status moved");
+        }
+
+        try {
+            return doSubmit(report, required, reportId, tenantId, actorUserId);
+        } catch (RuntimeException e) {
+            // Restore the pre-claim status so the report stays actionable (editable / re-submittable).
+            // SUBMITTED is only persisted on success inside doSubmit, so any exception means not submitted.
+            restoreStatus(report, required);
+            throw e;
+        }
+    }
+
+    private SubmissionResult doSubmit(Report report, String required, UUID reportId, UUID tenantId,
+                                      UUID actorUserId) {
         // C9 defense-in-depth: re-validate the persisted XML against the XSD before it can leave for the FIU.
         // The XSD gate already runs at every write of report_xml, so this is normally a no-op — but it means
-        // any future code path that wrote bad XML can never reach the regulator.
-        byte[] xmlBytes = report.getReportXml().getBytes(StandardCharsets.UTF_8);
+        // any future code path that wrote bad XML can never reach the regulator. A missing XML body is the
+        // same conflict (handled inside revalidateStoredXml), never an NPE.
+        String storedXml = report.getReportXml();
+        byte[] xmlBytes = storedXml == null ? null : storedXml.getBytes(StandardCharsets.UTF_8);
         revalidateStoredXml(reportId, xmlBytes);
 
         B2bTenantConfig cfg = b2bConfig(tenantId);
@@ -112,6 +134,17 @@ public class DefaultSubmissionService implements SubmissionService {
         }
     }
 
+    /** Undo the SUBMITTING claim after a failed submit — best-effort, never masks the original failure. */
+    private void restoreStatus(Report report, String status) {
+        try {
+            report.setStatus(status);
+            reportRepository.save(report);
+        } catch (RuntimeException e) {
+            log.error("Failed to restore report {} to {} after a failed submit (left SUBMITTING): {}",
+                    report.getId(), status, e.getMessage());
+        }
+    }
+
     @Override
     public ReportStatus refreshStatus(UUID reportId, UUID tenantId) {
         Report report = reportRepository.findById(reportId)
@@ -127,6 +160,15 @@ public class DefaultSubmissionService implements SubmissionService {
         ReportStatus status = b2bClient.getReportStatus(b2bConfig(tenantId), latest.getReportkey());
 
         String mapped = mapStatus(status.status());
+
+        // Terminal-state guard: a report the FIU already ACCEPTED/REJECTED must never be knocked back to
+        // SUBMITTED by an unknown/in-flight FIU string on a later poll — keep the terminal outcome.
+        if (isTerminal(oldStatus) && "SUBMITTED".equals(mapped)) {
+            log.warn("Report {} is already {} — ignoring non-terminal FIU status '{}'",
+                    reportId, oldStatus, status.status());
+            return status;
+        }
+
         latest.setStatus(mapped);
         latest.setErrors(status.errors());
         submissionRepository.save(latest);
@@ -139,6 +181,11 @@ public class DefaultSubmissionService implements SubmissionService {
             safeNotify(report, mapped, tenantId);
         }
         return status;
+    }
+
+    /** True for the FIU-outcome end states a later poll must never regress. */
+    private static boolean isTerminal(String reportStatus) {
+        return "ACCEPTED".equals(reportStatus) || "REJECTED".equals(reportStatus);
     }
 
     @Override
@@ -220,18 +267,26 @@ public class DefaultSubmissionService implements SubmissionService {
         submissionRepository.save(submission);
     }
 
-    /** Map a FIU status string to our report/submission status vocabulary. */
+    /**
+     * Map a FIU status string to our report/submission status vocabulary — an exact whitelist of the known
+     * goAML Web statuses, never substring matching (the old {@code contains("accept")} mapped
+     * "Not Accepted" to ACCEPTED). Unknown strings keep the report SUBMITTED (so polling continues) and are
+     * logged at WARN for triage.
+     */
     private static String mapStatus(String fiuStatus) {
         if (fiuStatus == null) {
             return "SUBMITTED";
         }
-        String s = fiuStatus.toLowerCase();
-        if (s.contains("accept")) {
-            return "ACCEPTED";
-        }
-        if (s.contains("reject")) {
-            return "REJECTED";
-        }
-        return "SUBMITTED";
+        return switch (fiuStatus.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "accepted" -> "ACCEPTED";
+            case "rejected" -> "REJECTED";
+            // Known in-flight goAML Web pipeline states — still awaiting the FIU outcome.
+            case "uploaded", "processing", "processed", "validated", "submitted", "under review",
+                 "transferred to fiu" -> "SUBMITTED";
+            default -> {
+                log.warn("Unknown FIU report status '{}' — keeping SUBMITTED", fiuStatus);
+                yield "SUBMITTED";
+            }
+        };
     }
 }

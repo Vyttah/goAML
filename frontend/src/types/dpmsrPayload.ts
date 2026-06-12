@@ -3,7 +3,7 @@
  * This is the JSON the builder POSTs to `POST /api/v1/reports`. Unlike the curated `DpmsrCreateRequest`,
  * it uses the schema's wrapper shape (`phones: { phone: [...] }`, `addresses: { address: [...] }`,
  * `directorId: [...]`, inline `identification: [...]`) and the schema property names (`nationality1`,
- * `tphNumber`, `personMyClient`). The `lib/dpmsrPayload.ts` adapter maps the flat form values onto this.
+ * `tphNumber`). The `lib/dpmsrPayload.ts` adapter maps the flat form values onto this.
  *
  * DPMSR-fixed header values (submission_code E, report_code DPMSR, currency AED) and rentity_id are applied
  * server-side and are NOT carried here.
@@ -40,11 +40,15 @@ export interface AddressesWrapper {
   address: AddressJson[];
 }
 
-/** t_person_registration_in_report (the reporting person / MLRO). No identifications block. */
+/**
+ * t_person_registration_in_report (the reporting person / MLRO). No identifications block. Names are
+ * optional on the wire because the whole section may be omitted (the server fills the tenant's
+ * configured goAML person); the Zod mirror enforces names-together when the section is supplied.
+ */
 export interface ReportingPersonJson {
   gender?: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   birthdate?: string;
   ssn?: string;
   passportNumber?: string;
@@ -57,8 +61,12 @@ export interface ReportingPersonJson {
   addresses?: AddressesWrapper;
 }
 
-/** t_person_my_client (a person party). Uses the inline `identification` list. */
-export interface PersonMyClientJson {
+/**
+ * t_person (a plain person party). Uses the inline `identification` list. UAE DPMSR activity-report
+ * parties are plain person/entity — the `*_my_client` variants are not used there (matches the
+ * backend curated path, the AML cockpit, and the real FIU samples).
+ */
+export interface PersonJson {
   gender?: string;
   firstName: string;
   lastName: string;
@@ -106,12 +114,12 @@ export interface EntityJson {
   directorId?: DirectorJson[];
 }
 
-/** report_party_type — exactly one of entity / personMyClient is set. */
+/** report_party_type — exactly one of entity / person is set. */
 export interface PartyJson {
   reason?: string;
   comments?: string;
   entity?: EntityJson;
-  personMyClient?: PersonMyClientJson;
+  person?: PersonJson;
 }
 
 export interface GoodsJson {
@@ -139,7 +147,8 @@ export interface DpmsrReportPayload {
   reason?: string;
   action?: string;
   indicators?: string[];
-  reportingPerson: ReportingPersonJson;
+  /** Optional: when omitted, the server fills the tenant's configured goAML person (MLRO). */
+  reportingPerson?: ReportingPersonJson;
   location?: AddressJson;
   parties: PartyJson[];
   goods: GoodsJson[];

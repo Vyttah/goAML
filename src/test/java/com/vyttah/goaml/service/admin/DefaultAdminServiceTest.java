@@ -18,6 +18,7 @@ import com.vyttah.goaml.repository.notification.NotificationRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.role.RoleRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.security.UserStatusCache;
 import com.vyttah.goaml.service.audit.AuditService;
 import com.vyttah.goaml.service.tenant.TenantProvisioningService;
 import org.junit.jupiter.api.Test;
@@ -54,13 +55,14 @@ class DefaultAdminServiceTest {
     private final NotificationRepository notificationRepository = mock(NotificationRepository.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final AuditService auditService = mock(AuditService.class);
+    private final UserStatusCache userStatusCache = mock(UserStatusCache.class);
 
     private final JurisdictionRegistry jurisdictionRegistry = new JurisdictionRegistry();
 
     private final DefaultAdminService service = new DefaultAdminService(provisioning, tenantRepository,
             appUserRepository, roleRepository, configRepository, personRepository, reportRepository,
             attachmentRepository, importJobRepository, notificationRepository,
-            jurisdictionRegistry, passwordEncoder, auditService);
+            jurisdictionRegistry, passwordEncoder, auditService, userStatusCache);
 
     private final UUID tenantId = UUID.randomUUID();
 
@@ -124,6 +126,8 @@ class DefaultAdminServiceTest {
         assertThat(user.getStatus()).isEqualTo("DISABLED"); // normalized + actually persisted
         assertThat(user.getRoles()).hasSize(1);
         verify(appUserRepository).save(user);
+        // the cached ACTIVE verdict must be dropped so the disable bites before the TTL expires
+        verify(userStatusCache).evict(uid);
     }
 
     @Test
@@ -168,6 +172,18 @@ class DefaultAdminServiceTest {
         service.deleteUser(tenantId, uid, UUID.randomUUID());
 
         verify(appUserRepository).delete(any(AppUser.class));
+        // the deleted user's live tokens must be rejected immediately, not after the cache TTL
+        verify(userStatusCache).evict(uid);
+    }
+
+    @Test
+    void rejectedUpdateNeverEvictsTheStatusCache() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(existingUser(uid, "ACTIVE")));
+        assertThatThrownBy(() -> service.updateUser(tenantId, uid,
+                new UpdateUserRequest("A", "B", "MLRO", "BANISHED"), UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(userStatusCache, never()).evict(any());
     }
 
     @Test

@@ -74,6 +74,29 @@ class GoamlXmlImporterIntegrationTest {
                 () -> assertThat(reportRepository.findAll()).hasSize(1));
     }
 
+    @Test
+    void xxeBearingXmlIsRejectedSafelyAsAFailedRow() {
+        // A DOCTYPE with an external entity must die in the hardened parser — a FAILED row, no file read,
+        // no persisted report.
+        byte[] xxe = ("""
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!DOCTYPE report [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+                <report><entity_reference>&xxe;</entity_reference></report>
+                """).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
+                "imp-xxe", "Import XXE Tenant", "AE", "imp-xxe@test", "P@ssw0rd!", "Imp", "Xxe"));
+
+        ImportRowResult result = runAsTenant(tenant.getSchemaName(),
+                () -> importer.importXml(xxe, "evil.xml", tenant.getId(), UUID.randomUUID()));
+
+        assertThat(result.status()).isEqualTo("FAILED");
+        assertThat(result.errors().get(0)).contains("Unparseable");
+        runAsTenant(tenant.getSchemaName(), () -> {
+            assertThat(reportRepository.findAll()).isEmpty();
+            return null;
+        });
+    }
+
     private static <T> T runAsTenant(String tenant, Supplier<T> body) {
         TenantContext.set(tenant);
         try {

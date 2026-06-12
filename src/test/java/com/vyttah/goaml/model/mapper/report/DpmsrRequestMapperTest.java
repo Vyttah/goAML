@@ -1,12 +1,15 @@
 package com.vyttah.goaml.model.mapper.report;
 
 import com.vyttah.goaml.engine.build.DpmsrReportInput;
+import com.vyttah.goaml.engine.validation.Severity;
+import com.vyttah.goaml.engine.validation.ValidationMessage;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,6 +104,92 @@ class DpmsrRequestMapperTest {
         DpmsrCreateRequest.Party empty = new DpmsrCreateRequest.Party("x", null, null, null);
         assertThatThrownBy(() -> mapper.toInput(req(empty), 3177))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void partyWithBothEntityAndPersonIsRejectedNotSilentlyHalved() {
+        // A party carrying both subjects is ambiguous — refusing beats silently dropping the person.
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "Both Set LLC", null, null, null, null, null, null);
+        DpmsrCreateRequest.Person person = new DpmsrCreateRequest.Person(
+                null, "Also", "Here", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest.Party both = new DpmsrCreateRequest.Party("x", null, entity, person);
+
+        assertThatThrownBy(() -> mapper.toInput(req(both), 3177))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exactly one of person|entity");
+    }
+
+    @Test
+    void normalizationThatChangesANameSurfacesAWarning() {
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "GOLD & DIAMONDS (DUBAI) LLC", null, null, null, null, null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Seller", null, entity, null);
+        List<ValidationMessage> messages = new ArrayList<>();
+
+        DpmsrReportInput input = mapper.toInput(req(party), 3177, messages);
+
+        assertThat(input.parties().get(0).getEntity().getName()).isEqualTo("GOLD and DIAMONDS DUBAI LLC");
+        assertThat(messages)
+                .anySatisfy(m -> {
+                    assertThat(m.severity()).isEqualTo(Severity.WARNING);
+                    assertThat(m.code()).isEqualTo(DpmsrRequestMapper.NAME_NORMALIZED);
+                    assertThat(m.path()).isEqualTo("parties[0].entity.name");
+                    assertThat(m.message()).contains("GOLD & DIAMONDS (DUBAI) LLC")
+                            .contains("GOLD and DIAMONDS DUBAI LLC");
+                });
+    }
+
+    @Test
+    void unchangedNamesEmitNoMessages() {
+        DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
+                null, "Lin", "Chen", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Buyer", null, null, buyer);
+        List<ValidationMessage> messages = new ArrayList<>();
+
+        mapper.toInput(req(party), 3177, messages);
+
+        assertThat(messages).isEmpty();
+    }
+
+    @Test
+    void normalizationThatEmptiesANameIsAClearError() {
+        // "()" normalizes away entirely — that must be a clear NAME_UNREPRESENTABLE error, not a raw
+        // XSD SAX failure downstream.
+        DpmsrCreateRequest.Entity entity = new DpmsrCreateRequest.Entity(
+                "()", null, null, null, null, null, null);
+        DpmsrCreateRequest.Party party = new DpmsrCreateRequest.Party("Seller", null, entity, null);
+        List<ValidationMessage> messages = new ArrayList<>();
+
+        mapper.toInput(req(party), 3177, messages);
+
+        assertThat(messages)
+                .anySatisfy(m -> {
+                    assertThat(m.severity()).isEqualTo(Severity.ERROR);
+                    assertThat(m.code()).isEqualTo(DpmsrRequestMapper.NAME_UNREPRESENTABLE);
+                    assertThat(m.path()).isEqualTo("parties[0].entity.name");
+                });
+    }
+
+    @Test
+    void reportingPersonMapsTaxRegNumberAndAlias() {
+        // Finding 13: t_person_registration_in_report HAS slots for tax_reg_number and alias — map them.
+        DpmsrCreateRequest.Person mlro = new DpmsrCreateRequest.Person(
+                "F", "Sara", "Khan", null, null, null, null, null, "TRN-MLRO", "MLRO",
+                null, null, null, null, "SK");
+        DpmsrCreateRequest.Person buyer = new DpmsrCreateRequest.Person(
+                null, "Lin", "Chen", null, null, null, null, null, null, null, null, null, null);
+        DpmsrCreateRequest.Goods gold = new DpmsrCreateRequest.Goods(
+                "GOLD", null, null, null, null, new BigDecimal("90000.00"), "AED", null, null, null,
+                null, null, null, null);
+        DpmsrCreateRequest request = new DpmsrCreateRequest(null, "PAY-RP", odt("2026-06-02T12:00:00"),
+                null, "r", "a", List.of("DPMSJ"), mlro, null,
+                List.of(new DpmsrCreateRequest.Party("Buyer", null, null, buyer)), List.of(gold));
+
+        DpmsrReportInput input = mapper.toInput(request, 3177);
+
+        assertThat(input.reportingPerson().getTaxRegNumber()).isEqualTo("TRN-MLRO");
+        assertThat(input.reportingPerson().getAlias()).isEqualTo("SK");
     }
 
     private static DpmsrCreateRequest req(DpmsrCreateRequest.Party party) {
