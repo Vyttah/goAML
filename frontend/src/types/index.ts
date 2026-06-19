@@ -196,6 +196,11 @@ export interface UpdateUserRequest {
   status: string; // ACTIVE | DISABLED
 }
 
+/** Reset a user's password (SUPER_ADMIN) — mirrors `AdminViews.ResetPasswordRequest`. */
+export interface ResetPasswordRequest {
+  password: string;
+}
+
 /** User summary — mirrors `AdminViews.UserView`. */
 export interface UserView {
   id: string;
@@ -256,4 +261,53 @@ export interface GoamlPersonView {
   occupation?: string;
   active: boolean;
   updatedAt: string;
+}
+
+// ---- Suite Connections (SUPER_ADMIN) ---------------------------------------------------------
+
+/** Register a sibling service's public key — mirrors `AdminViews.CreateTrustedServiceRequest`. */
+export interface CreateTrustedServiceRequest {
+  sourceSystem: string; // ACCOUNTING | SCREENING
+  description?: string;
+  publicKeyPem: string;
+  jitProvisioning?: boolean;
+  defaultRole?: string; // blank → ANALYST
+}
+
+/** Update a trusted service — mirrors `AdminViews.UpdateTrustedServiceRequest`. status ∈ ACTIVE | DISABLED. */
+export interface UpdateTrustedServiceRequest {
+  description?: string;
+  publicKeyPem: string;
+  jitProvisioning?: boolean;
+  defaultRole?: string;
+  status: string;
+}
+
+/** Trusted service view — mirrors `AdminViews.TrustedServiceView`. */
+export interface TrustedServiceView {
+  id: string;
+  sourceSystem: string;
+  description: string;
+  publicKeyPem: string;
+  jitProvisioning: boolean;
+  defaultRole: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Map a sibling org id to a tenant — mirrors `AdminViews.CreateTenantExternalRefRequest`. */
+export interface CreateTenantExternalRefRequest {
+  tenantId: string;
+  sourceSystem: string; // ACCOUNTING | SCREENING
+  externalOrgRef: string;
+}
+
+/** Company→tenant link view — mirrors `AdminViews.TenantExternalRefView`. */
+export interface TenantExternalRefView {
+  id: string;
+  tenantId: string;
+  sourceSystem: string;
+  externalOrgRef: string;
+  createdAt: string;
 }

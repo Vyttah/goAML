@@ -42,4 +42,39 @@ public final class AdminExceptions {
             super(message);
         }
     }
+
+    /** No trusted service with that id. → {@code 404}. */
+    public static class TrustedServiceNotFoundException extends RuntimeException {
+        public TrustedServiceNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    /** A trusted service is already registered for that source system (unique). → {@code 409}. */
+    public static class TrustedServiceExistsException extends RuntimeException {
+        public TrustedServiceExistsException(String message) {
+            super(message);
+        }
+    }
+
+    /** No company link (tenant_external_ref) with that id. → {@code 404}. */
+    public static class TenantExternalRefNotFoundException extends RuntimeException {
+        public TenantExternalRefNotFoundException(String message) {
+            super(message);
+        }
+    }
+
+    /** A company link already exists for that (source system, org ref). → {@code 409}. */
+    public static class TenantExternalRefExistsException extends RuntimeException {
+        public TenantExternalRefExistsException(String message) {
+            super(message);
+        }
+    }
+
+    /** The tenant referenced by a company link does not exist. → {@code 404}. */
+    public static class TenantNotFoundException extends RuntimeException {
+        public TenantNotFoundException(String message) {
+            super(message);
+        }
+    }
 }

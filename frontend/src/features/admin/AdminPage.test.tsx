@@ -50,6 +50,14 @@ function render(role: string) {
 }
 
 describe('AdminPage — SUPER_ADMIN', () => {
+  // The SUPER_ADMIN AdminPage now also renders SuiteConnectionsPanel, which fetches these two on mount.
+  function suiteConnectionStubs() {
+    return [
+      http.get('*/api/v1/admin/trusted-services', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/tenant-external-refs', () => HttpResponse.json([])),
+    ];
+  }
+
   it('lists tenants and provisions a new one', async () => {
     let created = false;
     server.use(
@@ -60,6 +68,7 @@ describe('AdminPage — SUPER_ADMIN', () => {
         created = true;
         return HttpResponse.json(tenant('beta'), { status: 201 });
       }),
+      ...suiteConnectionStubs(),
     );
     render('SUPER_ADMIN');
 
@@ -75,6 +84,73 @@ describe('AdminPage — SUPER_ADMIN', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Provision' }));
 
     expect(await screen.findByText('beta')).toBeInTheDocument();
+  });
+
+  it('registers a trusted service and maps a company → tenant', async () => {
+    let serviceBody: Record<string, unknown> | null = null;
+    let linkBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get('*/api/v1/admin/tenants', () => HttpResponse.json([tenant('acme')])),
+      http.get('*/api/v1/admin/trusted-services', () => HttpResponse.json([])),
+      http.get('*/api/v1/admin/tenant-external-refs', () => HttpResponse.json([])),
+      http.post('*/api/v1/admin/trusted-services', async ({ request }) => {
+        serviceBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({}, { status: 201 });
+      }),
+      http.post('*/api/v1/admin/tenant-external-refs', async ({ request }) => {
+        linkBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+    render('SUPER_ADMIN');
+
+    // Register a trusted service (paste a public key). The section button carries a +icon → match loosely.
+    await userEvent.click(await screen.findByRole('button', { name: /register/i }));
+    let dialog = within(await screen.findByRole('dialog'));
+    await userEvent.type(dialog.getByLabelText('Public key (PEM)'), '-----BEGIN PUBLIC KEY-----');
+    await userEvent.click(dialog.getByRole('button', { name: 'Register' }));
+    await waitFor(() => expect(serviceBody).not.toBeNull());
+    expect(serviceBody).toMatchObject({ sourceSystem: 'SCREENING', jitProvisioning: true });
+
+    // Map a company id → tenant.
+    await userEvent.click(screen.getByRole('button', { name: /add link/i }));
+    dialog = within(await screen.findByRole('dialog'));
+    await userEvent.type(dialog.getByLabelText('Company id (org ref)'), 'aumtech_1');
+    fireEvent.mouseDown(dialog.getByLabelText('goAML tenant'));
+    await userEvent.click(await screen.findByText('acme FZE (acme)', { selector: '.ant-select-item-option-content' }));
+    await userEvent.click(dialog.getByRole('button', { name: 'Add' }));
+    await waitFor(() => expect(linkBody).not.toBeNull());
+    expect(linkBody).toMatchObject({ sourceSystem: 'SCREENING', externalOrgRef: 'aumtech_1', tenantId: 't-acme' });
+  });
+
+  it("manages a tenant's users and resets a password", async () => {
+    let resetBody: Record<string, unknown> | null = null;
+    server.use(
+      http.get('*/api/v1/admin/tenants', () => HttpResponse.json([tenant('acme')])),
+      ...suiteConnectionStubs(),
+      http.get('*/api/v1/admin/tenants/t-acme/users', () =>
+        HttpResponse.json([user('mlro@acme.test', ['MLRO'])]),
+      ),
+      http.post('*/api/v1/admin/tenants/t-acme/users/:userId/reset-password', async ({ request }) => {
+        resetBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json(user('mlro@acme.test', ['MLRO']));
+      }),
+    );
+    render('SUPER_ADMIN');
+
+    // Pick a tenant in the Tenant Users panel (the only bare combobox on the page).
+    fireEvent.mouseDown(await screen.findByRole('combobox'));
+    await userEvent.click(await screen.findByText('acme FZE (acme)', { selector: '.ant-select-item-option-content' }));
+
+    // Its users load → reset a password.
+    expect(await screen.findByText('mlro@acme.test')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Reset password' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    await userEvent.type(dialog.getByLabelText('New password'), 'Fresh!123');
+    await userEvent.click(dialog.getByRole('button', { name: 'Set password' }));
+
+    await waitFor(() => expect(resetBody).not.toBeNull());
+    expect(resetBody).toMatchObject({ password: 'Fresh!123' });
   });
 });
 

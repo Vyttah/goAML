@@ -1,10 +1,15 @@
 package com.vyttah.goaml.service.admin;
 
+import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTenantExternalRefRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTrustedServiceRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateTrustedServiceRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
+import com.vyttah.goaml.model.entity.federated.TenantExternalRef;
+import com.vyttah.goaml.model.entity.federated.TrustedService;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
@@ -35,6 +40,14 @@ public interface AdminService {
 
     /** Users of a tenant. */
     List<AppUser> listUsers(UUID tenantId);
+
+    /**
+     * Reset a user's password (SUPER_ADMIN cross-tenant onboarding / lost-password recovery). Sets a new
+     * encoded hash so the user can log in directly; existing access tokens remain valid until they expire.
+     *
+     * @throws AdminExceptions.UserNotFoundException if no such user in this tenant
+     */
+    AppUser resetUserPassword(UUID tenantId, UUID userId, String newPassword);
 
     /**
      * Update a user in {@code tenantId}: profile, single role, and status (ACTIVE|DISABLED). Email is immutable
@@ -83,4 +96,48 @@ public interface AdminService {
      * @throws AdminExceptions.GoamlPersonNotFoundException if no such person in this tenant
      */
     void deleteGoamlPerson(UUID tenantId, UUID personId);
+
+    // ----- Suite Connections (SUPER_ADMIN): trusted services + company→tenant links -----
+
+    /** All registered trusted services (sibling apps). */
+    List<TrustedService> listTrustedServices();
+
+    /**
+     * Register a sibling service's public key for federated trust.
+     *
+     * @throws AdminExceptions.TrustedServiceExistsException if one already exists for that source system
+     */
+    TrustedService createTrustedService(CreateTrustedServiceRequest request);
+
+    /**
+     * Update a trusted service's key/policy/status.
+     *
+     * @throws AdminExceptions.TrustedServiceNotFoundException if no such trusted service
+     */
+    TrustedService updateTrustedService(UUID id, UpdateTrustedServiceRequest request);
+
+    /**
+     * Delete a trusted service (revokes the sibling app's trust).
+     *
+     * @throws AdminExceptions.TrustedServiceNotFoundException if no such trusted service
+     */
+    void deleteTrustedService(UUID id);
+
+    /** All company→tenant links. */
+    List<TenantExternalRef> listTenantExternalRefs();
+
+    /**
+     * Map a sibling system's org id to a goAML tenant.
+     *
+     * @throws AdminExceptions.TenantNotFoundException if the tenant does not exist
+     * @throws AdminExceptions.TenantExternalRefExistsException if that (source, org ref) is already mapped
+     */
+    TenantExternalRef createTenantExternalRef(CreateTenantExternalRefRequest request);
+
+    /**
+     * Delete a company→tenant link.
+     *
+     * @throws AdminExceptions.TenantExternalRefNotFoundException if no such link
+     */
+    void deleteTenantExternalRef(UUID id);
 }

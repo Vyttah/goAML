@@ -1,11 +1,17 @@
 package com.vyttah.goaml.controller.admin;
 
+import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTenantExternalRefRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTrustedServiceRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonView;
+import com.vyttah.goaml.model.dto.admin.AdminViews.ResetPasswordRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.TenantExternalRefView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.TenantView;
+import com.vyttah.goaml.model.dto.admin.AdminViews.TrustedServiceView;
+import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateTrustedServiceRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.UserView;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
@@ -61,6 +67,48 @@ public class AdminController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<List<TenantView>> listTenants() {
         return ResponseEntity.ok(adminService.listTenants().stream().map(TenantView::from).toList());
+    }
+
+    // ----- cross-tenant user management (SUPER_ADMIN) — operate on any tenant by id -----
+
+    @GetMapping("/tenants/{tenantId}/users")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<UserView>> listTenantUsers(@PathVariable UUID tenantId) {
+        return ResponseEntity.ok(adminService.listUsers(tenantId).stream().map(UserView::from).toList());
+    }
+
+    @PostMapping("/tenants/{tenantId}/users")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<UserView> createTenantUser(@PathVariable UUID tenantId,
+                                                     @Valid @RequestBody CreateUserRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(UserView.from(adminService.createUser(tenantId, request)));
+    }
+
+    @PutMapping("/tenants/{tenantId}/users/{userId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<UserView> updateTenantUser(@PathVariable UUID tenantId, @PathVariable UUID userId,
+                                                     @Valid @RequestBody UpdateUserRequest request,
+                                                     @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(UserView.from(
+                adminService.updateUser(tenantId, userId, request, principal.getUserId())));
+    }
+
+    @DeleteMapping("/tenants/{tenantId}/users/{userId}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteTenantUser(@PathVariable UUID tenantId, @PathVariable UUID userId,
+                                                 @AuthenticationPrincipal UserPrincipal principal) {
+        adminService.deleteUser(tenantId, userId, principal.getUserId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/tenants/{tenantId}/users/{userId}/reset-password")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<UserView> resetTenantUserPassword(@PathVariable UUID tenantId,
+                                                            @PathVariable UUID userId,
+                                                            @Valid @RequestBody ResetPasswordRequest request) {
+        return ResponseEntity.ok(UserView.from(
+                adminService.resetUserPassword(tenantId, userId, request.password())));
     }
 
     // ----- users in the caller's tenant (TENANT_ADMIN) -----
@@ -146,6 +194,62 @@ public class AdminController {
     public ResponseEntity<Void> deleteGoamlPerson(@PathVariable UUID id,
                                                   @AuthenticationPrincipal UserPrincipal principal) {
         adminService.deleteGoamlPerson(principal.getTenantId(), id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ----- suite connections: trusted services (SUPER_ADMIN) -----
+    // Manage federated trust + company→tenant links from the UI instead of hand-run SQL.
+
+    @GetMapping("/trusted-services")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<TrustedServiceView>> listTrustedServices() {
+        return ResponseEntity.ok(adminService.listTrustedServices()
+                .stream().map(TrustedServiceView::from).toList());
+    }
+
+    @PostMapping("/trusted-services")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TrustedServiceView> createTrustedService(
+            @Valid @RequestBody CreateTrustedServiceRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(TrustedServiceView.from(adminService.createTrustedService(request)));
+    }
+
+    @PutMapping("/trusted-services/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TrustedServiceView> updateTrustedService(
+            @PathVariable UUID id, @Valid @RequestBody UpdateTrustedServiceRequest request) {
+        return ResponseEntity.ok(TrustedServiceView.from(adminService.updateTrustedService(id, request)));
+    }
+
+    @DeleteMapping("/trusted-services/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteTrustedService(@PathVariable UUID id) {
+        adminService.deleteTrustedService(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ----- suite connections: company → tenant links (SUPER_ADMIN) -----
+
+    @GetMapping("/tenant-external-refs")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<TenantExternalRefView>> listTenantExternalRefs() {
+        return ResponseEntity.ok(adminService.listTenantExternalRefs()
+                .stream().map(TenantExternalRefView::from).toList());
+    }
+
+    @PostMapping("/tenant-external-refs")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TenantExternalRefView> createTenantExternalRef(
+            @Valid @RequestBody CreateTenantExternalRefRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(TenantExternalRefView.from(adminService.createTenantExternalRef(request)));
+    }
+
+    @DeleteMapping("/tenant-external-refs/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteTenantExternalRef(@PathVariable UUID id) {
+        adminService.deleteTenantExternalRef(id);
         return ResponseEntity.noContent().build();
     }
 }

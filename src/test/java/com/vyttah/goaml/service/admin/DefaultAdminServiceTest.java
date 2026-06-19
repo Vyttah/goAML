@@ -1,16 +1,24 @@
 package com.vyttah.goaml.service.admin;
 
 import com.vyttah.goaml.engine.jurisdiction.JurisdictionRegistry;
+import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTenantExternalRefRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTrustedServiceRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateUserRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlConfigRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.GoamlPersonRequest;
 import com.vyttah.goaml.model.dto.admin.AdminViews.UpdateUserRequest;
+import com.vyttah.goaml.model.entity.federated.SourceSystem;
+import com.vyttah.goaml.model.entity.federated.TenantExternalRef;
+import com.vyttah.goaml.model.entity.federated.TrustedService;
+import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.role.Role;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.attachment.AttachmentRepository;
+import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
+import com.vyttah.goaml.repository.federated.TrustedServiceRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.ingestion.ImportJobRepository;
@@ -45,6 +53,9 @@ class DefaultAdminServiceTest {
 
     private final TenantProvisioningService provisioning = mock(TenantProvisioningService.class);
     private final TenantRepository tenantRepository = mock(TenantRepository.class);
+    private final TrustedServiceRepository trustedServiceRepository = mock(TrustedServiceRepository.class);
+    private final TenantExternalRefRepository tenantExternalRefRepository =
+            mock(TenantExternalRefRepository.class);
     private final AppUserRepository appUserRepository = mock(AppUserRepository.class);
     private final RoleRepository roleRepository = mock(RoleRepository.class);
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
@@ -56,13 +67,18 @@ class DefaultAdminServiceTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final AuditService auditService = mock(AuditService.class);
     private final UserStatusCache userStatusCache = mock(UserStatusCache.class);
+    // A mock tx manager: TransactionTemplate.execute(...) runs the callback synchronously and propagates its
+    // exceptions, so deleteUser's programmatic-transaction logic is exercised without a real transaction.
+    private final org.springframework.transaction.PlatformTransactionManager transactionManager =
+            mock(org.springframework.transaction.PlatformTransactionManager.class);
 
     private final JurisdictionRegistry jurisdictionRegistry = new JurisdictionRegistry();
 
     private final DefaultAdminService service = new DefaultAdminService(provisioning, tenantRepository,
+            trustedServiceRepository, tenantExternalRefRepository,
             appUserRepository, roleRepository, configRepository, personRepository, reportRepository,
             attachmentRepository, importJobRepository, notificationRepository,
-            jurisdictionRegistry, passwordEncoder, auditService, userStatusCache);
+            jurisdictionRegistry, passwordEncoder, auditService, userStatusCache, transactionManager);
 
     private final UUID tenantId = UUID.randomUUID();
 
@@ -72,6 +88,7 @@ class DefaultAdminServiceTest {
 
     @Test
     void createUserEncodesPasswordAndAssignsRole() {
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
         when(roleRepository.findByName("ANALYST")).thenReturn(Optional.of(mock(Role.class)));
         when(appUserRepository.existsByEmail("a@t.test")).thenReturn(false);
         when(passwordEncoder.encode("P@ssw0rd!")).thenReturn("ENC");
@@ -88,6 +105,7 @@ class DefaultAdminServiceTest {
 
     @Test
     void createUserRejectsDuplicateEmail() {
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
         when(roleRepository.findByName("MLRO")).thenReturn(Optional.of(mock(Role.class)));
         when(appUserRepository.existsByEmail("dup@t.test")).thenReturn(true);
 
@@ -385,5 +403,122 @@ class DefaultAdminServiceTest {
     void listGoamlPersonsDelegatesToRepo() {
         when(personRepository.findByTenantIdOrderByCreatedAtDesc(tenantId)).thenReturn(List.of());
         assertThat(service.listGoamlPersons(tenantId)).isEmpty();
+    }
+
+    // ----- cross-tenant user mgmt (SUPER_ADMIN) -----
+
+    @Test
+    void createUserRejectsUnknownTenant() {
+        when(roleRepository.findByName("ANALYST")).thenReturn(Optional.of(mock(Role.class)));
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.createUser(tenantId, userReq("a@t.test", "ANALYST")))
+                .isInstanceOf(AdminExceptions.TenantNotFoundException.class);
+        verify(appUserRepository, never()).save(any());
+    }
+
+    @Test
+    void resetUserPasswordEncodesAndSavesForTenantUser() {
+        UUID uid = UUID.randomUUID();
+        AppUser user = existingUser(uid, "ACTIVE");
+        when(appUserRepository.findById(uid)).thenReturn(Optional.of(user));
+        when(passwordEncoder.encode("N3wPass!")).thenReturn("ENC2");
+
+        service.resetUserPassword(tenantId, uid, "N3wPass!");
+
+        assertThat(user.getPasswordHash()).isEqualTo("ENC2");
+        verify(appUserRepository).save(user);
+    }
+
+    @Test
+    void resetUserPasswordRejectsUserOutsideTenant() {
+        UUID uid = UUID.randomUUID();
+        when(appUserRepository.findById(uid)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.resetUserPassword(tenantId, uid, "N3wPass!"))
+                .isInstanceOf(AdminExceptions.UserNotFoundException.class);
+    }
+
+    // ----- suite connections: trusted services -----
+
+    @Test
+    void createTrustedServiceSavesActiveRecord() {
+        when(trustedServiceRepository.findBySourceSystem(SourceSystem.SCREENING)).thenReturn(Optional.empty());
+
+        service.createTrustedService(
+                new CreateTrustedServiceRequest("screening", "AML", "PEM", true, "MLRO")); // case-insensitive
+
+        ArgumentCaptor<TrustedService> saved = ArgumentCaptor.forClass(TrustedService.class);
+        verify(trustedServiceRepository).save(saved.capture());
+        assertThat(saved.getValue().getSourceSystem()).isEqualTo(SourceSystem.SCREENING);
+        assertThat(saved.getValue().isJitProvisioning()).isTrue();
+        assertThat(saved.getValue().getDefaultRole()).isEqualTo("MLRO");
+        assertThat(saved.getValue().getStatus()).isEqualTo("ACTIVE");
+    }
+
+    @Test
+    void createTrustedServiceRejectsDuplicateSource() {
+        when(trustedServiceRepository.findBySourceSystem(SourceSystem.SCREENING))
+                .thenReturn(Optional.of(mock(TrustedService.class)));
+
+        assertThatThrownBy(() -> service.createTrustedService(
+                new CreateTrustedServiceRequest("SCREENING", "", "PEM", false, null)))
+                .isInstanceOf(AdminExceptions.TrustedServiceExistsException.class);
+        verify(trustedServiceRepository, never()).save(any());
+    }
+
+    @Test
+    void createTrustedServiceRejectsUnknownSource() {
+        assertThatThrownBy(() -> service.createTrustedService(
+                new CreateTrustedServiceRequest("WAREHOUSE", "", "PEM", false, null)))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(trustedServiceRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteTrustedServiceRejectsUnknownId() {
+        UUID id = UUID.randomUUID();
+        when(trustedServiceRepository.findById(id)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.deleteTrustedService(id))
+                .isInstanceOf(AdminExceptions.TrustedServiceNotFoundException.class);
+    }
+
+    // ----- suite connections: company → tenant links -----
+
+    @Test
+    void createTenantExternalRefMapsTrimmedOrgToTenant() {
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.SCREENING, "COMP_1"))
+                .thenReturn(Optional.empty());
+
+        service.createTenantExternalRef(
+                new CreateTenantExternalRefRequest(tenantId, "screening", "  COMP_1  "));
+
+        ArgumentCaptor<TenantExternalRef> saved = ArgumentCaptor.forClass(TenantExternalRef.class);
+        verify(tenantExternalRefRepository).save(saved.capture());
+        assertThat(saved.getValue().getExternalOrgRef()).isEqualTo("COMP_1"); // trimmed
+        assertThat(saved.getValue().getTenantId()).isEqualTo(tenantId);
+        assertThat(saved.getValue().getSourceSystem()).isEqualTo(SourceSystem.SCREENING);
+    }
+
+    @Test
+    void createTenantExternalRefRejectsUnknownTenant() {
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.createTenantExternalRef(
+                new CreateTenantExternalRefRequest(tenantId, "SCREENING", "COMP_1")))
+                .isInstanceOf(AdminExceptions.TenantNotFoundException.class);
+        verify(tenantExternalRefRepository, never()).save(any());
+    }
+
+    @Test
+    void createTenantExternalRefRejectsDuplicate() {
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.SCREENING, "COMP_1"))
+                .thenReturn(Optional.of(mock(TenantExternalRef.class)));
+
+        assertThatThrownBy(() -> service.createTenantExternalRef(
+                new CreateTenantExternalRefRequest(tenantId, "SCREENING", "COMP_1")))
+                .isInstanceOf(AdminExceptions.TenantExternalRefExistsException.class);
+        verify(tenantExternalRefRepository, never()).save(any());
     }
 }

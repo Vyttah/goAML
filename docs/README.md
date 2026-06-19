@@ -32,6 +32,8 @@
 | 12 | [12 — Frontend (SPA)](12-frontend.md) | The Phase 13 React + Ant Design SPA: stack, layout, how it talks to the API (JWT-claims identity, 401→login), local run, and testing. |
 | 15 | [15 — DPMSR field requirements](15-dpmsr-field-requirements.md) | **Mandatory vs optional** for every DPMSR field (from the goAML XSD), for the frontend "required" markers — incl. the context-dependent person rules + a regeneration recipe. |
 | 16 | [16 — Operations: Backup, DR & Retention](16-operations-dr-retention.md) | **Policy draft (needs sign-off):** RPO/RTO, RDS backup/PITR + restore, S3 versioning/lifecycle, tenant-schema export/restore, the ≥5-year AML records-retention schedule, Flyway rollback stance, and the single-poller topology. |
+| 17 | [17 — Suite connections, admin & local-run guide](17-suite-connections-and-admin-guide.md) | **Operator + dev guide:** the federated-SSO connection model (no second login), the two cross-service contract requirements (roles claim, jti), the SUPER_ADMIN admin surfaces (Tenants, **Tenant Users + password reset**, **Suite Connections**), a step-by-step "connect a client & manage users", troubleshooting, and the full local-dev run topology. |
+| 18 | [18 — Test coverage & how to run the gates](18-test-coverage-and-gates.md) | The automated-test map across all four suite codebases, what the 2026-06-14 hardening pass added (HTTP-layer tenant isolation, 401/403 sweeps, the admin panels, the cockpit DPMSR mappers/validation), the exact gate commands, and the cross-tenant-delete bug the tests found + fixed. |
 | — | [CONVENTIONS.md](CONVENTIONS.md) | The repo's **layer-first folder structure & coding conventions** (Vyttah standard, adapted). The authoritative structure reference. |
 
 ---

@@ -109,4 +109,9 @@ public class AppUser {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    /** Replace the password hash (admin password reset). Pass an already-encoded hash. */
+    public void changePassword(String encodedHash) {
+        this.passwordHash = encodedHash;
+    }
 }
