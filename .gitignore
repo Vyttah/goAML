@@ -23,6 +23,8 @@ logs/
 # Env / secrets
 .env
 .env.local
+.env.dev
+.env.*.local
 *.pem
 *.key
 

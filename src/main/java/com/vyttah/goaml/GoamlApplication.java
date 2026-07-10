@@ -6,7 +6,9 @@ import com.vyttah.goaml.security.JwtProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import java.util.Arrays;
@@ -19,10 +21,21 @@ import java.util.Arrays;
  * it boots a non-web Spring context (so the CLI commands share the real engine/services), executes the
  * command, and exits with its status code. The web MCP autoconfig is conditional on a servlet context, so
  * it is simply absent in CLI mode.
+ *
+ * <p>Extends {@link SpringBootServletInitializer} so the same codebase also deploys as a traditional WAR
+ * into an external servlet container (the shared standalone Tomcat). {@code main} still drives the
+ * executable jar/war (container + CLI) paths; {@link #configure} is the entry point the servlet container
+ * uses instead of {@code main}.
  */
 @SpringBootApplication
 @EnableConfigurationProperties({JwtProperties.class, AuthProperties.class})
-public class GoamlApplication {
+public class GoamlApplication extends SpringBootServletInitializer {
+
+    /** Servlet-container bootstrap (WAR deployment) — the container calls this instead of {@link #main}. */
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
+        return application.sources(GoamlApplication.class);
+    }
 
     public static void main(String[] args) {
         if (args.length > 0 && "--cli".equals(args[0])) {

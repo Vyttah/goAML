@@ -1,0 +1,97 @@
+# Deploy goAML to the shared DEV Tomcat 10 (co-located with the AML services).
+#
+# goAML ships as a single WAR (React SPA baked onto the Spring Boot classpath) dropped into
+# /var/lib/tomcat10/webapps as goaml.war -> Tomcat serves it at the /goaml context.
+#
+# Triggered manually (independent of the Backend_Java pipeline). The shared JVM env is supplied by
+# /var/lib/tomcat10/.env via setenv.sh — this workflow does NOT touch .env. goAML's variables must be
+# present in that shared .env (SPRING_DATASOURCE_*, GOAML_JWT_SECRET, GOAML_DEV_SEED, ...). Adding new
+# vars needs a one-time Tomcat restart (env is read at JVM start); a routine war-only redeploy is picked
+# up by Tomcat autoDeploy (context reload, no JVM restart) so it does not bounce the AML services.
+#
+# Requires these repo secrets (same values as Backend_Java's DEV deploy):
+#   DEV_HOST, DEV_SSH_USER, DEV_SSH_PRIVATE_KEY
+name: Deploy goAML to DEV (Tomcat)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev-goaml
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build WAR & Deploy to DEV Tomcat
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Build the SPA (served under /goaml)
+        working-directory: frontend
+        env:
+          # Emits assets under /goaml/, sets the router basename + axios base so API calls hit
+          # /goaml/api/v1/... (same-origin under Tomcat's /goaml context).
+          VITE_BASE_PATH: /goaml/
+        run: |
+          npm ci
+          npm run build
+
+      - name: Embed the SPA on the classpath
+        run: |
+          rm -rf src/main/resources/static
+          mkdir -p src/main/resources/static
+          cp -r frontend/dist/* src/main/resources/static/
+
+      - name: Build goaml.war
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bootWar -x test
+
+      - name: Upload goaml.war to DEV Tomcat webapps
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          source: "build/libs/goaml.war"
+          target: "/var/lib/tomcat10/webapps"
+          strip_components: 2
+          overwrite: true
+
+      - name: Verify deployment (tail catalina log)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEV_HOST }}
+          username: ${{ secrets.DEV_SSH_USER }}
+          key: ${{ secrets.DEV_SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+            set -e
+            LOG_FILE="/var/lib/tomcat10/logs/catalina.$(date +%F).log"
+            echo "Waiting 40s for Tomcat to auto-deploy goaml.war..."
+            sleep 40
+            echo "===== Last 80 lines of $LOG_FILE ====="
+            sudo tail -n 80 "$LOG_FILE" || echo "Log file not found yet: $LOG_FILE"
+
+      - name: Summary
+        run: |
+          echo "### goAML DEV Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: \`goaml.war\` -> \`/var/lib/tomcat10/webapps\` (context \`/goaml\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "UI + API: \`http://<dev-host>:8080/goaml\`" >> "$GITHUB_STEP_SUMMARY"

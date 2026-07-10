@@ -9,6 +9,11 @@ import react from '@vitejs/plugin-react';
 //  - test: Vitest (jsdom) with a shared setup; coverage focuses on the logic layers (api/auth/routes).
 const backend = process.env.VITE_BACKEND_URL ?? 'http://localhost:8080';
 
+// Public base path the SPA is served under. Root ('/') for the standalone jar/container; set
+// VITE_BASE_PATH=/goaml/ when building the WAR that Tomcat serves at the /goaml context. This rewrites
+// asset URLs and feeds import.meta.env.BASE_URL, which the router basename + API base derive from.
+const basePath = process.env.VITE_BASE_PATH ?? '/';
+
 // The dev proxy is meant to make the SPA look same-origin to the backend (so no CORS is needed). But
 // http-proxy forwards the browser's Origin header, which makes the backend's CORS filter reject the
 // request (403) unless the SPA's dev origin happens to be in GOAML_ALLOWED_ORIGINS. Stripping Origin on
@@ -17,6 +22,7 @@ const sameOrigin = (proxy: { on: (e: string, cb: (req: { removeHeader: (h: strin
   proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'));
 
 export default defineConfig({
+  base: basePath,
   plugins: [react()],
   server: {
     port: 5173,

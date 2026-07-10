@@ -1,0 +1,83 @@
+# goAML — single-file deployment stack (mirrors the AML suite's deploy/ convention).
+#
+# One image serves the REST API + the React SPA + the MCP server (the multi-stage Dockerfile
+# bakes the Vite build onto the Spring Boot classpath), so there is NO separate frontend service.
+# Flyway owns the schema and migrates on startup — the DB only needs to exist (POSTGRES_DB below).
+#
+# Usage (from the goAML repo root):
+#   cp deploy/.env.example deploy/.env      # then edit the secret
+#   docker compose -f deploy/docker-compose.yml up --build -d
+#   docker compose -f deploy/docker-compose.yml logs -f goaml
+#
+# UI + API:  http://<host>:${GOAML_HTTP_PORT:-8091}
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-goaml}
+      POSTGRES_USER: ${POSTGRES_USER:-goaml}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-goaml}
+    ports:
+      # Host publish is only for debugging with psql from the host; the app reaches db:5432 over the
+      # compose network regardless. 5434 avoids clashing with the other Postgres instances on this host.
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - goaml_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-goaml} -d ${POSTGRES_DB:-goaml}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${REDIS_HOST_PORT:-6381}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  goaml:
+    build:
+      # Context is the goAML repo root (one dir up); the Dockerfile there does SPA build -> jar -> JRE.
+      context: ..
+      dockerfile: Dockerfile
+    image: goaml:latest
+    environment:
+      # --- datasource: reach the db service over the compose network ---
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-goaml}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-goaml}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-goaml}
+      # --- redis: per-tenant FIU B2B session-token cache ---
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      # --- app ---
+      # Serve on 8080 inside the container (matches the Dockerfile EXPOSE); published on the host below.
+      SERVER_PORT: 8080
+      # HS256 signing key — MUST be >= 32 bytes. Set a real value in deploy/.env.
+      GOAML_JWT_SECRET: ${GOAML_JWT_SECRET:?set GOAML_JWT_SECRET in deploy/.env (>=32 bytes)}
+      GOAML_AUTH_MODE: ${GOAML_AUTH_MODE:-both}
+      # Background FIU status poller — fine to leave on for a single instance.
+      GOAML_SCHEDULER_ENABLED: ${GOAML_SCHEDULER_ENABLED:-true}
+      # DEV SEED: creates the demo tenant + login users (superadmin/admin/mlro/analyst, pw Passw0rd!) so you
+      # can log in immediately. Set to false for a real production tenant you provision yourself. See NOTE
+      # in deploy/.env.example — do NOT leave this on for a live, internet-exposed deployment.
+      GOAML_DEV_SEED: ${GOAML_DEV_SEED:-true}
+      # AWS is only used for live FIU submission (Secrets Manager) + S3 attachments, both gated off by
+      # default. Point at a LocalStack endpoint to exercise them locally; leave blank for real AWS/IRSA.
+      GOAML_AWS_ENDPOINT: ${GOAML_AWS_ENDPOINT:-}
+      GOAML_AWS_REGION: ${GOAML_AWS_REGION:-me-central-1}
+    ports:
+      - "${GOAML_HTTP_PORT:-8091}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  goaml_pgdata:

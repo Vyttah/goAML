@@ -9,6 +9,10 @@ plugins {
     id 'com.github.bjornvester.xjc'         version '1.9.0'
     // Phase 6: test coverage measurement + a ≥90% gate on the new b2b / aws integration code.
     id 'jacoco'
+    // Deploy target: a traditional WAR so the same app can be dropped into the shared standalone Tomcat
+    // (co-located with the AML services). bootJar still works for the container/standalone path — Spring
+    // Boot includes providedRuntime deps in the executable artifacts, so `java -jar` is unaffected.
+    id 'war'
 }
 
 group   = 'com.vyttah'
@@ -19,6 +23,13 @@ java {
         languageVersion = JavaLanguageVersion.of(21)
     }
 }
+
+// Deploy artifact: a fixed, unversioned name so Tomcat derives a clean context path (/goaml) from the
+// war filename. bootWar is the deployable (Spring Boot) war; the plain `war` task is redundant here.
+bootWar {
+    archiveFileName = 'goaml.war'
+}
+tasks.named('war') { enabled = false }
 
 repositories {
     mavenCentral()
@@ -56,6 +67,9 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    // WAR deployment: the servlet container (standalone Tomcat 10.1) provides Tomcat, so mark it provided
+    // to avoid shipping a second copy inside the war. Included in bootJar/bootWar for standalone `java -jar`.
+    providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     // Observability (Phase 14): Prometheus scrape endpoint (/actuator/prometheus) + JSON log encoder
     // (used only under the `prod` Spring profile via logback-spring.xml; dev stays human-readable).
