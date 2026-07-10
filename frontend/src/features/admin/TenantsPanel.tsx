@@ -31,7 +31,7 @@ export function TenantsPanel() {
   };
 
   const columns: ColumnsType<TenantView> = [
-    { title: 'Slug', dataIndex: 'slug', key: 'slug' },
+    { title: 'Company ID', dataIndex: 'slug', key: 'slug' },
     { title: 'Name', dataIndex: 'name', key: 'name' },
     { title: 'Jurisdiction', dataIndex: 'jurisdictionCode', key: 'jurisdictionCode', width: 120 },
     {
@@ -84,8 +84,19 @@ export function TenantsPanel() {
         >
           <Row gutter={12}>
             <Col span={12}>
-              <Form.Item label="Slug" name="slug" rules={[{ required: true }]}>
-                <Input placeholder="acme" />
+              <Form.Item
+                label="Company ID"
+                name="slug"
+                rules={[
+                  { required: true, message: 'Company ID is required' },
+                  {
+                    pattern: /^[A-Za-z0-9_-]{3,64}$/,
+                    message: '3–64 chars: letters, digits, hyphens, underscores',
+                  },
+                ]}
+                extra="Used at login and as the schema name (stored lower-case). Keep equal to the AML company id."
+              >
+                <Input placeholder="acme-gold" />
               </Form.Item>
             </Col>
             <Col span={12}>

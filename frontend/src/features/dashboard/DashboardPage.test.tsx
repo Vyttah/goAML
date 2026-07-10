@@ -93,11 +93,11 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('NEW REPORT PAGE')).toBeInTheDocument();
   });
 
-  it('hides "New report" from a tenant admin (read-only role here)', async () => {
+  it('shows "New report" to a tenant admin (has analyst/MLRO create rights)', async () => {
     listReturns(REPORTS);
     renderDashboard('TENANT_ADMIN');
     await screen.findByText('DPMSR-0001');
 
-    expect(screen.queryByRole('button', { name: /new report/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new report/i })).toBeInTheDocument();
   });
 });

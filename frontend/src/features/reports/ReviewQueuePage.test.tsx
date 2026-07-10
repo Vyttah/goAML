@@ -111,7 +111,7 @@ describe('ReviewQueuePage', () => {
     await waitFor(() => expect(rejectedRemark).toBe('missing party id'));
   });
 
-  it('shows the queue to a TENANT_ADMIN without approve/reject actions', async () => {
+  it('shows the queue with approve/reject actions to a TENANT_ADMIN (has MLRO review rights)', async () => {
     server.use(
       http.get('*/api/v1/reports/review-queue', () =>
         HttpResponse.json([pending('r-1', 'DPMSR-A')]),
@@ -120,7 +120,7 @@ describe('ReviewQueuePage', () => {
     renderQueue('TENANT_ADMIN');
 
     expect(await screen.findByText('DPMSR-A')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /approve/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /reject/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /approve/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reject/i })).toBeInTheDocument();
   });
 });

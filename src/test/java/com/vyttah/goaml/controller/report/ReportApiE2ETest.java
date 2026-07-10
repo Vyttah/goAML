@@ -280,7 +280,8 @@ class ReportApiE2ETest {
 
     private String login(String email, String password) {
         ResponseEntity<JsonNode> resp = post("/api/v1/auth/login",
-                String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password), null);
+                String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                        tenant.getSlug(), email, password), null);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }

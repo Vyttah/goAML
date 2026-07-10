@@ -37,7 +37,7 @@ public class ImportController {
     private final ObjectMapper objectMapper;
 
     @PostMapping(path = "/xml", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<ImportJobView> importXml(@RequestParam("file") MultipartFile file,
                                                    @AuthenticationPrincipal UserPrincipal principal) {
         var job = ingestionService.importXml(readBytes(file), file.getOriginalFilename(),
@@ -46,7 +46,7 @@ public class ImportController {
     }
 
     @PostMapping(path = "/csv", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<ImportJobView> importCsv(@RequestParam("file") MultipartFile file,
                                                    @AuthenticationPrincipal UserPrincipal principal) {
         var job = ingestionService.importCsv(readBytes(file), file.getOriginalFilename(),

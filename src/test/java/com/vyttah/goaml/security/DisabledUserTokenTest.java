@@ -55,7 +55,8 @@ class DisabledUserTokenTest {
 
         // Login → JWT for an ACTIVE user.
         ResponseEntity<JsonNode> login = postJson("/api/v1/auth/login",
-                "{\"email\":\"" + email + "\",\"password\":\"Sup3rS3cret!\"}");
+                "{\"companyId\":\"" + tenant.getSlug() + "\",\"email\":\"" + email
+                        + "\",\"password\":\"Sup3rS3cret!\"}");
         assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
         String jwt = login.getBody().get("accessToken").asText();
 

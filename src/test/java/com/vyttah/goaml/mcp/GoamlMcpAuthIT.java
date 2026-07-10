@@ -169,8 +169,9 @@ class GoamlMcpAuthIT {
 
     @Test
     void toolEnforcesRbacOverTheWire() {
-        // TENANT_ADMIN may read reports but NOT validate/build — the tool must refuse over MCP.
-        try (McpSyncClient client = connect(mintToken(List.of("TENANT_ADMIN"), "public"))) {
+        // A platform SUPER_ADMIN holds no tenant report role, so it may NOT validate/build — the tool must
+        // refuse over MCP. (ANALYST/MLRO/TENANT_ADMIN are all allowed.)
+        try (McpSyncClient client = connect(mintToken(List.of("SUPER_ADMIN"), "public"))) {
             McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
                     "goaml_validate_dpmsr", Map.of("request", sampleDpmsrRequest())));
 

@@ -6,6 +6,8 @@
 
 /** `POST /api/v1/auth/login` request — mirrors `model.dto.auth.LoginRequest`. */
 export interface LoginRequest {
+  /** Tenant company id (its slug); the reserved value `PLATFORM` signs in a SUPER_ADMIN. */
+  companyId: string;
   email: string;
   password: string;
 }

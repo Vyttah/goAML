@@ -16,6 +16,23 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
     boolean existsByEmail(String email);
 
     /**
+     * Look up a tenant user by (tenant, email) — the native-login path (a company id resolves the tenant
+     * first). Explicit rather than relying on the {@code tenantFilter}, because login runs before any tenant
+     * is bound (the filter is unscoped there) and email is only unique <em>within</em> a tenant.
+     */
+    Optional<AppUser> findByTenantIdAndEmail(UUID tenantId, String email);
+
+    /** Look up a platform (SUPER_ADMIN) user — the reserved {@code PLATFORM} login; these rows have no tenant. */
+    Optional<AppUser> findByEmailAndTenantIdIsNull(String email);
+
+    /**
+     * Whether the given tenant already has a user with this email — enforced explicitly on user creation
+     * (SUPER_ADMIN can create into any tenant, so the caller's bound filter is not necessarily the target
+     * tenant). Mirrors the per-tenant unique index.
+     */
+    boolean existsByTenantIdAndEmail(UUID tenantId, String email);
+
+    /**
      * B6: re-read a user row {@code FOR UPDATE} so the reference-checks → delete sequence is serialized
      * against a concurrent admin op on the same user (closes the check-then-delete TOCTOU race). Must run
      * inside the transactional {@code deleteUser} call.

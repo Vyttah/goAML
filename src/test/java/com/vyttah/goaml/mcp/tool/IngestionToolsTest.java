@@ -3,7 +3,6 @@ package com.vyttah.goaml.mcp.tool;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.vyttah.goaml.config.tenant.TenantContext;
-import com.vyttah.goaml.mcp.McpAccessDeniedException;
 import com.vyttah.goaml.model.dto.ingestion.ImportJobView;
 import com.vyttah.goaml.model.entity.ingestion.ImportJob;
 import com.vyttah.goaml.security.UserPrincipal;
@@ -21,7 +20,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -88,12 +86,16 @@ class IngestionToolsTest {
     }
 
     @Test
-    void importDeniedWithoutAnalystOrMlro() {
+    void importAllowedForTenantAdmin() {
         authenticate(List.of("TENANT_ADMIN"));
+        ImportJob completed = job("COMPLETED");
+        when(ingestionService.importXml(any(), eq("b.xml"), eq(TENANT_ID), eq(USER_ID)))
+                .thenReturn(completed);
 
-        assertThatThrownBy(() -> tools.importXml("b.xml", "<x/>"))
-                .isInstanceOf(McpAccessDeniedException.class);
-        verify(ingestionService, never()).importXml(any(), any(), any(), any());
+        ImportJobView view = tools.importXml("b.xml", "<x/>");
+
+        assertThat(view.status()).isEqualTo("COMPLETED");
+        verify(ingestionService).importXml(any(), eq("b.xml"), eq(TENANT_ID), eq(USER_ID));
     }
 
     @Test

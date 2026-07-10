@@ -87,6 +87,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         ctx.setAuthentication(auth);
         SecurityContextHolder.setContext(ctx);
         TenantContext.set(schema == null ? TenantIdentifierResolver.DEFAULT_TENANT : schema);
+        // Drive the row-level app_user tenant filter. Null for SUPER_ADMIN (tenant claim absent) → the filter
+        // runs unscoped, which is what a cross-tenant platform user needs.
+        TenantContext.setTenantId(tenantId);
         try {
             chain.doFilter(request, response);
         } finally {

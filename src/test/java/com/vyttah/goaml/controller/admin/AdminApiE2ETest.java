@@ -73,7 +73,7 @@ class AdminApiE2ETest {
         assertThat(tenants.toString()).contains(slug);
 
         // the provisioned TENANT_ADMIN logs in and manages users + config
-        String taToken = login(adminEmail, "P@ssw0rd!");
+        String taToken = login(slug, adminEmail, "P@ssw0rd!");
         String analystEmail = "an-" + UUID.randomUUID() + "@e2e.test";
         mvc.perform(post("/api/v1/admin/users").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + taToken)
@@ -111,7 +111,7 @@ class AdminApiE2ETest {
         Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "rbac-" + UUID.randomUUID().toString().substring(0, 8), "RBAC FZE", "AE",
                 "rbac-admin-" + UUID.randomUUID() + "@e2e.test", "P@ssw0rd!", "R", "B"));
-        String analystToken = userInTenant(tenant.getId(), "ANALYST");
+        String analystToken = userInTenant(tenant, "ANALYST");
 
         // ANALYST cannot provision tenants (SUPER_ADMIN) or manage users (TENANT_ADMIN)
         mvc.perform(post("/api/v1/admin/tenants").contentType(APPLICATION_JSON)
@@ -126,7 +126,7 @@ class AdminApiE2ETest {
         Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "gp-" + UUID.randomUUID().toString().substring(0, 8), "GoAML Person FZE", "AE",
                 "gp-admin-" + UUID.randomUUID() + "@e2e.test", "P@ssw0rd!", "G", "P"));
-        String taToken = userInTenant(tenant.getId(), "TENANT_ADMIN");
+        String taToken = userInTenant(tenant, "TENANT_ADMIN");
 
         // create an active reporting person
         MvcResult p1 = mvc.perform(post("/api/v1/admin/goaml-persons").contentType(APPLICATION_JSON)
@@ -179,7 +179,7 @@ class AdminApiE2ETest {
         Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "usr-" + UUID.randomUUID().toString().substring(0, 8), "User Mgmt FZE", "AE",
                 "usr-admin-" + UUID.randomUUID() + "@e2e.test", "P@ssw0rd!", "U", "A"));
-        String taToken = userInTenant(tenant.getId(), "TENANT_ADMIN");
+        String taToken = userInTenant(tenant, "TENANT_ADMIN");
 
         // create an analyst
         String email = "u-" + UUID.randomUUID() + "@e2e.test";
@@ -218,23 +218,27 @@ class AdminApiE2ETest {
         return userWithRole(null, "SUPER_ADMIN");
     }
 
-    private String userInTenant(UUID tenantId, String role) throws Exception {
-        return userWithRole(tenantId, role);
+    private String userInTenant(Tenant tenant, String role) throws Exception {
+        return userWithRole(tenant, role);
     }
 
-    private String userWithRole(UUID tenantId, String roleName) throws Exception {
+    /** Create a user (null tenant = SUPER_ADMIN / PLATFORM) and log in with the right company id. */
+    private String userWithRole(Tenant tenant, String roleName) throws Exception {
+        UUID tenantId = tenant == null ? null : tenant.getId();
+        String companyId = tenant == null ? "PLATFORM" : tenant.getSlug();
         String email = roleName.toLowerCase() + "-" + UUID.randomUUID() + "@e2e.test";
         Role role = roleRepository.findByName(roleName).orElseThrow();
         AppUser u = new AppUser(UUID.randomUUID(), tenantId, email, passwordEncoder.encode("P@ssw0rd!"),
                 "F", "L", "ACTIVE");
         u.addRole(role);
         userRepository.save(u);
-        return login(email, "P@ssw0rd!");
+        return login(companyId, email, "P@ssw0rd!");
     }
 
-    private String login(String email, String password) throws Exception {
+    private String login(String companyId, String email, String password) throws Exception {
         MvcResult res = mvc.perform(post("/api/v1/auth/login").contentType(APPLICATION_JSON)
-                        .content(String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password)))
+                        .content(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                                companyId, email, password)))
                 .andExpect(status().isOk()).andReturn();
         return json(res).get("accessToken").asText();
     }

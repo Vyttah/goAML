@@ -75,7 +75,7 @@ describe('AdminPage — SUPER_ADMIN', () => {
     expect(await screen.findByText('acme')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /provision tenant/i }));
-    await userEvent.type(screen.getByLabelText('Slug'), 'beta');
+    await userEvent.type(screen.getByLabelText('Company ID'), 'beta');
     await userEvent.type(screen.getByLabelText('Name'), 'Beta FZE');
     await userEvent.type(screen.getByLabelText('Admin email'), 'admin@beta.test');
     await userEvent.type(screen.getByLabelText('Admin password'), 'P@ssw0rd!');

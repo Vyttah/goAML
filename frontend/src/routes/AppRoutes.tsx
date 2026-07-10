@@ -32,7 +32,7 @@ export function AppRoutes() {
           <Route index element={<HomeRedirect />} />
           <Route path="dashboard" element={<DashboardPage />} />
 
-          <Route element={<RequireRole allowed={[ROLES.ANALYST, ROLES.MLRO]} />}>
+          <Route element={<RequireRole allowed={[ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN]} />}>
             <Route path="reports/new" element={<DpmsrBuilderPage />} />
           </Route>
           <Route element={<RequireRole allowed={[ROLES.MLRO, ROLES.TENANT_ADMIN]} />}>

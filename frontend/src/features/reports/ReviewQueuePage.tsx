@@ -26,7 +26,7 @@ export function ReviewQueuePage() {
   const approve = useApproveReport();
   const reject = useRejectReport();
 
-  const isMlro = can(ROLES.MLRO);
+  const isMlro = can(ROLES.MLRO, ROLES.TENANT_ADMIN);
   const [actionError, setActionError] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<ReportView | null>(null);
   const [rejectRemark, setRejectRemark] = useState('');

@@ -67,9 +67,9 @@ class NotificationControllerE2ETest {
                 "ntf-admin-" + UUID.randomUUID() + "@ntf.test", "P@ssw0rd!", "Ntf", "Adm"));
 
         UUID recipientId = UUID.randomUUID();
-        token = createUser(tenant.getId(), recipientId, "MLRO", "mlro");
+        token = createUser(tenant, recipientId, "MLRO", "mlro");
         UUID otherUserId = UUID.randomUUID();
-        createUser(tenant.getId(), otherUserId, "ANALYST", "analyst");
+        createUser(tenant, otherUserId, "ANALYST", "analyst");
 
         readId = UUID.randomUUID();
         unreadId = UUID.randomUUID();
@@ -128,20 +128,20 @@ class NotificationControllerE2ETest {
 
     // ----- helpers -----
 
-    private String createUser(UUID tenantId, UUID userId, String roleName, String prefix) {
+    private String createUser(Tenant tenant, UUID userId, String roleName, String prefix) {
         String email = prefix + "-" + UUID.randomUUID() + "@ntf.test";
         Role role = roleRepository.findByName(roleName).orElseThrow();
-        AppUser user = new AppUser(userId, tenantId, email, passwordEncoder.encode("P@ssw0rd!"),
+        AppUser user = new AppUser(userId, tenant.getId(), email, passwordEncoder.encode("P@ssw0rd!"),
                 prefix, "User", "ACTIVE");
         user.addRole(role);
         userRepository.save(user);
-        return login(email, "P@ssw0rd!");
+        return login(tenant.getSlug(), email, "P@ssw0rd!");
     }
 
-    private String login(String email, String password) {
+    private String login(String companyId, String email, String password) {
         ResponseEntity<JsonNode> resp = rest.exchange("/api/v1/auth/login", HttpMethod.POST,
-                new HttpEntity<>(String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password),
-                        jsonHeaders(null)), JsonNode.class);
+                new HttpEntity<>(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                        companyId, email, password), jsonHeaders(null)), JsonNode.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }

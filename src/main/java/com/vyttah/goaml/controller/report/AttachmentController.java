@@ -37,7 +37,7 @@ public class AttachmentController {
     private final AttachmentService attachmentService;
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<AttachmentView> add(@PathVariable UUID reportId,
                                               @RequestParam("file") MultipartFile file,
                                               @AuthenticationPrincipal UserPrincipal principal) {
@@ -81,7 +81,7 @@ public class AttachmentController {
     }
 
     @DeleteMapping("/{attachmentId}")
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<Void> remove(@PathVariable UUID reportId,
                                        @PathVariable UUID attachmentId,
                                        @AuthenticationPrincipal UserPrincipal principal) {

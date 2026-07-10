@@ -83,7 +83,7 @@ export function DashboardPage() {
           <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isFetching}>
             Refresh
           </Button>
-          {can(ROLES.ANALYST, ROLES.MLRO) && (
+          {can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN) && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/reports/new')}>
               New report
             </Button>

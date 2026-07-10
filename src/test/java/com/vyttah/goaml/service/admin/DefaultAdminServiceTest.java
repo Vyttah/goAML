@@ -90,7 +90,7 @@ class DefaultAdminServiceTest {
     void createUserEncodesPasswordAndAssignsRole() {
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
         when(roleRepository.findByName("ANALYST")).thenReturn(Optional.of(mock(Role.class)));
-        when(appUserRepository.existsByEmail("a@t.test")).thenReturn(false);
+        when(appUserRepository.existsByTenantIdAndEmail(tenantId, "a@t.test")).thenReturn(false);
         when(passwordEncoder.encode("P@ssw0rd!")).thenReturn("ENC");
 
         service.createUser(tenantId, userReq("a@t.test", "analyst")); // case-insensitive role
@@ -107,7 +107,7 @@ class DefaultAdminServiceTest {
     void createUserRejectsDuplicateEmail() {
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
         when(roleRepository.findByName("MLRO")).thenReturn(Optional.of(mock(Role.class)));
-        when(appUserRepository.existsByEmail("dup@t.test")).thenReturn(true);
+        when(appUserRepository.existsByTenantIdAndEmail(tenantId, "dup@t.test")).thenReturn(true);
 
         assertThatThrownBy(() -> service.createUser(tenantId, userReq("dup@t.test", "MLRO")))
                 .isInstanceOf(AdminExceptions.UserEmailExistsException.class);

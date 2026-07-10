@@ -102,14 +102,14 @@ describe('ReportDetailPage', () => {
     expect(screen.queryByRole('button', { name: /submit to fiu/i })).not.toBeInTheDocument();
   });
 
-  it('shows a no-actions hint in Lifecycle for a non-MLRO on an unsubmitted report', async () => {
+  it('shows the submit action to a TENANT_ADMIN on a VALID report (has MLRO submit rights)', async () => {
     stubReport('VALID');
     stubAttachments();
     renderDetail('TENANT_ADMIN');
 
     await screen.findByText('DPMSR-1');
-    expect(screen.getByText(/No actions available here/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /submit to fiu/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/No actions available here/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /submit to fiu/i })).toBeInTheDocument();
   });
 
   it('disables submit for a non-VALID report and explains why', async () => {

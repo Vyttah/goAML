@@ -212,7 +212,8 @@ class AdminSuperAdminE2ETest {
                         .content(objectMapper.writeValueAsString(Map.of("password", "BrandN3w!Pass"))))
                 .andExpect(status().isOk());
         mvc.perform(post("/api/v1/auth/login").contentType(APPLICATION_JSON)
-                        .content(String.format("{\"email\":\"%s\",\"password\":\"BrandN3w!Pass\"}", email)))
+                        .content(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"BrandN3w!Pass\"}",
+                                tenant.getSlug(), email)))
                 .andExpect(status().isOk());
 
         // delete
@@ -253,7 +254,8 @@ class AdminSuperAdminE2ETest {
         u.addRole(role);
         userRepository.save(u);
         MvcResult res = mvc.perform(post("/api/v1/auth/login").contentType(APPLICATION_JSON)
-                        .content(String.format("{\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}", email)))
+                        .content(String.format("{\"companyId\":\"PLATFORM\",\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}",
+                                email)))
                 .andExpect(status().isOk()).andReturn();
         return json(res).get("accessToken").asText();
     }

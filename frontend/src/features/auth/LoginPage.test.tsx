@@ -21,6 +21,7 @@ function routes() {
 }
 
 async function fillAndSubmit() {
+  await userEvent.type(screen.getByPlaceholderText('your-company-id'), 'acme');
   await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'mlro@acme.test');
   await userEvent.type(screen.getByPlaceholderText('Password'), 'P@ssw0rd!');
   await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
@@ -51,6 +52,7 @@ describe('LoginPage', () => {
     );
 
     renderWithProviders(routes(), ['/login']);
+    await userEvent.type(screen.getByPlaceholderText('your-company-id'), 'PLATFORM');
     await userEvent.type(screen.getByPlaceholderText('you@example.com'), 'superadmin@goaml.local');
     await userEvent.type(screen.getByPlaceholderText('Password'), 'P@ssw0rd!');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
@@ -65,7 +67,7 @@ describe('LoginPage', () => {
     renderWithProviders(routes(), ['/login']);
     await fillAndSubmit();
 
-    expect(await screen.findByText('Invalid email or password')).toBeInTheDocument();
+    expect(await screen.findByText('Invalid company ID, email, or password')).toBeInTheDocument();
     expect(screen.queryByText('DASHBOARD PAGE')).not.toBeInTheDocument();
     expect(getToken()).toBeNull();
   });

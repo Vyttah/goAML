@@ -52,9 +52,8 @@ class TenantProvisioningServiceTest {
 
         assertThat(tenant.getId()).isNotNull();
         assertThat(tenant.getSlug()).isEqualTo("alpha-jewellers");
-        assertThat(tenant.getSchemaName())
-                .startsWith("tenant_")
-                .hasSize("tenant_".length() + 32);
+        // Schema name is now derived from the company id (slug), hyphens → underscores.
+        assertThat(tenant.getSchemaName()).isEqualTo("tenant_alpha_jewellers");
         assertThat(tenant.getStatus()).isEqualTo("ACTIVE");
 
         Long auditLogTables = jdbc.queryForObject(

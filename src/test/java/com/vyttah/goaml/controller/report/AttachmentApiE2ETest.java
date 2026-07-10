@@ -197,7 +197,8 @@ class AttachmentApiE2ETest {
 
     private String login(String email, String password) {
         return postJson("/api/v1/auth/login",
-                String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password), null)
+                String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                        tenant.getSlug(), email, password), null)
                 .getBody().get("accessToken").asText();
     }
 

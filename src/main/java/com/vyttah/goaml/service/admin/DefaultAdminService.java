@@ -107,9 +107,11 @@ public class DefaultAdminService implements AdminService {
         }
         Role role = roleRepository.findByName(roleName)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown role: " + roleName));
-        if (appUserRepository.existsByEmail(request.email())) {
+        // Email is unique per tenant. Check explicitly against the TARGET tenant — a SUPER_ADMIN may be
+        // creating into a tenant other than the one bound to their request (so the row filter would not apply).
+        if (appUserRepository.existsByTenantIdAndEmail(tenantId, request.email())) {
             throw new AdminExceptions.UserEmailExistsException(
-                    "A user already exists with email " + request.email());
+                    "A user already exists with email " + request.email() + " in this tenant");
         }
         AppUser user = new AppUser(UUID.randomUUID(), tenantId, request.email(),
                 passwordEncoder.encode(request.password()), request.firstName(), request.lastName(), "ACTIVE");

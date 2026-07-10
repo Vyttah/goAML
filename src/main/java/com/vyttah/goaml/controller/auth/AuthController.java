@@ -28,8 +28,9 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request,
                                                HttpServletRequest http) {
-        // B14 — throttle per (client IP + email) so a host cannot brute-force credentials. 429 on exceed.
+        // B14 — throttle per (client IP + company + email) so a host cannot brute-force credentials. 429 on exceed.
         String key = "login:" + clientIp(http) + ":"
+                + (request.companyId() == null ? "" : request.companyId().toLowerCase()) + ":"
                 + (request.email() == null ? "" : request.email().toLowerCase());
         if (!rateLimiter.tryAcquire(key)) {
             throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS,

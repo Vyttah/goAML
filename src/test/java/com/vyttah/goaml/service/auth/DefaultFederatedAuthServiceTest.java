@@ -125,7 +125,7 @@ class DefaultFederatedAuthServiceTest {
         when(tenantRefs.findBySourceSystemAndExternalOrgRef(SourceSystem.ACCOUNTING, "ORG-1"))
                 .thenReturn(Optional.of(new TenantExternalRef(UUID.randomUUID(), tenantId,
                         SourceSystem.ACCOUNTING, "ORG-1")));
-        when(appUsers.existsByEmail("new@x.com")).thenReturn(false);
+        when(appUsers.existsByTenantIdAndEmail(tenantId, "new@x.com")).thenReturn(false);
         when(roles.findByName("ANALYST")).thenReturn(Optional.of(mock(Role.class)));
         when(encoder.encode(any())).thenReturn("hashed");
         when(tenants.findById(tenantId)).thenReturn(Optional.of(tenant(tenantId)));
@@ -164,7 +164,7 @@ class DefaultFederatedAuthServiceTest {
         when(tenantRefs.findBySourceSystemAndExternalOrgRef(SourceSystem.ACCOUNTING, "ORG-1"))
                 .thenReturn(Optional.of(new TenantExternalRef(UUID.randomUUID(), tenantId,
                         SourceSystem.ACCOUNTING, "ORG-1")));
-        when(appUsers.existsByEmail("taken@x.com")).thenReturn(true);
+        when(appUsers.existsByTenantIdAndEmail(tenantId, "taken@x.com")).thenReturn(true);
 
         assertThatThrownBy(() -> service(AuthMode.BOTH)
                 .exchange(new FederatedTokenRequest(SourceSystem.ACCOUNTING, "jwt")))

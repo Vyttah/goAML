@@ -1,5 +1,6 @@
 package com.vyttah.goaml.model.entity.appuser;
 
+import com.vyttah.goaml.config.tenant.CurrentTenantFilterResolver;
 import com.vyttah.goaml.model.entity.role.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -11,7 +12,11 @@ import jakarta.persistence.ManyToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 
 import java.time.OffsetDateTime;
 import java.util.HashSet;
@@ -21,10 +26,26 @@ import java.util.UUID;
 /**
  * Platform user. {@code tenantId} is null for SUPER_ADMIN platform staff and non-null for
  * users belonging to a single client tenant. Roles are joined via {@code public.user_role}.
+ *
+ * <p>Email is unique <em>per tenant</em> (DB: partial unique indexes, see
+ * {@code V9__email_unique_per_tenant.sql}), so the same address can belong to two tenants; login
+ * disambiguates via the company id (tenant slug). {@code app_user} lives in shared {@code public}, so
+ * schema-per-tenant routing gives it no isolation — the auto-enabled {@code tenantFilter} scopes every
+ * query to {@link com.vyttah.goaml.config.tenant.TenantContext#getTenantId() the bound tenant}, driven by
+ * {@link CurrentTenantFilterResolver}. The condition short-circuits to all rows for the resolver's
+ * {@code UNSCOPED} sentinel (login / SUPER_ADMIN / cross-tenant jobs). Direct {@code find()}-by-id loads
+ * are not filtered by Hibernate, so admin lookups by user id still work cross-tenant.
  */
 @Getter
 @Entity
-@Table(name = "app_user", schema = "public")
+@Table(name = "app_user", schema = "public",
+        uniqueConstraints = @UniqueConstraint(name = "app_user_email_tenant_uk",
+                columnNames = {"tenant_id", "email"}))
+@FilterDef(name = "tenantFilter", autoEnabled = true,
+        parameters = @ParamDef(name = "tenantId", type = UUID.class,
+                resolver = CurrentTenantFilterResolver.class))
+@Filter(name = "tenantFilter",
+        condition = "(:tenantId = cast('00000000-0000-0000-0000-000000000000' as uuid) or tenant_id = :tenantId)")
 public class AppUser {
 
     @Id
@@ -33,7 +54,8 @@ public class AppUser {
     @Column(name = "tenant_id")
     private UUID tenantId;
 
-    @Column(nullable = false, unique = true)
+    // Unique per tenant, not globally — see the class-level @UniqueConstraint + V9 partial indexes.
+    @Column(nullable = false)
     private String email;
 
     @Column(name = "password_hash", nullable = false)

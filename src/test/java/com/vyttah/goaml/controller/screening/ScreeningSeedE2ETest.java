@@ -160,7 +160,8 @@ class ScreeningSeedE2ETest {
 
         MvcResult res = mvc.perform(post("/api/v1/auth/login")
                         .contentType(APPLICATION_JSON)
-                        .content("{\"email\":\"" + email + "\",\"password\":\"P@ssw0rd!\"}"))
+                        .content("{\"companyId\":\"" + tenant.getSlug() + "\",\"email\":\"" + email
+                                + "\",\"password\":\"P@ssw0rd!\"}"))
                 .andExpect(status().isOk()).andReturn();
         return objectMapper.readTree(res.getResponse().getContentAsString()).get("accessToken").asText();
     }

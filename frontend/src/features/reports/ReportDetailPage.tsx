@@ -108,9 +108,9 @@ export function ReportDetailPage() {
 
   const report = reportQuery.data;
   // A report submits when VALID (review off) or APPROVED (review on); the backend enforces which.
-  const canSubmit = ['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO);
-  const canSubmitForReview = report.status === 'VALID' && can(ROLES.ANALYST, ROLES.MLRO);
-  const canEditAttachments = can(ROLES.ANALYST, ROLES.MLRO);
+  const canSubmit = ['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO, ROLES.TENANT_ADMIN);
+  const canSubmitForReview = report.status === 'VALID' && can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN);
+  const canEditAttachments = can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN);
   const hasSubmission = SUBMITTED_STATUSES.includes(report.status);
 
   const onSubmit = async () => {
@@ -274,7 +274,7 @@ export function ReportDetailPage() {
               Submit for review
             </Button>
           )}
-          {can(ROLES.MLRO) && (
+          {can(ROLES.MLRO, ROLES.TENANT_ADMIN) && (
             <Popconfirm
               title="Submit this report to the FIU?"
               description="This files the report with the UAE FIU and can't be undone."
@@ -303,14 +303,14 @@ export function ReportDetailPage() {
           )}
         </Space>
 
-        {!can(ROLES.MLRO) && !hasSubmission && !canSubmitForReview && (
+        {!can(ROLES.MLRO, ROLES.TENANT_ADMIN) && !hasSubmission && !canSubmitForReview && (
           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
             No actions available here — submitting to the FIU is restricted to an MLRO, and this report
             hasn&apos;t been submitted yet.
           </Typography.Paragraph>
         )}
 
-        {!canSubmit && !['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO) && (
+        {!canSubmit && !['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO, ROLES.TENANT_ADMIN) && (
           <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
             Only a <strong>VALID</strong> or <strong>APPROVED</strong> report can be submitted (this one is{' '}
             {report.status}).

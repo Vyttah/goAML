@@ -13,8 +13,8 @@ describe('ValidationMessages', () => {
 
   it('summarises one error and one warning (singular)', () => {
     const messages: ValidationMessage[] = [
-      { severity: 'ERROR', path: 'report.x', message: 'bad x' },
-      { severity: 'WARNING', path: 'report.y', message: 'maybe y' },
+      { severity: 'ERROR', path: 'report.x', code: 'E001', message: 'bad x' },
+      { severity: 'WARNING', path: 'report.y', code: 'W001', message: 'maybe y' },
     ];
     const { container } = render(<ValidationMessages messages={messages} />);
     expect(container.textContent).toContain('1 error, 1 warning');
@@ -22,15 +22,15 @@ describe('ValidationMessages', () => {
 
   it('pluralises multiple errors and zero warnings', () => {
     const messages: ValidationMessage[] = [
-      { severity: 'ERROR', message: 'a' },
-      { severity: 'ERROR', message: 'b' },
+      { severity: 'ERROR', path: 'report.a', code: 'E001', message: 'a' },
+      { severity: 'ERROR', path: 'report.b', code: 'E002', message: 'b' },
     ];
     const { container } = render(<ValidationMessages messages={messages} />);
     expect(container.textContent).toContain('2 errors, 0 warnings');
   });
 
   it('renders each finding with its severity tag, path and message', () => {
-    render(<ValidationMessages messages={[{ severity: 'ERROR', path: 'p.q', message: 'boom' }]} />);
+    render(<ValidationMessages messages={[{ severity: 'ERROR', path: 'p.q', code: 'E001', message: 'boom' }]} />);
     expect(screen.getByText('ERROR')).toBeInTheDocument();
     expect(screen.getByText('p.q')).toBeInTheDocument();
     expect(screen.getByText('boom')).toBeInTheDocument();

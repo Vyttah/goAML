@@ -84,7 +84,7 @@ class SubmissionErrorMappingE2ETest {
                   (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
                 VALUES (?, ?, 'AE', 3177, 'https://goaml.test/uae', 'goaml/suberr/creds', 'TOKEN')
                 """, UUID.randomUUID(), tenant.getId());
-        mlro = mlro(tenant.getId());
+        mlro = mlro(tenant);
     }
 
     @Test
@@ -117,15 +117,16 @@ class SubmissionErrorMappingE2ETest {
         return created.getBody().get("reportId").asText();
     }
 
-    private String mlro(UUID tenantId) {
+    private String mlro(Tenant tenant) {
         String email = "mlro-" + UUID.randomUUID() + "@suberr.test";
         Role role = roleRepository.findByName("MLRO").orElseThrow();
-        AppUser u = new AppUser(UUID.randomUUID(), tenantId, email, passwordEncoder.encode("P@ssw0rd!"),
+        AppUser u = new AppUser(UUID.randomUUID(), tenant.getId(), email, passwordEncoder.encode("P@ssw0rd!"),
                 "Mel", "Roe", "ACTIVE");
         u.addRole(role);
         userRepository.save(u);
         ResponseEntity<JsonNode> resp = post("/api/v1/auth/login",
-                String.format("{\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}", email));
+                String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}",
+                        tenant.getSlug(), email));
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }

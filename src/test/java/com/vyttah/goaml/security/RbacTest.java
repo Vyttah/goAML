@@ -56,7 +56,7 @@ class RbacTest {
                 "rbac-tenant", "RBAC Tenant FZE", "AE",
                 "tenantadmin@rbac.test", "Sup3rS3cret!", "Tenant", "Admin"));
 
-        String jwt = login("tenantadmin@rbac.test", "Sup3rS3cret!");
+        String jwt = login("rbac-tenant", "tenantadmin@rbac.test", "Sup3rS3cret!");
 
         ResponseEntity<String> response = rest.exchange(
                 "/api/v1/admin/ping", HttpMethod.GET,
@@ -71,7 +71,7 @@ class RbacTest {
     void superAdminCanAccessSuperAdminEndpoint() {
         createSuperAdmin("super@rbac.test", "Sup3rPa55!");
 
-        String jwt = login("super@rbac.test", "Sup3rPa55!");
+        String jwt = login("PLATFORM", "super@rbac.test", "Sup3rPa55!");
 
         ResponseEntity<JsonNode> response = rest.exchange(
                 "/api/v1/admin/ping", HttpMethod.GET,
@@ -92,10 +92,11 @@ class RbacTest {
         userRepository.save(user);
     }
 
-    private String login(String email, String password) {
+    private String login(String companyId, String email, String password) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        String body = String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password);
+        String body = String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                companyId, email, password);
         ResponseEntity<JsonNode> resp = rest.exchange(
                 "/api/v1/auth/login", HttpMethod.POST,
                 new HttpEntity<>(body, headers), JsonNode.class);

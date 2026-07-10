@@ -51,7 +51,7 @@ public class ReportController {
     private final SubmissionService submissionService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<CreateReportResponse> create(@Valid @RequestBody DpmsrReportPayload request,
                                                        @AuthenticationPrincipal UserPrincipal principal) {
         ReportResult result = reportService.create(request, principal.getTenantId(), principal.getUserId());
@@ -66,7 +66,7 @@ public class ReportController {
      * {@link CreateReportResponse} as {@link #create}; the server injects the tenant header / MLRO as usual.
      */
     @PostMapping("/dpmsr")
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<CreateReportResponse> createDpmsr(@Valid @RequestBody DpmsrCreateRequest request,
                                                             @AuthenticationPrincipal UserPrincipal principal) {
         ReportResult result = reportService.create(request, principal.getTenantId(), principal.getUserId());
@@ -121,7 +121,7 @@ public class ReportController {
      * {@code /submit} call below requires {@code APPROVED}.
      */
     @PostMapping("/{id}/submit-for-review")
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<ReviewView> submitForReview(@PathVariable UUID id,
                                                       @RequestBody(required = false) ReviewDecisionRequest body,
                                                       @AuthenticationPrincipal UserPrincipal principal) {
@@ -130,7 +130,7 @@ public class ReportController {
     }
 
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasRole('MLRO')")
+    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
     public ResponseEntity<ReviewView> approve(@PathVariable UUID id,
                                               @RequestBody(required = false) ReviewDecisionRequest body,
                                               @AuthenticationPrincipal UserPrincipal principal) {
@@ -139,7 +139,7 @@ public class ReportController {
     }
 
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasRole('MLRO')")
+    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
     public ResponseEntity<ReviewView> reject(@PathVariable UUID id,
                                              @RequestBody(required = false) ReviewDecisionRequest body,
                                              @AuthenticationPrincipal UserPrincipal principal) {
@@ -155,7 +155,7 @@ public class ReportController {
     }
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasRole('MLRO')")
+    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
     public ResponseEntity<SubmissionView> submit(@PathVariable UUID id,
                                                 @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(SubmissionView.from(

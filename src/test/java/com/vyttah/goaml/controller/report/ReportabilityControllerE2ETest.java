@@ -57,7 +57,7 @@ class ReportabilityControllerE2ETest {
         Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "rpt-" + UUID.randomUUID().toString().substring(0, 8), "Reportability FZE", "AE",
                 "rpt-admin-" + UUID.randomUUID() + "@rpt.test", "P@ssw0rd!", "Rpt", "Adm"));
-        analystToken = user(tenant.getId(), "ANALYST");
+        analystToken = user(tenant, "ANALYST");
         superAdminToken = user(null, "SUPER_ADMIN");
     }
 
@@ -108,7 +108,9 @@ class ReportabilityControllerE2ETest {
         return resp.getBody();
     }
 
-    private String user(UUID tenantId, String roleName) {
+    private String user(Tenant tenant, String roleName) {
+        UUID tenantId = tenant == null ? null : tenant.getId();
+        String companyId = tenant == null ? "PLATFORM" : tenant.getSlug();
         String email = roleName.toLowerCase() + "-" + UUID.randomUUID() + "@rpt.test";
         Role role = roleRepository.findByName(roleName).orElseThrow();
         AppUser u = new AppUser(UUID.randomUUID(), tenantId, email, passwordEncoder.encode("P@ssw0rd!"),
@@ -116,8 +118,8 @@ class ReportabilityControllerE2ETest {
         u.addRole(role);
         userRepository.save(u);
         ResponseEntity<JsonNode> resp = rest.exchange("/api/v1/auth/login", HttpMethod.POST,
-                new HttpEntity<>(String.format("{\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}", email),
-                        headers(null)), JsonNode.class);
+                new HttpEntity<>(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}",
+                        companyId, email), headers(null)), JsonNode.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }

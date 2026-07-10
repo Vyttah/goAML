@@ -31,7 +31,7 @@ function formatTimestamp(iso: string): string {
  */
 export function ImportPage() {
   const { can } = useAuth();
-  const canImport = can(ROLES.ANALYST, ROLES.MLRO);
+  const canImport = can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN);
   const [format, setFormat] = useState<'csv' | 'xml'>('csv');
   const importMutation = useImport(format);
   const historyQuery = useImports();

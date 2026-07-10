@@ -57,7 +57,7 @@ class NotFoundPathsE2ETest {
         Tenant tenant = provisioningService.provision(new TenantProvisioningRequest(
                 "nf-" + UUID.randomUUID().toString().substring(0, 8), "NotFound FZE", "AE",
                 "nf-admin-" + UUID.randomUUID() + "@nf.test", "P@ssw0rd!", "N", "F"));
-        mlro = user(tenant.getId(), "MLRO");
+        mlro = user(tenant, "MLRO");
     }
 
     @Test
@@ -79,16 +79,16 @@ class NotFoundPathsE2ETest {
 
     // ----- helpers -----
 
-    private String user(UUID tenantId, String roleName) {
+    private String user(Tenant tenant, String roleName) {
         String email = roleName.toLowerCase() + "-" + UUID.randomUUID() + "@nf.test";
         Role role = roleRepository.findByName(roleName).orElseThrow();
-        AppUser u = new AppUser(UUID.randomUUID(), tenantId, email, passwordEncoder.encode("P@ssw0rd!"),
+        AppUser u = new AppUser(UUID.randomUUID(), tenant.getId(), email, passwordEncoder.encode("P@ssw0rd!"),
                 "F", "L", "ACTIVE");
         u.addRole(role);
         userRepository.save(u);
         ResponseEntity<JsonNode> resp = rest.exchange("/api/v1/auth/login", HttpMethod.POST,
-                new HttpEntity<>(String.format("{\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}", email),
-                        headers(null)), JsonNode.class);
+                new HttpEntity<>(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}",
+                        tenant.getSlug(), email), headers(null)), JsonNode.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }

@@ -121,19 +121,19 @@ class RoleEnforcementE2ETest {
     }
 
     @Test
-    void tenantAdminCannotAuthorReports() {
+    void tenantAdminCanAuthorReports() {
         ResponseEntity<String> resp = rest.exchange("/api/v1/reports", HttpMethod.POST,
                 new HttpEntity<>(String.format(DPMSR_JSON, "ROLE-TA-1"), headers(tokens.get("TENANT_ADMIN"))),
                 String.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     @Test
-    void tenantAdminCannotUseTheCuratedReportPath() {
+    void tenantAdminCanUseTheCuratedReportPath() {
         ResponseEntity<String> resp = rest.exchange("/api/v1/reports/dpmsr", HttpMethod.POST,
                 new HttpEntity<>(String.format(DPMSR_JSON, "ROLE-TA-2"), headers(tokens.get("TENANT_ADMIN"))),
                 String.class);
-        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.CREATED);
     }
 
     // ----- helpers -----
@@ -162,7 +162,8 @@ class RoleEnforcementE2ETest {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         ResponseEntity<JsonNode> resp = rest.exchange("/api/v1/auth/login", HttpMethod.POST,
-                new HttpEntity<>(String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password), headers),
+                new HttpEntity<>(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                        tenant.getSlug(), email, password), headers),
                 JsonNode.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();

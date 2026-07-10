@@ -47,7 +47,7 @@ public class ScreeningSubjectController {
     }
 
     @PostMapping("/{subjectRef}/seed-report")
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO')")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<CreateReportResponse> seedReport(
             @PathVariable String subjectRef,
             @Valid @RequestBody ScreeningSeedRequest request,

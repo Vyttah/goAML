@@ -150,7 +150,8 @@ class ImportApiE2ETest {
         userRepository.save(u);
 
         MvcResult res = mvc.perform(post("/api/v1/auth/login").contentType(APPLICATION_JSON)
-                        .content(String.format("{\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}", email)))
+                        .content(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"P@ssw0rd!\"}",
+                                tenant.getSlug(), email)))
                 .andExpect(status().isOk()).andReturn();
         return json(res).get("accessToken").asText();
     }

@@ -48,6 +48,8 @@ public class CliAuthenticator {
         ctx.setAuthentication(auth);
         SecurityContextHolder.setContext(ctx);
         TenantContext.set(schema == null ? TenantIdentifierResolver.DEFAULT_TENANT : schema);
+        // Drive the row-level app_user tenant filter (null → unscoped, for a platform token).
+        TenantContext.setTenantId(tenantId);
         return new CliPrincipal(userId, tenantId, email, roles);
     }
 

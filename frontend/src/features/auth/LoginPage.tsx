@@ -40,7 +40,9 @@ export function LoginPage() {
       navigate(explicitFrom ?? landingPathFor(roles), { replace: true });
     } catch (err) {
       setError(
-        httpStatus(err) === 401 ? 'Invalid email or password' : errorMessage(err, 'Login failed'),
+        httpStatus(err) === 401
+          ? 'Invalid company ID, email, or password'
+          : errorMessage(err, 'Login failed'),
       );
     }
   };
@@ -63,6 +65,13 @@ export function LoginPage() {
           requiredMark={false}
           disabled={loginMutation.isPending}
         >
+          <Form.Item
+            label="Company ID"
+            name="companyId"
+            rules={[{ required: true, message: 'Company ID is required' }]}
+          >
+            <Input placeholder="your-company-id" autoComplete="organization" />
+          </Form.Item>
           <Form.Item
             label="Email"
             name="email"

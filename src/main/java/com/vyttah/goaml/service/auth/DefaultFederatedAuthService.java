@@ -145,11 +145,12 @@ public class DefaultFederatedAuthService implements FederatedAuthService {
             throw new AuthExceptions.FederatedExchangeException(
                     "Cannot provision a goAML user without an email");
         }
-        if (appUsers.existsByEmail(email)) {
+        if (appUsers.existsByTenantIdAndEmail(tenantId, email)) {
             // Never silently link by email (account-takeover risk) — require an explicit external_identity map.
+            // Scoped to the resolved tenant: email is unique per tenant, and this provisions into `tenantId`.
             throw new AuthExceptions.FederatedExchangeException(
                     "A goAML user already exists with email " + email
-                            + "; map the external identity explicitly");
+                            + " in this tenant; map the external identity explicitly");
         }
         // The source may declare the role its users land with (e.g. the AML cockpit → MLRO); else least-priv.
         String declaredRole = a.service().getDefaultRole();

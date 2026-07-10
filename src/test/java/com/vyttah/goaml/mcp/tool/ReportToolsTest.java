@@ -101,12 +101,15 @@ class ReportToolsTest {
     }
 
     @Test
-    void validateDeniedWithoutAnalystOrMlro() {
+    void validateAllowedForTenantAdmin() {
         authenticate(List.of("TENANT_ADMIN"));
+        when(reportService.validate(any(), eq(TENANT_ID)))
+                .thenReturn(new ReportValidationResult("VALID", List.of()));
 
-        assertThatThrownBy(() -> tools.validateDpmsr(minimalRequest("V-2", new BigDecimal("90000"))))
-                .isInstanceOf(McpAccessDeniedException.class);
-        verify(reportService, never()).validate(any(), any());
+        ReportValidationResult result = tools.validateDpmsr(minimalRequest("V-2", new BigDecimal("90000")));
+
+        assertThat(result.status()).isEqualTo("VALID");
+        verify(reportService).validate(any(), eq(TENANT_ID));
     }
 
     @Test

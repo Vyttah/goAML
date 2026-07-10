@@ -70,8 +70,8 @@ class ConnectionControllerE2ETest {
                   (id, tenant_id, jurisdiction_code, rentity_id, base_url, secrets_path, auth_mode)
                 VALUES (?, ?, 'AE', 3177, ?, ?, 'TOKEN')
                 """, UUID.randomUUID(), tenant.getId(), SECRET_BASE_URL, SECRETS_PATH);
-        adminToken = login(adminEmail, "P@ssw0rd!");
-        analystToken = createAnalyst(tenant.getId());
+        adminToken = login(tenant.getSlug(), adminEmail, "P@ssw0rd!");
+        analystToken = createAnalyst(tenant);
     }
 
     @Test
@@ -108,10 +108,10 @@ class ConnectionControllerE2ETest {
     @Test
     void connectionWithoutConfigReportsNotConfigured() {
         String adminEmail = "noconf-admin-" + UUID.randomUUID() + "@conn.test";
-        provisioningService.provision(new TenantProvisioningRequest(
+        Tenant noconf = provisioningService.provision(new TenantProvisioningRequest(
                 "noconf-" + UUID.randomUUID().toString().substring(0, 8), "NoConfig FZE", "AE",
                 adminEmail, "P@ssw0rd!", "No", "Conf"));
-        String token = login(adminEmail, "P@ssw0rd!");
+        String token = login(noconf.getSlug(), adminEmail, "P@ssw0rd!");
 
         ResponseEntity<JsonNode> resp = get("/api/v1/me/connection", token);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -122,20 +122,20 @@ class ConnectionControllerE2ETest {
 
     // ----- helpers -----
 
-    private String createAnalyst(UUID tenantId) {
+    private String createAnalyst(Tenant tenant) {
         String email = "analyst-" + UUID.randomUUID() + "@conn.test";
         Role role = roleRepository.findByName("ANALYST").orElseThrow();
-        AppUser user = new AppUser(UUID.randomUUID(), tenantId, email, passwordEncoder.encode("P@ssw0rd!"),
+        AppUser user = new AppUser(UUID.randomUUID(), tenant.getId(), email, passwordEncoder.encode("P@ssw0rd!"),
                 "An", "Alyst", "ACTIVE");
         user.addRole(role);
         userRepository.save(user);
-        return login(email, "P@ssw0rd!");
+        return login(tenant.getSlug(), email, "P@ssw0rd!");
     }
 
-    private String login(String email, String password) {
+    private String login(String companyId, String email, String password) {
         ResponseEntity<JsonNode> resp = rest.exchange("/api/v1/auth/login", HttpMethod.POST,
-                new HttpEntity<>(String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password),
-                        jsonHeaders(null)), JsonNode.class);
+                new HttpEntity<>(String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                        companyId, email, password), jsonHeaders(null)), JsonNode.class);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }

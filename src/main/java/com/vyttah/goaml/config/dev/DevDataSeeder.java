@@ -179,17 +179,17 @@ public class DevDataSeeder implements CommandLineRunner {
 
                 ============================================================
                  goAML DEV SEED — local login credentials (password: {})
+                 Login takes companyId + email + password (POST /api/v1/auth/login)
                 ------------------------------------------------------------
-                  SUPER_ADMIN   {}   (platform admin; no tenant)
-                  TENANT_ADMIN  {}        (manage users + goAML config)
-                  MLRO          {}         (build + submit reports)
-                  ANALYST       {}      (build reports)
-                 Demo tenant slug: '{}'  ·  POST /api/v1/auth/login
+                  SUPER_ADMIN   companyId 'PLATFORM'  {}   (platform admin; no tenant)
+                  TENANT_ADMIN  companyId '{}'      {}        (manage users + goAML config)
+                  MLRO          companyId '{}'      {}         (build + submit reports)
+                  ANALYST       companyId '{}'      {}      (build reports)
                  Suite integration: SCREENING company id '{}' -> demo tenant
                    (AML screening push: POST /api/v1/integration/screening/subjects)
                  NEVER enable goaml.dev.seed in a deployed environment.
                 ============================================================""",
-                PASSWORD, SUPER_ADMIN_EMAIL, TENANT_ADMIN_EMAIL, MLRO_EMAIL, ANALYST_EMAIL, DEMO_SLUG,
-                screeningCompanyId);
+                PASSWORD, SUPER_ADMIN_EMAIL, DEMO_SLUG, TENANT_ADMIN_EMAIL, DEMO_SLUG, MLRO_EMAIL,
+                DEMO_SLUG, ANALYST_EMAIL, screeningCompanyId);
     }
 }

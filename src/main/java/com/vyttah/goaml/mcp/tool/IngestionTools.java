@@ -32,11 +32,11 @@ public class IngestionTools {
     @Tool(name = "goaml_import_xml",
             description = "Import a goAML XML file: each report in it is unmarshalled, validated, and stored as "
                     + "a draft. Returns a job with per-row results (status + errors). Does NOT submit. "
-                    + "Requires ANALYST or MLRO.")
+                    + "Requires ANALYST, MLRO, or TENANT_ADMIN.")
     public ImportJobView importXml(
             @ToolParam(description = "The original filename, e.g. 'batch.xml'.") String filename,
             @ToolParam(description = "The full goAML XML content to import.") String xmlContent) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO", "TENANT_ADMIN");
         var job = ingestionService.importXml(xmlContent.getBytes(StandardCharsets.UTF_8), filename,
                 identity.tenantId(), identity.userId());
         return ImportJobView.from(job, objectMapper);
@@ -45,11 +45,11 @@ public class IngestionTools {
     @Tool(name = "goaml_import_csv",
             description = "Import a flat DPMSR CSV (one report per row): each row maps to a DPMSR request, is "
                     + "validated, and stored as a draft. Returns a job with per-row results. Does NOT submit. "
-                    + "Requires ANALYST or MLRO.")
+                    + "Requires ANALYST, MLRO, or TENANT_ADMIN.")
     public ImportJobView importCsv(
             @ToolParam(description = "The original filename, e.g. 'dpmsr.csv'.") String filename,
             @ToolParam(description = "The full DPMSR CSV content (with the header row).") String csvContent) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO", "TENANT_ADMIN");
         var job = ingestionService.importCsv(csvContent.getBytes(StandardCharsets.UTF_8), filename,
                 identity.tenantId(), identity.userId());
         return ImportJobView.from(job, objectMapper);

@@ -19,7 +19,7 @@ import java.util.UUID;
  * silently file a regulatory report.</strong> So the submit tool is, in order:
  *
  * <ol>
- *   <li><b>MLRO-gated</b> — only the money-laundering reporting officer role may submit;</li>
+ *   <li><b>MLRO-gated</b> — only the money-laundering reporting officer (or a TENANT_ADMIN) may submit;</li>
  *   <li><b>dry-run-first</b> — the default is a preview that sends nothing and shows the exact XML;</li>
  *   <li><b>human-confirmed</b> — a real send requires {@code dryRun=false} <em>and</em> {@code confirm=true};</li>
  *   <li><b>validate-first</b> — only a {@code VALID} report is submittable (also enforced server-side);</li>
@@ -62,8 +62,8 @@ public class SubmissionTools {
             description = "Submit a stored report to the UAE FIU. SAFE BY DEFAULT: with no flags (or "
                     + "dryRun=true) it performs a DRY RUN — it sends nothing and returns the exact goAML XML "
                     + "that WOULD be filed. A real, IRREVERSIBLE submission requires BOTH dryRun=false AND "
-                    + "confirm=true, the MLRO role, and a VALID report. Always dry-run and show the human the "
-                    + "payload before a real submit.")
+                    + "confirm=true, the MLRO or TENANT_ADMIN role, and a VALID report. Always dry-run and show "
+                    + "the human the payload before a real submit.")
     public SubmitResult submitReport(
             @ToolParam(description = "The report's UUID.") String reportId,
             @ToolParam(required = false,
@@ -73,7 +73,7 @@ public class SubmissionTools {
                     description = "Explicit confirmation for a REAL submission. Must be true (with "
                             + "dryRun=false) to actually file to the FIU. This is irreversible.")
             Boolean confirm) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("MLRO", "TENANT_ADMIN");
         boolean isDryRun = dryRun == null || dryRun;          // default: dry run
         boolean isConfirmed = confirm != null && confirm;     // default: not confirmed
         UUID rid = parseUuid(reportId);
@@ -102,10 +102,11 @@ public class SubmissionTools {
             return new SubmitResult(true, false, rid, entityRef, status, null, report.getReportXml(),
                     "DRY RUN — nothing was sent to the FIU. xmlPreview is the exact goAML XML that WOULD be "
                             + "submitted (registered attachments are bundled at submit time). To file it, an "
-                            + "MLRO must re-call with dryRun=false AND confirm=true. This is irreversible.");
+                            + "MLRO or TENANT_ADMIN must re-call with dryRun=false AND confirm=true. This is "
+                            + "irreversible.");
         }
 
-        // Real submission — MLRO + confirmed + VALID. The service validates, packages, posts, and audits.
+        // Real submission — MLRO/TENANT_ADMIN + confirmed + VALID. The service validates, packages, posts, and audits.
         try {
             SubmissionResult result = submissionService.submit(rid, identity.tenantId(), identity.userId());
             return new SubmitResult(false, true, rid, entityRef, result.status(), result.reportKey(), null,
@@ -137,13 +138,13 @@ public class SubmissionTools {
 
     @Tool(name = "goaml_post_message",
             description = "Post a free-text message to the tenant's FIU MessageBoard (correspondence, not a "
-                    + "report). This SENDS to the regulator, so it requires the MLRO role AND confirm=true; "
-                    + "without confirmation it refuses and sends nothing.")
+                    + "report). This SENDS to the regulator, so it requires the MLRO or TENANT_ADMIN role AND "
+                    + "confirm=true; without confirmation it refuses and sends nothing.")
     public MessageResult postMessage(
             @ToolParam(description = "The message text to send to the FIU.") String message,
             @ToolParam(required = false,
                     description = "Explicit confirmation; must be true to actually send.") Boolean confirm) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("MLRO", "TENANT_ADMIN");
         if (confirm == null || !confirm) {
             return new MessageResult(false, null,
                     "Refusing to send a message to the FIU without confirmation. Re-call goaml_post_message "

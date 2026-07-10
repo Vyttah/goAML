@@ -15,6 +15,12 @@ public class TenantIdentifierResolver implements CurrentTenantIdentifierResolver
 
     public static final String DEFAULT_TENANT = "public";
 
+    /**
+     * Reserved company id a SUPER_ADMIN uses to log in (they have no tenant). Never a valid tenant slug —
+     * {@code DefaultTenantProvisioningService} rejects it on provisioning so it cannot be hijacked.
+     */
+    public static final String PLATFORM_COMPANY_ID = "PLATFORM";
+
     @Override
     public String resolveCurrentTenantIdentifier() {
         String tenant = TenantContext.get();

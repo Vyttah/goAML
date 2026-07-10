@@ -42,9 +42,9 @@ public class ReportTools {
     @Tool(name = "goaml_validate_dpmsr",
             description = "Validate a DPMSR report (UAE precious-metals dealer) WITHOUT saving it. Returns "
                     + "VALID/INVALID plus every business-rule and XSD message by path/code, so you can fix a "
-                    + "draft before creating it. Requires the ANALYST or MLRO role.")
+                    + "draft before creating it. Requires the ANALYST, MLRO, or TENANT_ADMIN role.")
     public ReportValidationResult validateDpmsr(DpmsrCreateRequest request) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO", "TENANT_ADMIN");
         List<ValidationMessage> violations = beanViolations(request);
         if (!violations.isEmpty()) {
             return new ReportValidationResult("INVALID", violations);
@@ -55,9 +55,9 @@ public class ReportTools {
     @Tool(name = "goaml_preview_dpmsr_xml",
             description = "Build a DPMSR report to the exact goAML XML that WOULD be submitted, WITHOUT saving "
                     + "or submitting it, plus the validation verdict. Use this to inspect the XML. Requires the "
-                    + "ANALYST or MLRO role.")
+                    + "ANALYST, MLRO, or TENANT_ADMIN role.")
     public ReportPreview previewDpmsrXml(DpmsrCreateRequest request) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO", "TENANT_ADMIN");
         List<ValidationMessage> violations = beanViolations(request);
         if (!violations.isEmpty()) {
             return new ReportPreview("INVALID", null, violations);
@@ -68,9 +68,10 @@ public class ReportTools {
     @Tool(name = "goaml_create_dpmsr",
             description = "Build, validate, and SAVE a DPMSR report as a draft for the current tenant (does NOT "
                     + "submit it to the FIU). Returns the new report id, status, and validation messages. The "
-                    + "entity_reference must be unique per tenant (idempotency key). Requires ANALYST or MLRO.")
+                    + "entity_reference must be unique per tenant (idempotency key). Requires ANALYST, MLRO, or "
+                    + "TENANT_ADMIN.")
     public CreateReportResponse createDpmsr(DpmsrCreateRequest request) {
-        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO");
+        McpIdentity.Identity identity = McpIdentity.requireAnyRole("ANALYST", "MLRO", "TENANT_ADMIN");
         List<ValidationMessage> violations = beanViolations(request);
         if (!violations.isEmpty()) {
             return new CreateReportResponse(null, "INVALID", violations);

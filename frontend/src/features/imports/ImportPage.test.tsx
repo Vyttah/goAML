@@ -87,11 +87,11 @@ describe('ImportPage', () => {
     expect(screen.getByText('PARTIAL')).toBeInTheDocument();
   });
 
-  it('hides the uploader from a tenant admin (view-only)', async () => {
+  it('shows the uploader to a tenant admin (has analyst/MLRO import rights)', async () => {
     server.use(http.get('*/api/v1/imports', () => HttpResponse.json([])));
     const { container } = renderImports('TENANT_ADMIN');
 
     await screen.findByText('Import history');
-    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(container.querySelector('input[type="file"]')).not.toBeNull();
   });
 });

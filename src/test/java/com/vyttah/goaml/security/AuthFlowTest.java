@@ -58,7 +58,7 @@ class AuthFlowTest {
 
         // login
         ResponseEntity<JsonNode> login = postJson("/api/v1/auth/login",
-                "{\"email\":\"mlro@auth.test\",\"password\":\"Sup3rS3cret!\"}");
+                "{\"companyId\":\"auth-tenant\",\"email\":\"mlro@auth.test\",\"password\":\"Sup3rS3cret!\"}");
         assertThat(login.getStatusCode()).isEqualTo(HttpStatus.OK);
         String jwt = login.getBody().get("accessToken").asText();
         assertThat(jwt).isNotBlank();
@@ -93,7 +93,7 @@ class AuthFlowTest {
                 "bad@auth.test", "Correct!Horse!Battery!Staple!", "Bad", "Pass"));
 
         ResponseEntity<String> response = postJson("/api/v1/auth/login",
-                "{\"email\":\"bad@auth.test\",\"password\":\"wrong\"}", String.class);
+                "{\"companyId\":\"auth-bad\",\"email\":\"bad@auth.test\",\"password\":\"wrong\"}", String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
     }
 

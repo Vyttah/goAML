@@ -144,7 +144,7 @@ class CrossTenantIsolationE2ETest {
                 passwordEncoder.encode("P@ssw0rd!"), prefix, "User", "ACTIVE");
         user.addRole(role);
         userRepository.save(user);
-        return login(email, "P@ssw0rd!");
+        return login(tenant.getSlug(), email, "P@ssw0rd!");
     }
 
     private String createReport(String jwt, String reference) {
@@ -153,9 +153,10 @@ class CrossTenantIsolationE2ETest {
         return created.getBody().get("reportId").asText();
     }
 
-    private String login(String email, String password) {
+    private String login(String companyId, String email, String password) {
         ResponseEntity<JsonNode> resp = post("/api/v1/auth/login",
-                String.format("{\"email\":\"%s\",\"password\":\"%s\"}", email, password), null);
+                String.format("{\"companyId\":\"%s\",\"email\":\"%s\",\"password\":\"%s\"}",
+                        companyId, email, password), null);
         assertThat(resp.getStatusCode()).isEqualTo(HttpStatus.OK);
         return resp.getBody().get("accessToken").asText();
     }
