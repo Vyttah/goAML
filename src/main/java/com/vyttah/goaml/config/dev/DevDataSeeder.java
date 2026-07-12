@@ -62,13 +62,13 @@ public class DevDataSeeder implements CommandLineRunner {
      */
     private static final String DEV_SCREENING_PUBLIC_KEY_PEM = """
             -----BEGIN PUBLIC KEY-----
-            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAop98Vt2bu85t2bURDaIq
-            rmj1GHsegKdqq07kVRT1ce3a/OqJB76ZMhZo/NMASIjWVO8A5vIfj7jq1h0B0dIg
-            fZtxyAQ8MOnvkQM7io4GiCfrFDRGH4O533lzO6oyz324chHlgSeehOwJ2pF+0Klp
-            BA3By4jZzE2ZajX++HjPPSJlVOTLuvytuP3f1eZPYDuYLNitjxDmwFkQD/YWNAQf
-            tykiWiOtskHD6MWDFU+N05krlGHrsWA1Q1XkiF+s51gq/eTeywyQJGv1z2aeJoVK
-            K/ZVTnT2z722Op87V/ZRk8Lu3VXaMPiC13sPfRpk4AQmOGny3cpUNL+fm6gmt0Be
-            3QIDAQAB
+            MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv8PKgDBPd7Hj8KSczJmz
+            ENC5CnD0lT3KbykpcTOFAX5beZx/+88IxdsQoFUDG5ggxFbaN7WbQJE9I3Ep1Q0d
+            tbYvfJjiLLBMEQfQmjrFvgR8sa4HFaJaHuLigZiSXeV17AdsTvAY7EkjorF+NguE
+            LIMRH6Jrf+uOjwggruWyepBLX0wqWYcKZ/G9dhUIHOThg5K4JXsB4NW0OT8EKfxm
+            In34+dz0L03YTExlg4xcPH6Y2xpcm3q8CeROJfri83+DiP3WnXkRZgJfk4tKGaam
+            J2qquHRBm/KXyFtP30/8dZ3yuwITEBZ3myGokRh0sAVs4H5EtM9NLcQDX89o30+q
+            5wIDAQAB
             -----END PUBLIC KEY-----""";
 
     private final AppUserRepository users;

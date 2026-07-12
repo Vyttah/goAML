@@ -4,18 +4,23 @@ import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTenantExternalRefReques
 import com.vyttah.goaml.model.dto.admin.AdminViews.TenantView;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantProvisionRequest;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantProvisionResponse;
+import com.vyttah.goaml.model.dto.integration.IntegrationUserUpsertRequest;
+import com.vyttah.goaml.model.dto.integration.IntegrationUserUpsertResponse;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.security.IntegrationAuthFilter;
 import com.vyttah.goaml.security.VerifiedServiceAssertion;
 import com.vyttah.goaml.service.admin.AdminService;
+import com.vyttah.goaml.service.integration.IntegrationUserProvisioningService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,6 +43,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class PlatformIntegrationController {
 
     private final AdminService adminService;
+    private final IntegrationUserProvisioningService userProvisioningService;
 
     @PostMapping("/tenants")
     public ResponseEntity<IntegrationTenantProvisionResponse> provision(
@@ -87,6 +93,26 @@ public class PlatformIntegrationController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new IntegrationTenantProvisionResponse(TenantView.from(tenant), warning));
+    }
+
+    /**
+     * Create/update the goAML user backing an AML user (called when an AML user is granted or has changed a goAML
+     * role). The tenant comes from the assertion's {@code org} claim (companyId); the goAML user is keyed by the
+     * path {@code externalUserId} (the AML user id) via {@code external_identity} — never by email.
+     */
+    @PutMapping("/users/{externalUserId}")
+    public ResponseEntity<IntegrationUserUpsertResponse> upsertUser(
+            @RequestAttribute(IntegrationAuthFilter.VERIFIED_ASSERTION_ATTR) VerifiedServiceAssertion verified,
+            @PathVariable String externalUserId,
+            @Valid @RequestBody IntegrationUserUpsertRequest request) {
+
+        String companyId = verified.externalOrgRef();
+        if (companyId == null || companyId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Service assertion must carry an org claim to resolve the tenant");
+        }
+        return ResponseEntity.ok(userProvisioningService.upsert(
+                verified.sourceSystem(), companyId, externalUserId, request));
     }
 
     private static TenantProvisioningRequest buildRequest(String companyId,

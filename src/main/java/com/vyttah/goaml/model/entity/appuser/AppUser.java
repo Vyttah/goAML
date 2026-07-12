@@ -127,6 +127,11 @@ public class AppUser {
         this.lastName = lastName;
     }
 
+    /** Change the login email (federated upsert from the AML side keeps it in sync). Unique per tenant. */
+    public void changeEmail(String email) {
+        this.email = email;
+    }
+
     /** ACTIVE / DISABLED. A DISABLED user cannot authenticate ({@link UserPrincipal#isEnabled()}). */
     public void setStatus(String status) {
         this.status = status;

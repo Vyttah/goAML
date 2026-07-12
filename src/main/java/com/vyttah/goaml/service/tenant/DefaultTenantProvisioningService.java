@@ -138,16 +138,21 @@ public class DefaultTenantProvisioningService implements TenantProvisioningServi
                 id, slug, req.name(), req.jurisdictionCode(), schemaName, "ACTIVE");
         tenantRepository.save(tenant);
 
-        Role adminRole = roleRepository.findByName(INITIAL_ADMIN_ROLE)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Seed role missing: " + INITIAL_ADMIN_ROLE));
+        // The initial admin is optional: the AML onboarding flow provisions the tenant with no users and
+        // creates goAML users explicitly (with an external_identity mapping) only when a goAML role is assigned.
+        // A blank admin email ⇒ tenant + schema only.
+        if (req.adminEmail() != null && !req.adminEmail().isBlank()) {
+            Role adminRole = roleRepository.findByName(INITIAL_ADMIN_ROLE)
+                    .orElseThrow(() -> new IllegalStateException(
+                            "Seed role missing: " + INITIAL_ADMIN_ROLE));
 
-        AppUser admin = new AppUser(
-                UUID.randomUUID(), id, req.adminEmail(),
-                passwordEncoder.encode(req.adminPassword()),
-                req.adminFirstName(), req.adminLastName(), "ACTIVE");
-        admin.addRole(adminRole);
-        userRepository.save(admin);
+            AppUser admin = new AppUser(
+                    UUID.randomUUID(), id, req.adminEmail(),
+                    passwordEncoder.encode(req.adminPassword()),
+                    req.adminFirstName(), req.adminLastName(), "ACTIVE");
+            admin.addRole(adminRole);
+            userRepository.save(admin);
+        }
 
         return tenant;
     }
