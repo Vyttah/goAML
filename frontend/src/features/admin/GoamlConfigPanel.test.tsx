@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -20,6 +20,17 @@ function renderPanel() {
 }
 
 describe('GoamlConfigPanel', () => {
+  // The Jurisdiction field is a dropdown backed by the jurisdictions lookup.
+  beforeEach(() => {
+    server.use(
+      http.get('*/api/v1/lookups/jurisdictions', () =>
+        HttpResponse.json([
+          { code: 'AE', name: 'United Arab Emirates', defaultCurrency: 'AED', allowedReportTypes: ['DPMSR'], dpmsThreshold: 55000, lookupSet: 'ae' },
+        ]),
+      ),
+    );
+  });
+
   it('pre-fills the form from an existing config (the populated branch)', async () => {
     server.use(http.get('*/api/v1/admin/goaml-config', () => HttpResponse.json(config)));
     renderPanel();

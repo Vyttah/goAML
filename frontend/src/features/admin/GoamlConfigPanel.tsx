@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Card, Col, Form, Input, InputNumber, Row, Select, Skeleton } from 'antd';
 import { useGoamlConfig, useUpsertGoamlConfig } from './useAdmin';
+import { useJurisdictions } from '../lookups/useLookups';
 import { errorMessage } from '../../api/client';
 import type { GoamlConfigRequest } from '../../types';
 
@@ -8,6 +9,7 @@ import type { GoamlConfigRequest } from '../../types';
 export function GoamlConfigPanel() {
   const config = useGoamlConfig();
   const upsert = useUpsertGoamlConfig();
+  const jurisdictions = useJurisdictions();
   const [form] = Form.useForm<GoamlConfigRequest>();
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -58,7 +60,16 @@ export function GoamlConfigPanel() {
         <Row gutter={12}>
           <Col span={8}>
             <Form.Item label="Jurisdiction" name="jurisdictionCode" rules={[{ required: true }]}>
-              <Input />
+              <Select
+                showSearch
+                loading={jurisdictions.isLoading}
+                placeholder="Select jurisdiction"
+                optionFilterProp="label"
+                options={(jurisdictions.data ?? []).map((j) => ({
+                  value: j.code,
+                  label: j.name && j.name !== j.code ? `${j.code} — ${j.name}` : j.code,
+                }))}
+              />
             </Form.Item>
           </Col>
           <Col span={8}>

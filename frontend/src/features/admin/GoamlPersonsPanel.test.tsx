@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -17,6 +17,23 @@ function renderPanel() {
 }
 
 describe('GoamlPersonsPanel', () => {
+  // The Nationality field is a dropdown backed by the countries lookup (CodeSelect).
+  beforeEach(() => {
+    server.use(
+      http.get('*/api/v1/lookups/ae/countries', () =>
+        HttpResponse.json({
+          jurisdiction: 'ae',
+          set: 'countries',
+          codes: ['AE', 'US'],
+          entries: [
+            { code: 'AE', label: 'United Arab Emirates' },
+            { code: 'US', label: 'United States' },
+          ],
+        }),
+      ),
+    );
+  });
+
   it('pre-fills the active person and Saves an UPDATE (not a create)', async () => {
     let putBody: Record<string, unknown> | null = null;
     let method: string | null = null;

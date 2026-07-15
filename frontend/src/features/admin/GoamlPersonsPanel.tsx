@@ -22,6 +22,7 @@ import {
   useUpdateGoamlPerson,
 } from './useAdmin';
 import { errorMessage } from '../../api/client';
+import { CodeSelect } from '../../components/lookups/CodeSelect';
 import type { GoamlPersonRequest, GoamlPersonView } from '../../types';
 
 const GENDERS = [
@@ -49,7 +50,7 @@ function PersonFields() {
         <Select allowClear options={GENDERS} placeholder="Select" />
       </Form.Item>
       <Form.Item label="Nationality" name="nationality" tooltip="ISO country code, e.g. AE">
-        <Input placeholder="AE" />
+        <CodeSelect set="countries" placeholder="Select country" />
       </Form.Item>
       <Form.Item label="ID number" name="idNumber">
         <Input />
