@@ -65,18 +65,22 @@ class MeGoamlConfigE2ETest {
         mvc.perform(get("/api/v1/me/goaml-config").header("Authorization", "Bearer " + taToken))
                 .andExpect(status().isNotFound());
 
-        // TENANT_ADMIN upserts the config
+        // TENANT_ADMIN upserts the config. Send a lowercase jurisdiction ("ae", as the /lookups/jurisdictions
+        // dropdown returns) — the service must normalise it to the canonical `jurisdiction` table casing ("AE")
+        // so the case-sensitive jurisdiction_code FK is satisfied (regression guard).
         MvcResult saved = mvc.perform(put("/api/v1/me/goaml-config").contentType(APPLICATION_JSON)
                         .header("Authorization", "Bearer " + taToken)
-                        .content("{\"jurisdictionCode\":\"AE\",\"rentityId\":3177,"
+                        .content("{\"jurisdictionCode\":\"ae\",\"rentityId\":3177,"
                                 + "\"baseUrl\":\"https://goaml.uaefiu.gov.ae/b2b\","
                                 + "\"secretsPath\":\"goaml/cfg/b2b-credentials\",\"authMode\":\"TOKEN\"}"))
                 .andExpect(status().isOk()).andReturn();
         assertThat(json(saved).get("rentityId").asInt()).isEqualTo(3177);
+        assertThat(json(saved).get("jurisdictionCode").asText()).isEqualTo("AE");
 
         // ...and reads it back
         JsonNode got = json(mvc.perform(get("/api/v1/me/goaml-config")
                 .header("Authorization", "Bearer " + taToken)).andExpect(status().isOk()).andReturn());
+        assertThat(got.get("jurisdictionCode").asText()).isEqualTo("AE");
         assertThat(got.get("baseUrl").asText()).isEqualTo("https://goaml.uaefiu.gov.ae/b2b");
         assertThat(got.get("secretsPath").asText()).isEqualTo("goaml/cfg/b2b-credentials");
 

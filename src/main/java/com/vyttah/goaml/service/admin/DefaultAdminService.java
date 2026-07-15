@@ -42,6 +42,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -232,18 +233,20 @@ public class DefaultAdminService implements AdminService {
     @Override
     public TenantGoamlConfig upsertGoamlConfig(UUID tenantId, GoamlConfigRequest request) {
         String authMode = validateAuthMode(request.authMode());
-        validateJurisdiction(request.jurisdictionCode());
+        // Normalise to the canonical `jurisdiction` table casing (uppercase, e.g. AE) — the registry validates
+        // case-insensitively but the jurisdiction_code FK is case-sensitive, so persist the DB's exact code.
+        String jurisdictionCode = validateJurisdiction(request.jurisdictionCode());
 
         TenantGoamlConfig config = configRepository.findByTenantId(tenantId)
                 .orElseGet(() -> new TenantGoamlConfig(UUID.randomUUID(), tenantId));
-        config.setJurisdictionCode(request.jurisdictionCode());
+        config.setJurisdictionCode(jurisdictionCode);
         config.setRentityId(request.rentityId());
         config.setBaseUrl(request.baseUrl());
         config.setSecretsPath(request.secretsPath());
         config.setAuthMode(authMode);
         configRepository.save(config);
         auditService.record("ADMIN.GOAML_CONFIG_SET", null, null, TenantContext.get(),
-                "set goAML config (rentity " + request.rentityId() + ", " + request.jurisdictionCode() + ")");
+                "set goAML config (rentity " + request.rentityId() + ", " + jurisdictionCode + ")");
         return config;
     }
 
@@ -345,12 +348,17 @@ public class DefaultAdminService implements AdminService {
     }
 
     /** Validate the jurisdiction against the configured registry (UAE today) at write time. */
-    private void validateJurisdiction(String jurisdictionCode) {
-        String code = jurisdictionCode == null ? "" : jurisdictionCode.trim().toLowerCase();
+    /**
+     * Validates the jurisdiction against the registry (case-insensitive) and returns the canonical code in the
+     * `jurisdiction` table's casing (uppercase) so the case-sensitive {@code jurisdiction_code} FK is satisfied.
+     */
+    private String validateJurisdiction(String jurisdictionCode) {
+        String code = jurisdictionCode == null ? "" : jurisdictionCode.trim();
         if (jurisdictionRegistry.find(code).isEmpty()) {
             throw new IllegalArgumentException("Unknown jurisdictionCode: " + jurisdictionCode
                     + " (supported: " + jurisdictionRegistry.codes() + ")");
         }
+        return code.toUpperCase(Locale.ROOT);
     }
 
     // ----- Suite Connections (SUPER_ADMIN) -----
