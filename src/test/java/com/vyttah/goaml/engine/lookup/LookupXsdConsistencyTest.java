@@ -52,6 +52,16 @@ class LookupXsdConsistencyTest {
         assertLookupSubsetOfEnum("lookups/ae/report_indicators.json", "report_indicator_type");
     }
 
+    @Test
+    void legalFormsLookupIsSubsetOfLegalFormType() throws Exception {
+        assertLookupSubsetOfEnum("lookups/ae/legal_forms.json", "legal_form_type");
+    }
+
+    @Test
+    void partyRolesLookupIsSubsetOfEntityPersonRoleType() throws Exception {
+        assertLookupSubsetOfEnum("lookups/ae/party_roles.json", "entity_person_role_type");
+    }
+
     /**
      * The country lookup is the cockpit/feed's authoritative resolver for nationality / residence / address /
      * identification country codes — an entry the XSD won't accept is a silent field-omission risk in filed XML

@@ -1,0 +1,390 @@
+[
+  {
+    "code": "-",
+    "label": "Unknown"
+  },
+  {
+    "code": "AAFSI",
+    "label": "Activities auxiliary to financial service and insurance activities"
+  },
+  {
+    "code": "ACCOM",
+    "label": "Accommodation"
+  },
+  {
+    "code": "ADVMR",
+    "label": "Advertising and market research"
+  },
+  {
+    "code": "AENTA",
+    "label": "Architectural and engineering activities; technical testing and analysis"
+  },
+  {
+    "code": "AEXOR",
+    "label": "Activities of extraterritorial organizations and bodies"
+  },
+  {
+    "code": "AHEDP",
+    "label": "Activities of households as employers of domestic personnel"
+  },
+  {
+    "code": "AHOMC",
+    "label": "Activities of head offices; management consultancy activities"
+  },
+  {
+    "code": "AIRTR",
+    "label": "Air transport"
+  },
+  {
+    "code": "AMEMO",
+    "label": "Activities of membership organizations"
+  },
+  {
+    "code": "BUILD",
+    "label": "Services to buildings and landscape activities"
+  },
+  {
+    "code": "CAPHS",
+    "label": "Crop and animal production, hunting and related service activities"
+  },
+  {
+    "code": "CARTE",
+    "label": "Creative, arts and entertainment activities"
+  },
+  {
+    "code": "CIVEN",
+    "label": "Civil engineering"
+  },
+  {
+    "code": "CONST",
+    "label": "Construction of buildings"
+  },
+  {
+    "code": "CPCRA",
+    "label": "Computer programming, consultancy and related activities"
+  },
+  {
+    "code": "ECPNG",
+    "label": "Extraction of crude petroleum and natural gas"
+  },
+  {
+    "code": "EDUCA",
+    "label": "Education"
+  },
+  {
+    "code": "EGSAC",
+    "label": "Electricity, gas, steam and air conditioning supply"
+  },
+  {
+    "code": "EMPAC",
+    "label": "Employment activities"
+  },
+  {
+    "code": "FINSA",
+    "label": "Financial service activities, except insurance and pension funding"
+  },
+  {
+    "code": "FISHA",
+    "label": "Fishing and aquaculture"
+  },
+  {
+    "code": "FOODB",
+    "label": "Food and beverage service activities"
+  },
+  {
+    "code": "FRSTL",
+    "label": "Forestry and logging"
+  },
+  {
+    "code": "GAMBL",
+    "label": "Gambling and betting activities"
+  },
+  {
+    "code": "HHAS",
+    "label": "Human health activities"
+  },
+  {
+    "code": "INFOS",
+    "label": "Information service activities"
+  },
+  {
+    "code": "IRPIF",
+    "label": "Insurance, reinsurance and pension funding, except compulsory social security"
+  },
+  {
+    "code": "LAMOC",
+    "label": "Libraries, archives, museums and other cultural activities"
+  },
+  {
+    "code": "LEGAL",
+    "label": "Legal and accounting activities"
+  },
+  {
+    "code": "LTTVP",
+    "label": "Land transport and transport via pipelines"
+  },
+  {
+    "code": "MBAMS",
+    "label": "Manufacture of basic metals"
+  },
+  {
+    "code": "MBEVG",
+    "label": "Manufacture of beverages"
+  },
+  {
+    "code": "MCEOP",
+    "label": "Manufacture of computer, electronic and optical products"
+  },
+  {
+    "code": "MCHEM",
+    "label": "Manufacture of chemicals and chemical products"
+  },
+  {
+    "code": "MCRPP",
+    "label": "Manufacture of coke and refined petroleum products"
+  },
+  {
+    "code": "MELCE",
+    "label": "Manufacture of electrical equipment"
+  },
+  {
+    "code": "MFMP",
+    "label": "Manufacture of fabricated metal products, except machinery and equipment"
+  },
+  {
+    "code": "MFOOD",
+    "label": "Manufacture of food products"
+  },
+  {
+    "code": "MFURN",
+    "label": "Manufacture of furniture"
+  },
+  {
+    "code": "MGAMT",
+    "label": "Manufacture of games and toys"
+  },
+  {
+    "code": "MIJEW",
+    "label": "Manufacture of imitation jewellery and related articles"
+  },
+  {
+    "code": "MINCI",
+    "label": "Mining of coal and lignite"
+  },
+  {
+    "code": "MINMO",
+    "label": "Mining of metal ores"
+  },
+  {
+    "code": "MINSS",
+    "label": "Mining support service activities"
+  },
+  {
+    "code": "MJEWB",
+    "label": "Manufacture of jewellery, bijouterie and related articles"
+  },
+  {
+    "code": "MJEWR",
+    "label": "Manufacture of jewellery and related articles"
+  },
+  {
+    "code": "MLEAT",
+    "label": "Manufacture of leather and related products"
+  },
+  {
+    "code": "MMACE",
+    "label": "Manufacture of machinery and equipment n.e.c."
+  },
+  {
+    "code": "MMDIS",
+    "label": "Manufacture of medical and dental instruments and supplies"
+  },
+  {
+    "code": "MMUSI",
+    "label": "Manufacture of musical instruments"
+  },
+  {
+    "code": "MMVTS",
+    "label": "Manufacture of motor vehicles, trailers and semi-trailers"
+  },
+  {
+    "code": "MONMM",
+    "label": "Manufacture of other non-metallic mineral products"
+  },
+  {
+    "code": "MPAPP",
+    "label": "Manufacture of paper and paper products"
+  },
+  {
+    "code": "MPHAR",
+    "label": "Manufacture of pharmaceuticals, medicinal chemical and botanical products"
+  },
+  {
+    "code": "MPVTV",
+    "label": "Motion picture, video and television programme production, sound recording and music publishing activities"
+  },
+  {
+    "code": "MRUBP",
+    "label": "Manufacture of rubber and plastics products"
+  },
+  {
+    "code": "MSPOR",
+    "label": "Manufacture of sports goods"
+  },
+  {
+    "code": "MTEXT",
+    "label": "Manufacture of textiles"
+  },
+  {
+    "code": "MTOBP",
+    "label": "Manufacture of tobacco products"
+  },
+  {
+    "code": "MTREQ",
+    "label": "Manufacture of other transport equipment"
+  },
+  {
+    "code": "MWEAR",
+    "label": "Manufacture of wearing apparel"
+  },
+  {
+    "code": "MWOOD",
+    "label": "Manufacture of wood and of products of wood and cork, except furniture; manufacture of articles of straw and plaiting materials"
+  },
+  {
+    "code": "OAOSB",
+    "label": "Office administrative, office support and other business support activities"
+  },
+  {
+    "code": "OPSAS",
+    "label": "Other personal service activities"
+  },
+  {
+    "code": "OPSTA",
+    "label": "Other professional, scientific and technical activities"
+  },
+  {
+    "code": "OTHMA",
+    "label": "Other manufacturing n.e.c."
+  },
+  {
+    "code": "OTHMQ",
+    "label": "Other mining and quarrying"
+  },
+  {
+    "code": "PADCS",
+    "label": "Public administration and defence; compulsory social security"
+  },
+  {
+    "code": "POSTC",
+    "label": "Postal and courier activities"
+  },
+  {
+    "code": "PRNTM",
+    "label": "Printing and reproduction of recorded media"
+  },
+  {
+    "code": "PROBA",
+    "label": "Programming and broadcasting activities"
+  },
+  {
+    "code": "PRVHG",
+    "label": "Undifferentiated goods- and services-producing activities of private households for own use"
+  },
+  {
+    "code": "PUBLS",
+    "label": "Publishing activities"
+  },
+  {
+    "code": "RCPHG",
+    "label": "Repair of computers and personal and household goods"
+  },
+  {
+    "code": "REALA",
+    "label": "Real estate activities"
+  },
+  {
+    "code": "REMAC",
+    "label": "Remediation activities and other waste management services"
+  },
+  {
+    "code": "RENTL",
+    "label": "Rental and leasing activities"
+  },
+  {
+    "code": "RESCA",
+    "label": "Residential care activities"
+  },
+  {
+    "code": "RIMEQ",
+    "label": "Repair and installation of machinery and equipment"
+  },
+  {
+    "code": "RTEMV",
+    "label": "Retail trade, except of motor vehicles and motorcycles"
+  },
+  {
+    "code": "SCRSD",
+    "label": "Scientific research and development"
+  },
+  {
+    "code": "SECUR",
+    "label": "Security and investigation activities"
+  },
+  {
+    "code": "SEWER",
+    "label": "Sewerage"
+  },
+  {
+    "code": "SOCWR",
+    "label": "Social work activities without accommodation"
+  },
+  {
+    "code": "SPAAR",
+    "label": "Sports activities and amusement and recreation activities"
+  },
+  {
+    "code": "SPECA",
+    "label": "Specialized construction activities"
+  },
+  {
+    "code": "TATOR",
+    "label": "Travel agency, tour operator, reservation service and related activities"
+  },
+  {
+    "code": "TELCO",
+    "label": "Telecommunications"
+  },
+  {
+    "code": "VETAC",
+    "label": "Veterinary activities"
+  },
+  {
+    "code": "WCTDA",
+    "label": "Waste collection, treatment and disposal activities; materials recovery"
+  },
+  {
+    "code": "WCTRS",
+    "label": "Water collection, treatment and supply"
+  },
+  {
+    "code": "WJDPS",
+    "label": "Wholesale of Jewelry, Diamond, and Precious Stones"
+  },
+  {
+    "code": "WRTMV",
+    "label": "Wholesale and retail trade and repair of motor vehicles and motorcycles"
+  },
+  {
+    "code": "WSATR",
+    "label": "Warehousing and support activities for transportation"
+  },
+  {
+    "code": "WTEMV",
+    "label": "Wholesale trade, except of motor vehicles and motorcycles"
+  },
+  {
+    "code": "WTRTR",
+    "label": "Water transport"
+  }
+]

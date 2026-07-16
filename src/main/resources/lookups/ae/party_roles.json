@@ -1,0 +1,58 @@
+[
+  {
+    "code": "ATR",
+    "label": "Authorized Representative"
+  },
+  {
+    "code": "BEN",
+    "label": "Beneficiary"
+  },
+  {
+    "code": "CMPNS",
+    "label": "Company Secretary"
+  },
+  {
+    "code": "DIR",
+    "label": "Director"
+  },
+  {
+    "code": "LIQUI",
+    "label": "Liquidator"
+  },
+  {
+    "code": "MGR",
+    "label": "Manager"
+  },
+  {
+    "code": "ND",
+    "label": "Nominnee Director"
+  },
+  {
+    "code": "NS",
+    "label": "Nominee Shareholder"
+  },
+  {
+    "code": "PRO",
+    "label": "Protector"
+  },
+  {
+    "code": "PRTNR",
+    "label": "Partner"
+  },
+  {
+    "code": "SETLR",
+    "label": "Settlor"
+  },
+  {
+    "code": "SHRHL",
+    "label": "Shareholder"
+  },
+  {
+    "code": "TRSTE",
+    "label": "Trustee"
+  },
+  {
+    "code": "UBO",
+    "label": "Ultimate Beneficial Owner"
+  }
+]
