@@ -26,21 +26,27 @@ function dash(v: string | undefined): string {
   return v ?? '—';
 }
 
-/** A party's display name: entity name, or person first+last (full-fidelity `personMyClient` or curated `person`). */
+/** A party's display name: entity name (my-client or lenient), person first+last (my-client or lenient),
+ *  or a bank account — covering every subject shape the cockpit's hybrid flow files. */
 function partyName(party: Record<string, unknown>): string {
-  const entity = asRecord(party.entity);
+  const entity = asRecord(party.entityMyClient) ?? asRecord(party.entity);
   if (entity) return str(entity.name) ?? '(entity)';
   const person = asRecord(party.personMyClient) ?? asRecord(party.person);
   if (person) {
     const name = [str(person.firstName), str(person.lastName)].filter(Boolean).join(' ');
     return name || '(person)';
   }
+  const account = asRecord(party.accountMyClient) ?? asRecord(party.account);
+  if (account) return str(account.institutionName) ?? str(account.account) ?? '(account)';
   return '(unknown party)';
 }
 
 function partyKind(party: Record<string, unknown>): string {
+  if (asRecord(party.entityMyClient)) return 'Entity (my client)';
   if (asRecord(party.entity)) return 'Entity';
-  if (asRecord(party.personMyClient) ?? asRecord(party.person)) return 'Person';
+  if (asRecord(party.personMyClient)) return 'Person (my client)';
+  if (asRecord(party.person)) return 'Person';
+  if (asRecord(party.accountMyClient) ?? asRecord(party.account)) return 'Account';
   return '—';
 }
 
