@@ -1,0 +1,82 @@
+{
+  "entityReference": "PUR/SAMPLE/0001",
+  "submissionDate": "2026-07-15T00:00:00Z",
+  "reason": "Reporting to FIU per mandate International Remittance of USD 882728.67 as payment for the purchase of Gold Dore Bar",
+  "action": "Filing the DPMSR as per MOE Mandate",
+  "indicators": [
+    "DPMSJ"
+  ],
+  "location": {
+    "addressType": "BU",
+    "address": "Sample Gemplex 30-01-0001 Plot No: SAMPLE-PH2 Dubai",
+    "city": "Dubai",
+    "countryCode": "AE",
+    "state": "Dubai"
+  },
+  "parties": [
+    {
+      "reason": "Sale of Gold Dore Bar",
+      "comments": "Payment is done to the SAMPLE ADMINISTRADORA S.A.C. account (Account Number: 200-0000000, Bank Name: SAMPLE BANCO INTERNACIONAL) through international wire transfer as per the clients instruction",
+      "entityMyClient": {
+        "name": "SAMPLE ANDES MINERALS E.I.R.L",
+        "incorporationLegalForm": "WJDPS",
+        "business": "Sample Licensing Authority",
+        "incorporationNumber": "20600000001",
+        "incorporationState": "Peru",
+        "incorporationCountryCode": "PE",
+        "incorporationDate": "2022-12-16T00:00:00Z",
+        "taxRegNumber": "N",
+        "phones": {
+          "phone": [
+            {
+              "tphContactType": "BU",
+              "tphCommunicationType": "L",
+              "tphNumber": "510000000"
+            }
+          ]
+        },
+        "addresses": {
+          "address": [
+            {
+              "addressType": "BU",
+              "address": "JR. SAMPLE NRO. S/N URB. SAMPLE PUNO",
+              "city": "Juliaca",
+              "countryCode": "PE",
+              "state": "Puno"
+            }
+          ]
+        },
+        "relatedPersons": {
+          "entityRelatedPerson": [
+            {
+              "person": {
+                "firstName": "SAMPLE UBO FIRST",
+                "lastName": "UBOLAST",
+                "birthdate": "1990-01-01T00:00:00Z",
+                "nationality1": "PE",
+                "residence": "PE",
+                "idNumber": "70000001"
+              },
+              "role": "UBO",
+              "sharePercentage": 100
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "goods": [
+    {
+      "itemType": "GOLD",
+      "statusCode": "PRCHS",
+      "estimatedValue": 882728.67,
+      "currencyCode": "USD",
+      "size": 6021,
+      "sizeUom": "Grams",
+      "description": "Purchase of Gold Dore Bar",
+      "registrationNumber": "PUR/SAMPLE/0001",
+      "disposedValue": 882728.67,
+      "comments": "International Wire Transfer of USD 882728.67 payment done against the purchase of 6021.52 grams of gold dore bar"
+    }
+  ]
+}

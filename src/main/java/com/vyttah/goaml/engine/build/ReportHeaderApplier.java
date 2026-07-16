@@ -5,9 +5,14 @@ import com.vyttah.goaml.domain.generated.Report;
 /** Shared header-copy logic used by both builders. Package-private utility. */
 final class ReportHeaderApplier {
 
+    /** Stamped on every built report — matches the vendored XSD ({@code xsd/goaml/5.0.2}) and what the
+     *  FIU web portal itself emits ({@code <schema_version>5.0.2</schema_version>} in downloaded reports). */
+    static final String SCHEMA_VERSION = "5.0.2";
+
     private ReportHeaderApplier() {}
 
     static void apply(Report report, ReportHeader header) {
+        report.setSchemaVersion(SCHEMA_VERSION);
         if (header.rentityId() != null) {
             report.setRentityId(header.rentityId());
         }

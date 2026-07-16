@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <report>
+    <schema_version>5.0.2</schema_version>
     <rentity_id>101</rentity_id>
     <rentity_branch>DXB-MAIN</rentity_branch>
     <submission_code>E</submission_code>
