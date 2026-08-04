@@ -38,15 +38,17 @@ class DefaultReportReviewServiceTest {
     }
 
     @Test
-    void approveRejectsWhenApproverIsTheAuthor() {
+    void approveSucceedsWhenApproverIsTheAuthor() {
         UUID author = UUID.randomUUID();
         Report report = pendingReview(author);
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
 
-        assertThatThrownBy(() -> service.approve(report.getId(), tenantId, author, "self-approve"))
-                .isInstanceOf(ReportExceptions.SelfApprovalNotAllowedException.class);
-        assertThat(report.getStatus()).isEqualTo("PENDING_REVIEW"); // unchanged
-        verify(reportRepository, never()).save(any());
+        var result = service.approve(report.getId(), tenantId, author, "self-approve");
+
+        assertThat(result.status()).isEqualTo("APPROVED");
+        assertThat(report.getStatus()).isEqualTo("APPROVED");
+        assertThat(report.getReviewedBy()).isEqualTo(author);
+        verify(reportRepository).save(report);
     }
 
     @Test

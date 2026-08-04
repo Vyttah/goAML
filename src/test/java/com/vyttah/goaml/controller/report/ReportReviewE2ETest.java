@@ -88,7 +88,7 @@ class ReportReviewE2ETest {
     void reviewGateRunsValidThroughPendingReviewToApprovedThenSubmits() {
         when(b2bClient.postReport(any(), any(), any())).thenReturn("RK-REV");
         String author = user("author", "MLRO");   // creates + submits-for-review
-        String approver = user("approver", "MLRO"); // a DIFFERENT user approves (A5 segregation of duties)
+        String approver = user("approver", "MLRO"); // any MLRO may approve
 
         String reportId = createValid("REV-1", author);
 
@@ -103,13 +103,7 @@ class ReportReviewE2ETest {
         assertThat(forReview.getBody().get("status").asText()).isEqualTo("PENDING_REVIEW");
         assertThat(get("/api/v1/reports/review-queue", approver).getBody().toString()).contains("REV-1");
 
-        // A5: the AUTHOR cannot approve their own report → 409 (still PENDING_REVIEW)
-        ResponseEntity<JsonNode> selfApprove = post("/api/v1/reports/" + reportId + "/approve",
-                "{\"remark\":\"self\"}", author);
-        assertThat(selfApprove.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
-        assertThat(selfApprove.getBody().get("message").asText()).contains("author");
-
-        // a DIFFERENT reviewer approves → APPROVED with reviewer recorded
+        // any MLRO approves → APPROVED with reviewer recorded
         ResponseEntity<JsonNode> approved = post("/api/v1/reports/" + reportId + "/approve",
                 "{\"remark\":\"looks good\"}", approver);
         assertThat(approved.getStatusCode()).isEqualTo(HttpStatus.OK);

@@ -31,17 +31,6 @@ public final class ReportExceptions {
         }
     }
 
-    /**
-     * A5 segregation-of-duties: the approver is the same user who authored the report. An MLRO must not
-     * approve their own report — that collapses maker-checker into one person, defeating the review gate.
-     * → {@code 409} (the report needs a different approver).
-     */
-    public static class SelfApprovalNotAllowedException extends RuntimeException {
-        public SelfApprovalNotAllowedException(String message) {
-            super(message);
-        }
-    }
-
     /** No report with the given id in the current tenant. */
     public static class ReportNotFoundException extends RuntimeException {
         public ReportNotFoundException(String message) {
