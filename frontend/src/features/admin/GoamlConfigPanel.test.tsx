@@ -23,9 +23,10 @@ describe('GoamlConfigPanel', () => {
   // The Jurisdiction field is a dropdown backed by the jurisdictions lookup.
   beforeEach(() => {
     server.use(
+      // The real endpoint returns the jurisdiction code lowercase ('ae'); the panel canonicalises to 'AE'.
       http.get('*/api/v1/lookups/jurisdictions', () =>
         HttpResponse.json([
-          { code: 'AE', name: 'United Arab Emirates', defaultCurrency: 'AED', allowedReportTypes: ['DPMSR'], dpmsThreshold: 55000, lookupSet: 'ae' },
+          { code: 'ae', name: 'United Arab Emirates', defaultCurrency: 'AED', allowedReportTypes: ['DPMSR'], dpmsThreshold: 55000, lookupSet: 'ae' },
         ]),
       ),
     );
@@ -39,14 +40,20 @@ describe('GoamlConfigPanel', () => {
     expect(screen.getByDisplayValue('3177')).toBeInTheDocument();
   });
 
-  it('saves edits to an existing config and confirms', async () => {
+  it('saves edits to an existing config and submits the canonical (uppercase) jurisdiction', async () => {
+    let putBody: Record<string, unknown> | null = null;
     server.use(
       http.get('*/api/v1/admin/goaml-config', () => HttpResponse.json(config)),
-      http.put('*/api/v1/admin/goaml-config', () => HttpResponse.json({ ...config, updatedAt: '2026-06-08T00:00:00Z' })),
+      http.put('*/api/v1/admin/goaml-config', async ({ request }) => {
+        putBody = (await request.json()) as Record<string, unknown>;
+        return HttpResponse.json({ ...config, updatedAt: '2026-06-08T00:00:00Z' });
+      }),
     );
     renderPanel();
     await screen.findByDisplayValue('https://goaml.test/uae');
     await userEvent.click(screen.getByRole('button', { name: /save configuration/i }));
     expect(await screen.findByText('Configuration saved')).toBeInTheDocument();
+    // The jurisdiction dropdown is fed lowercase 'ae' by the lookup but submits canonical 'AE'.
+    expect(putBody).toMatchObject({ jurisdictionCode: 'AE' });
   });
 });

@@ -65,10 +65,12 @@ export function GoamlConfigPanel() {
                 loading={jurisdictions.isLoading}
                 placeholder="Select jurisdiction"
                 optionFilterProp="label"
-                options={(jurisdictions.data ?? []).map((j) => ({
-                  value: j.code,
-                  label: j.name && j.name !== j.code ? `${j.code} — ${j.name}` : j.code,
-                }))}
+                options={(jurisdictions.data ?? []).map((j) => {
+                  // Canonicalise to the DB `jurisdiction` table casing (uppercase, e.g. AE) so the saved value
+                  // matches the option and satisfies the case-sensitive jurisdiction_code FK.
+                  const code = j.code.toUpperCase();
+                  return { value: code, label: j.name && j.name !== code ? `${code} — ${j.name}` : code };
+                })}
               />
             </Form.Item>
           </Col>
