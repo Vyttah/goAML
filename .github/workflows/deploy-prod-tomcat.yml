@@ -1,0 +1,96 @@
+# Deploy goAML to the shared PROD Tomcat (co-located with the AML services).
+#
+# Same shape as deploy-dev-tomcat.yml, but for PROD: the app host is private and reached through a
+# bastion, Tomcat lives at /opt/tomcat, and it uses the PROD_* secrets. Builds one WAR (React SPA baked
+# onto the Spring Boot classpath) and drops it into /opt/tomcat/webapps as goaml.war -> context /goaml.
+#
+# This workflow does NOT touch .env; the goAML vars must be in the file PROD Tomcat's setenv.sh loads
+# (/opt/tomcat/.env). A first deploy (or any env change) needs a Tomcat restart to reload the JVM env.
+#
+# Requires these repo secrets (same as Backend_Java's PROD deploy):
+#   PROD_APP_HOST, PROD_BASTION_HOST, PROD_SSH_USER, PROD_SSH_PRIVATE_KEY
+name: Deploy goAML to PROD (Tomcat)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-prod-goaml
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build WAR & Deploy to PROD Tomcat
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: "temurin"
+
+      - name: Build the SPA (served under /goaml)
+        working-directory: frontend
+        env:
+          VITE_BASE_PATH: /goaml/
+        run: |
+          npm ci
+          npm run build
+
+      - name: Embed the SPA on the classpath
+        run: |
+          rm -rf src/main/resources/static
+          mkdir -p src/main/resources/static
+          cp -r frontend/dist/* src/main/resources/static/
+
+      - name: Build goaml.war
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon bootWar -x test
+
+      - name: Upload goaml.war to PROD Tomcat webapps (via bastion)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_APP_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          proxy_host: ${{ secrets.PROD_BASTION_HOST }}
+          proxy_username: ${{ secrets.PROD_SSH_USER }}
+          proxy_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          source: "build/libs/goaml.war"
+          target: "/opt/tomcat/webapps"
+          strip_components: 2
+          overwrite: true
+
+      - name: Verify deployment (tail catalina.out)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.PROD_APP_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          port: 22
+          proxy_host: ${{ secrets.PROD_BASTION_HOST }}
+          proxy_username: ${{ secrets.PROD_SSH_USER }}
+          proxy_key: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          script: |
+            echo "Waiting 40s for Tomcat to auto-deploy goaml.war..."
+            sleep 40
+            echo "===== Last 100 lines of catalina.out ====="
+            sudo tail -n 100 /opt/tomcat/logs/catalina.out || echo "catalina.out not readable"
+
+      - name: Summary
+        run: |
+          echo "### goAML PROD Deployment" >> "$GITHUB_STEP_SUMMARY"
+          echo "Artifact: \`goaml.war\` -> \`/opt/tomcat/webapps\` (context \`/goaml\`)" >> "$GITHUB_STEP_SUMMARY"
