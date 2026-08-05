@@ -15,6 +15,7 @@ import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportReviewService;
 import com.vyttah.goaml.service.report.ReportService;
+import com.vyttah.goaml.service.report.pdf.ReportPdfService;
 import com.vyttah.goaml.service.submission.SubmissionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +50,7 @@ public class ReportController {
     private final ReportService reportService;
     private final ReportReviewService reviewService;
     private final SubmissionService submissionService;
+    private final ReportPdfService reportPdfService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
@@ -113,6 +115,43 @@ public class ReportController {
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         "attachment; filename=\"" + report.getEntityReference() + ".xml\"")
                 .body(xml);
+    }
+
+    /**
+     * The print-ready DPMSR report PDF (OpenPDF, the same engine + house style as the AML customer-service
+     * reports). Rendered from the report's persisted goAML XML — reflects exactly what would be filed —
+     * with the captured-not-filed internal details and any validation findings. Served as
+     * {@code application/pdf} with a download filename, mirroring the {@code /xml} endpoint above.
+     */
+    @GetMapping(value = "/{id}/report.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<byte[]> reportPdf(@PathVariable UUID id,
+                                            @AuthenticationPrincipal UserPrincipal principal) {
+        ReportPdfService.PdfDocument doc =
+                reportPdfService.filed(id, principal.getTenantId(), principal.getUsername());
+        return pdfResponse(doc);
+    }
+
+    /**
+     * Pre-submit preview PDF — renders the exact {@link DpmsrReportPayload} the caller is about to file
+     * (same build path as create), <strong>without</strong> persisting anything. Lets the AML cockpit show
+     * the officer a portal-style review sheet before committing the filing.
+     */
+    @PostMapping(value = "/preview.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<byte[]> previewPdf(@Valid @RequestBody DpmsrReportPayload request,
+                                             @AuthenticationPrincipal UserPrincipal principal) {
+        ReportPdfService.PdfDocument doc =
+                reportPdfService.preview(request, principal.getTenantId(), principal.getUsername());
+        return pdfResponse(doc);
+    }
+
+    private static ResponseEntity<byte[]> pdfResponse(ReportPdfService.PdfDocument doc) {
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_PDF)
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + doc.filename() + "\"")
+                .body(doc.bytes());
     }
 
     /**

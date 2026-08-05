@@ -88,6 +88,14 @@ public class DefaultReportService implements ReportService {
                 mergeMessages(validated, mapperMessages));
     }
 
+    @Override
+    public ReportPreview previewXml(DpmsrReportPayload payload, UUID tenantId) {
+        // The full-fidelity payload maps 1:1 onto the generated types — no mapper normalization/messages.
+        ValidatedReport validated = buildAndValidate(withDefaultReportingPerson(payload, tenantId), tenantId);
+        return new ReportPreview(statusOf(validated, List.of()), validated.xml(),
+                mergeMessages(validated, List.of()));
+    }
+
     /**
      * Fills the reporting person (the MLRO) from the tenant's active {@code tenant_goaml_person} when the
      * caller omitted it — so the AML cockpit / CSV / accounting / screening feeds need not send it (the

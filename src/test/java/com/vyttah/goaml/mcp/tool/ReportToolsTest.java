@@ -115,13 +115,13 @@ class ReportToolsTest {
     @Test
     void previewDelegatesToService() {
         authenticate(List.of("MLRO"));
-        when(reportService.previewXml(any(), eq(TENANT_ID)))
+        when(reportService.previewXml(any(DpmsrCreateRequest.class), eq(TENANT_ID)))
                 .thenReturn(new ReportPreview("VALID", "<report/>", List.of()));
 
         ReportPreview result = tools.previewDpmsrXml(minimalRequest("P-1", new BigDecimal("90000")));
 
         assertThat(result.xml()).isEqualTo("<report/>");
-        verify(reportService).previewXml(any(), eq(TENANT_ID));
+        verify(reportService).previewXml(any(DpmsrCreateRequest.class), eq(TENANT_ID));
     }
 
     @Test
@@ -132,7 +132,7 @@ class ReportToolsTest {
 
         assertThat(result.status()).isEqualTo("INVALID");
         assertThat(result.xml()).isNull();
-        verify(reportService, never()).previewXml(any(), any());
+        verify(reportService, never()).previewXml(any(DpmsrCreateRequest.class), any());
     }
 
     @Test

@@ -58,6 +58,11 @@ dependencies {
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
 
+    // OpenPDF (LGPL/MPL fork of iText 5) — the same pure-JVM PDF engine the AML customer-service uses to
+    // generate its reports, so the DPMSR report PDF matches that stack (programmatic, no HTML/headless
+    // browser, no native binary in the WAR/Tomcat deploy). See service/report/pdf/.
+    implementation 'com.github.librepdf:openpdf:1.3.30'
+
     // MapStruct — entity<->DTO mapping on the JPA/web side (componentModel = "spring").
     // lombok-mapstruct-binding lets MapStruct see Lombok-generated accessors during annotation processing.
     implementation 'org.mapstruct:mapstruct:1.6.3'

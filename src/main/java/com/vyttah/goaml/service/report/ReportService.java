@@ -42,6 +42,13 @@ public interface ReportService {
      */
     ReportPreview previewXml(DpmsrCreateRequest request, UUID tenantId);
 
+    /**
+     * Full-fidelity preview: same as {@link #previewXml(DpmsrCreateRequest, UUID)} but from the
+     * {@link DpmsrReportPayload} contract the REST report API accepts — so the AML cockpit can render a
+     * pre-submit PDF of the exact payload it is about to file, without persisting anything.
+     */
+    ReportPreview previewXml(DpmsrReportPayload payload, UUID tenantId);
+
     /** @throws ReportExceptions.ReportNotFoundException if absent in this tenant */
     Report get(UUID reportId);
 
