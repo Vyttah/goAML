@@ -32,6 +32,13 @@ public interface AdminService {
     List<Tenant> listTenants();
 
     /**
+     * Of the given slugs (== AML companyIds), the subset that have a provisioned tenant. Matching is
+     * case-insensitive; the returned values are the stored (lower-cased) slugs. Backs the bulk tenant-status
+     * lookup the AML admin panel uses to show each company's goAML workspace state.
+     */
+    java.util.Set<String> findProvisionedSlugs(java.util.Collection<String> slugs);
+
+    /**
      * Create a user in {@code tenantId} with one role (ANALYST|MLRO|TENANT_ADMIN).
      *
      * @throws AdminExceptions.UserEmailExistsException if the email is taken

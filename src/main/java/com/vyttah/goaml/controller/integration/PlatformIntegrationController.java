@@ -4,6 +4,8 @@ import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTenantExternalRefReques
 import com.vyttah.goaml.model.dto.admin.AdminViews.TenantView;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantProvisionRequest;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantProvisionResponse;
+import com.vyttah.goaml.model.dto.integration.IntegrationTenantStatusRequest;
+import com.vyttah.goaml.model.dto.integration.IntegrationTenantStatusResponse;
 import com.vyttah.goaml.model.dto.integration.IntegrationUserUpsertRequest;
 import com.vyttah.goaml.model.dto.integration.IntegrationUserUpsertResponse;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
@@ -44,6 +46,26 @@ public class PlatformIntegrationController {
 
     private final AdminService adminService;
     private final IntegrationUserProvisioningService userProvisioningService;
+
+    /**
+     * Bulk tenant-existence check. Returns which of the requested companyIds already have a provisioned goAML
+     * tenant, so the AML admin panel can show each company's workspace status in one call. Not tenant-scoped:
+     * the assertion is required (authentication) but its {@code org} claim is intentionally not used here.
+     */
+    @PostMapping("/tenants/status")
+    public ResponseEntity<IntegrationTenantStatusResponse> tenantStatus(
+            @RequestAttribute(IntegrationAuthFilter.VERIFIED_ASSERTION_ATTR) VerifiedServiceAssertion verified,
+            @Valid @RequestBody IntegrationTenantStatusRequest request) {
+
+        java.util.List<String> companyIds = request.companyIds() == null
+                ? java.util.List.of() : request.companyIds();
+        java.util.Set<String> provisionedSlugs = adminService.findProvisionedSlugs(companyIds);
+        java.util.List<String> provisioned = companyIds.stream()
+                .filter(java.util.Objects::nonNull)
+                .filter(id -> provisionedSlugs.contains(id.toLowerCase(java.util.Locale.ROOT)))
+                .toList();
+        return ResponseEntity.ok(new IntegrationTenantStatusResponse(provisioned));
+    }
 
     @PostMapping("/tenants")
     public ResponseEntity<IntegrationTenantProvisionResponse> provision(

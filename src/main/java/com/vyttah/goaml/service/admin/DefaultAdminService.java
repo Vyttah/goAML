@@ -96,6 +96,20 @@ public class DefaultAdminService implements AdminService {
     }
 
     @Override
+    public java.util.Set<String> findProvisionedSlugs(java.util.Collection<String> slugs) {
+        if (slugs == null || slugs.isEmpty()) {
+            return java.util.Set.of();
+        }
+        java.util.Set<String> normalized = slugs.stream()
+                .filter(java.util.Objects::nonNull)
+                .map(s -> s.toLowerCase(java.util.Locale.ROOT))
+                .collect(java.util.stream.Collectors.toSet());
+        return tenantRepository.findBySlugIn(normalized).stream()
+                .map(Tenant::getSlug)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    @Override
     public AppUser createUser(UUID tenantId, CreateUserRequest request) {
         String roleName = request.role() == null ? "" : request.role().toUpperCase();
         if (!ASSIGNABLE_ROLES.contains(roleName)) {
