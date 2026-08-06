@@ -259,7 +259,18 @@ public class DefaultReportService implements ReportService {
 
     @Override
     public ReportDetail detail(UUID reportId) {
-        Report report = get(reportId);
+        return toDetail(get(reportId));
+    }
+
+    @Override
+    public Optional<ReportDetail> latestForClient(String amlCustomerId) {
+        if (amlCustomerId == null || amlCustomerId.isBlank()) {
+            return Optional.empty();
+        }
+        return reportRepository.findLatestByAmlCustomerId(amlCustomerId).map(this::toDetail);
+    }
+
+    private ReportDetail toDetail(Report report) {
         return new ReportDetail(
                 report.getId(), report.getEntityReference(), report.getReportCode(), report.getStatus(),
                 report.getRentityId(), report.getCreatedAt(),

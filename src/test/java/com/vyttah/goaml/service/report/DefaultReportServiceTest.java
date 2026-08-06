@@ -197,6 +197,32 @@ class DefaultReportServiceTest {
                 .isInstanceOf(ReportExceptions.ReportNotFoundException.class);
     }
 
+    // ---------- clone: latest report for an AML customer ----------
+
+    @Test
+    void latestForClientReturnsTheDetailOfTheNewestReport() {
+        Report stored = new Report(UUID.randomUUID(), "PUR/CAPSGOLD/0021", "DPMSR", 21340, "VALID",
+                "{\"entityReference\":\"PUR/CAPSGOLD/0021\"}", actor);
+        stored.setClientMetadata("{\"amlCustomerId\":\"280\",\"amlCustomerKind\":\"LEGAL\"}");
+        when(reportRepository.findLatestByAmlCustomerId("280")).thenReturn(Optional.of(stored));
+
+        Optional<ReportDetail> detail = service.latestForClient("280");
+
+        assertThat(detail).isPresent();
+        assertThat(detail.get().entityReference()).isEqualTo("PUR/CAPSGOLD/0021");
+        assertThat(detail.get().clientMetadata().get("amlCustomerId").asText()).isEqualTo("280");
+    }
+
+    @Test
+    void latestForClientIsEmptyWhenNoPriorReportOrBlankId() {
+        when(reportRepository.findLatestByAmlCustomerId("999")).thenReturn(Optional.empty());
+        assertThat(service.latestForClient("999")).isEmpty();
+        // a blank/absent id never hits the repo
+        assertThat(service.latestForClient("  ")).isEmpty();
+        assertThat(service.latestForClient(null)).isEmpty();
+        verify(reportRepository, never()).findLatestByAmlCustomerId("  ");
+    }
+
     // ---------- C8: name-pattern normalization + clear error ----------
 
     @Test

@@ -60,5 +60,12 @@ public interface ReportService {
      */
     ReportDetail detail(UUID reportId);
 
+    /**
+     * The most recent report filed against the given AML customer (matched on the cockpit-stamped
+     * {@code client_metadata.amlCustomerId}), for the "start from last filing" clone feature. Empty when the
+     * customer has no prior report in this tenant.
+     */
+    java.util.Optional<ReportDetail> latestForClient(String amlCustomerId);
+
     List<Report> list();
 }
