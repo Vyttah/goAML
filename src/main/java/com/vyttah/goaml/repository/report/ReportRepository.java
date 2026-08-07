@@ -25,17 +25,6 @@ public interface ReportRepository extends JpaRepository<Report, UUID> {
     /** All reports in the given status for the current tenant (the poller queries {@code SUBMITTED}). */
     List<Report> findByStatus(String status);
 
-    /**
-     * The most recent report this AML customer was filed against, for the "clone previous transaction"
-     * feature (the cockpit stamps {@code client_metadata.amlCustomerId} on every report it creates). Native
-     * query because it reads the JSONB metadata column ({@code ->>} operator); tenant-scoped via the active
-     * {@code search_path} like every other call. Returns at most one row (newest first).
-     */
-    @Query(value = "select * from report r "
-            + "where r.client_metadata ->> 'amlCustomerId' = :amlCustomerId "
-            + "order by r.created_at desc limit 1", nativeQuery = true)
-    Optional<Report> findLatestByAmlCustomerId(@Param("amlCustomerId") String amlCustomerId);
-
     /** Delete-guard: is this user the author or reviewer of any report in the current tenant? If so, a
      *  hard-delete would orphan an audit reference — block it (disable the user instead). */
     boolean existsByCreatedBy(UUID createdBy);

@@ -30,7 +30,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -96,19 +95,6 @@ public class ReportController {
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
     public ResponseEntity<ReportDetailView> detail(@PathVariable UUID id) {
         return ResponseEntity.ok(ReportDetailView.from(reportService.detail(id)));
-    }
-
-    /**
-     * The most recent report filed against an AML customer — powers the cockpit's "start from last filing"
-     * clone. Matched on the cockpit-stamped {@code client_metadata.amlCustomerId}. Returns the full detail
-     * view, or {@code 204 No Content} when the customer has no prior filing in this tenant.
-     */
-    @GetMapping("/latest")
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
-    public ResponseEntity<ReportDetailView> latestForCustomer(@RequestParam String amlCustomerId) {
-        return reportService.latestForClient(amlCustomerId)
-                .map(detail -> ResponseEntity.ok(ReportDetailView.from(detail)))
-                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     /**
