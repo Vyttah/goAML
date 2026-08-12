@@ -21,15 +21,28 @@ final class PdfReportTheme {
     static final Color HEADER_BG = new Color(240, 247, 255);
     static final Color BORDER_COLOR = new Color(224, 224, 224);
     static final Color SECTION_BG = new Color(42, 67, 144);
+    static final Color LABEL_BG = new Color(248, 250, 253);
+    static final Color ROW_ALT_BG = new Color(248, 250, 253);
+    static final Color TABLE_HEAD_BG = new Color(90, 99, 120);
     static final Color LABEL_TEXT = Color.BLACK;
     static final Color VALUE_TEXT = new Color(51, 51, 51);
     static final Color MUTED_TEXT = new Color(120, 120, 120);
 
-    // A4 with the same generous top margin the letterhead header needs (left, right, top, bottom).
-    static final float MARGIN_LEFT = 24f;
-    static final float MARGIN_RIGHT = 24f;
-    static final float MARGIN_TOP = 108f;
-    static final float MARGIN_BOTTOM = 44f;
+    // A4 with the same generous top margin the letterhead header needs (left, right, top, bottom). The side
+    // margins are roomy on purpose — the earlier report crowded the page edges, which read as congested.
+    static final float MARGIN_LEFT = 40f;
+    static final float MARGIN_RIGHT = 40f;
+    static final float MARGIN_TOP = 112f;
+    static final float MARGIN_BOTTOM = 54f;
+
+    // Shared spacing rhythm. Cells use more horizontal than vertical padding so text has room to breathe on
+    // both axes without the rows growing tall; the row minimum height keeps single-line values from cramping.
+    static final float CELL_PAD_X = 10f;
+    static final float CELL_PAD_Y = 5.5f;
+    static final float ROW_MIN_HEIGHT = 18f;
+    static final float GAP_BEFORE_SECTION = 12f;
+    static final float GAP_AFTER_SECTION = 6f;
+    static final float GAP_BLOCK = 8f;
 
     /** The shared Vyttah report logo, loaded once from the classpath (empty when absent — header falls back). */
     static final byte[] LOGO_BYTES = loadLogo();

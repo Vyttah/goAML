@@ -112,7 +112,7 @@ public class DpmsrPdfReportService {
         bannerCell(banner, "Local currency", currency(report.getCurrencyCodeLocal()));
         bannerCell(banner, "Status", valueOr(statusLabel));
         document.add(banner);
-        document.add(spacer(6f));
+        document.add(spacer(4f));
     }
 
     private void reportHeaders(Document document, Report report) throws Exception {
@@ -219,18 +219,19 @@ public class DpmsrPdfReportService {
         PdfPTable t = fullWidth(6);
         t.setWidths(new float[]{2.2f, 1.3f, 1.1f, 1.2f, 1f, 1.3f});
         headerRow(t, "Name", "Role", "Share %", "Date of birth", "Nationality", "ID number");
+        int row = 0;
         for (EntityRelatedPersonType rp : related) {
             TPerson p = rp.getPerson();
-            String name = p == null ? DASH : join(p.getFirstName(), p.getLastName());
-            dataCell(t, name);
-            dataCell(t, rp.getRole() == null ? DASH : labels.role(rp.getRole().value()));
-            dataCell(t, rp.getSharePercentage() == null ? DASH : plain(rp.getSharePercentage()));
-            dataCell(t, p == null ? DASH : date(p.getBirthdate()));
-            dataCell(t, p == null ? DASH : labels.country(p.getNationality1()));
-            dataCell(t, p == null ? DASH : valueOr(p.getIdNumber()));
+            dataRow(t, row++,
+                    p == null ? DASH : join(p.getFirstName(), p.getLastName()),
+                    rp.getRole() == null ? DASH : labels.role(rp.getRole().value()),
+                    rp.getSharePercentage() == null ? DASH : plain(rp.getSharePercentage()),
+                    p == null ? DASH : date(p.getBirthdate()),
+                    p == null ? DASH : labels.country(p.getNationality1()),
+                    p == null ? DASH : valueOr(p.getIdNumber()));
         }
         document.add(t);
-        document.add(spacer(6f));
+        document.add(spacer(PdfReportTheme.GAP_BLOCK));
     }
 
     private void goods(Document document, Report report, Labels labels) throws Exception {
@@ -245,7 +246,7 @@ public class DpmsrPdfReportService {
         for (TTransItem item : items) {
             n++;
             if (n > 1) {
-                document.add(spacer(4f));
+                document.add(spacer(8f));
             }
             subHeader(document, "Item " + n + "  —  " + labels.itemType(item.getItemType()));
             Map<String, String> kv = new LinkedHashMap<>();
@@ -276,12 +277,12 @@ public class DpmsrPdfReportService {
         PdfPTable t = fullWidth(2);
         t.setWidths(new float[]{1f, 5f});
         headerRow(t, "Indicator", "Description");
+        int row = 0;
         for (String code : indicators) {
-            dataCell(t, valueOr(code));
-            dataCell(t, labels.indicator(code));
+            dataRow(t, row++, valueOr(code), labels.indicator(code));
         }
         document.add(t);
-        document.add(spacer(6f));
+        document.add(spacer(PdfReportTheme.GAP_BLOCK));
     }
 
     private void internalDetails(Document document, JsonNode clientMetadata) throws Exception {
@@ -312,13 +313,12 @@ public class DpmsrPdfReportService {
         PdfPTable t = fullWidth(3);
         t.setWidths(new float[]{1f, 1.4f, 4f});
         headerRow(t, "Severity", "Field", "Message");
+        int row = 0;
         for (ValidationMessage m : messages) {
-            dataCell(t, valueOr(String.valueOf(m.severity())));
-            dataCell(t, valueOr(m.path()));
-            dataCell(t, valueOr(m.message()));
+            dataRow(t, row++, valueOr(String.valueOf(m.severity())), valueOr(m.path()), valueOr(m.message()));
         }
         document.add(t);
-        document.add(spacer(6f));
+        document.add(spacer(PdfReportTheme.GAP_BLOCK));
     }
 
     // ---- kv builders ----------------------------------------------------------------------------------
@@ -374,22 +374,25 @@ public class DpmsrPdfReportService {
 
     private void sectionHeader(Document document, String title) throws Exception {
         PdfPTable t = fullWidth(1);
-        PdfPCell c = new PdfPCell(new Phrase(title, PdfReportTheme.sectionFont()));
+        PdfPCell c = new PdfPCell(new Phrase(title.toUpperCase(Locale.ENGLISH), PdfReportTheme.sectionFont()));
         c.setBackgroundColor(PdfReportTheme.SECTION_BG);
-        c.setPadding(6f);
+        c.setPaddingLeft(PdfReportTheme.CELL_PAD_X);
+        c.setPaddingRight(PdfReportTheme.CELL_PAD_X);
+        c.setPaddingTop(7f);
+        c.setPaddingBottom(7.5f);
         c.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
         t.addCell(c);
-        document.add(spacer(4f));
+        document.add(spacer(PdfReportTheme.GAP_BEFORE_SECTION));
         document.add(t);
-        document.add(spacer(3f));
+        document.add(spacer(PdfReportTheme.GAP_AFTER_SECTION));
     }
 
     private void subHeader(Document document, String title) throws Exception {
         Paragraph p = new Paragraph(title,
                 com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 9.5f,
                         PdfReportTheme.PRIMARY_BLUE));
-        p.setSpacingBefore(3f);
-        p.setSpacingAfter(2f);
+        p.setSpacingBefore(6f);
+        p.setSpacingAfter(4f);
         document.add(p);
     }
 
@@ -411,19 +414,31 @@ public class DpmsrPdfReportService {
             }
         }
         document.add(t);
-        document.add(spacer(4f));
+        document.add(spacer(PdfReportTheme.GAP_BLOCK));
     }
 
     private void labelValue(PdfPTable t, Map.Entry<String, String> e) {
         PdfPCell l = new PdfPCell(new Phrase(e.getKey(), PdfReportTheme.labelFont()));
         l.setBorderColor(PdfReportTheme.BORDER_COLOR);
-        l.setBackgroundColor(new Color(249, 250, 252));
-        l.setPadding(4f);
+        l.setBackgroundColor(PdfReportTheme.LABEL_BG);
+        l.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        l.setMinimumHeight(PdfReportTheme.ROW_MIN_HEIGHT);
+        pad(l);
         t.addCell(l);
         PdfPCell v = new PdfPCell(new Phrase(e.getValue(), PdfReportTheme.valueFont()));
         v.setBorderColor(PdfReportTheme.BORDER_COLOR);
-        v.setPadding(4f);
+        v.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        v.setMinimumHeight(PdfReportTheme.ROW_MIN_HEIGHT);
+        pad(v);
         t.addCell(v);
+    }
+
+    /** The shared cell padding: more on the x-axis than the y-axis, so rows breathe without growing tall. */
+    private void pad(PdfPCell c) {
+        c.setPaddingLeft(PdfReportTheme.CELL_PAD_X);
+        c.setPaddingRight(PdfReportTheme.CELL_PAD_X);
+        c.setPaddingTop(PdfReportTheme.CELL_PAD_Y);
+        c.setPaddingBottom(PdfReportTheme.CELL_PAD_Y);
     }
 
     private void blank(PdfPTable t) {
@@ -439,30 +454,36 @@ public class DpmsrPdfReportService {
         PdfPTable t = fullWidth(1);
         PdfPCell l = new PdfPCell(new Phrase(label, PdfReportTheme.labelFont()));
         l.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
-        l.setPaddingBottom(1f);
+        l.setPaddingLeft(1f);
+        l.setPaddingBottom(3f);
         t.addCell(l);
         PdfPCell v = new PdfPCell(new Phrase(text.trim(), PdfReportTheme.valueFont()));
         v.setBorderColor(PdfReportTheme.BORDER_COLOR);
-        v.setPadding(5f);
+        v.setLeading(0f, 1.25f);
+        pad(v);
         t.addCell(v);
         document.add(t);
-        document.add(spacer(4f));
+        document.add(spacer(PdfReportTheme.GAP_BLOCK));
     }
 
     private void note(Document document, String text) throws Exception {
         Paragraph p = new Paragraph(text, PdfReportTheme.noteFont());
-        p.setSpacingBefore(2f);
+        p.setLeading(11f);
+        p.setSpacingBefore(4f);
         document.add(p);
-        document.add(spacer(2f));
+        document.add(spacer(3f));
     }
 
     private void bannerCell(PdfPTable t, String label, String value) {
         PdfPCell c = new PdfPCell();
         c.setBackgroundColor(PdfReportTheme.HEADER_BG);
         c.setBorderColor(PdfReportTheme.BORDER_COLOR);
-        c.setPadding(6f);
+        c.setPaddingLeft(PdfReportTheme.CELL_PAD_X);
+        c.setPaddingRight(PdfReportTheme.CELL_PAD_X);
+        c.setPaddingTop(8f);
+        c.setPaddingBottom(8f);
         Paragraph p = new Paragraph();
-        p.setLeading(11f);
+        p.setLeading(13f);
         p.add(new Phrase(label + "\n", PdfReportTheme.bannerLabelFont()));
         p.add(new Phrase(value, PdfReportTheme.bannerValueFont()));
         c.addElement(p);
@@ -474,17 +495,35 @@ public class DpmsrPdfReportService {
             PdfPCell c = new PdfPCell(new Phrase(h,
                     com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8.5f,
                             Color.WHITE)));
-            c.setBackgroundColor(new Color(96, 96, 96));
-            c.setBorderColor(PdfReportTheme.BORDER_COLOR);
-            c.setPadding(4f);
+            c.setBackgroundColor(PdfReportTheme.TABLE_HEAD_BG);
+            c.setBorderColor(PdfReportTheme.TABLE_HEAD_BG);
+            c.setVerticalAlignment(Element.ALIGN_MIDDLE);
+            c.setMinimumHeight(PdfReportTheme.ROW_MIN_HEIGHT);
+            pad(c);
             t.addCell(c);
+        }
+        t.setHeaderRows(1); // repeat the column headings when a long table breaks across a page
+    }
+
+    /** One striped data row — the alternating background makes wide tables easy to scan across. */
+    private void dataRow(PdfPTable t, int rowIndex, String... values) {
+        Color bg = rowIndex % 2 == 1 ? PdfReportTheme.ROW_ALT_BG : Color.WHITE;
+        for (String v : values) {
+            dataCell(t, v, bg);
         }
     }
 
     private void dataCell(PdfPTable t, String value) {
+        dataCell(t, value, Color.WHITE);
+    }
+
+    private void dataCell(PdfPTable t, String value, Color bg) {
         PdfPCell c = new PdfPCell(new Phrase(value, PdfReportTheme.valueFont()));
         c.setBorderColor(PdfReportTheme.BORDER_COLOR);
-        c.setPadding(4f);
+        c.setBackgroundColor(bg);
+        c.setVerticalAlignment(Element.ALIGN_MIDDLE);
+        c.setMinimumHeight(PdfReportTheme.ROW_MIN_HEIGHT);
+        pad(c);
         t.addCell(c);
     }
 
