@@ -135,7 +135,7 @@ prometheusRule:
 
 # Non-secret env → rendered into a ConfigMap and injected via envFrom.
 config:
-  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_PROFILES_ACTIVE: "dev"
   SPRING_DATASOURCE_URL: "jdbc:postgresql://goaml-postgres:5432/goaml"
   SPRING_DATASOURCE_USERNAME: "goaml"
   SPRING_DATA_REDIS_HOST: "goaml-redis"

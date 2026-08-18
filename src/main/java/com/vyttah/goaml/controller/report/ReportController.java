@@ -1,5 +1,6 @@
 package com.vyttah.goaml.controller.report;
 
+import com.vyttah.goaml.model.dto.report.BulkReportDownloadRequest;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
@@ -15,6 +16,7 @@ import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportReviewService;
 import com.vyttah.goaml.service.report.ReportService;
+import com.vyttah.goaml.service.report.export.ReportBulkExportService;
 import com.vyttah.goaml.service.report.pdf.ReportPdfService;
 import com.vyttah.goaml.service.submission.SubmissionService;
 import jakarta.validation.Valid;
@@ -51,6 +53,7 @@ public class ReportController {
     private final ReportReviewService reviewService;
     private final SubmissionService submissionService;
     private final ReportPdfService reportPdfService;
+    private final ReportBulkExportService reportBulkExportService;
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
@@ -147,11 +150,41 @@ public class ReportController {
     }
 
     private static ResponseEntity<byte[]> pdfResponse(ReportPdfService.PdfDocument doc) {
+        return download(MediaType.APPLICATION_PDF, doc.filename(), doc.bytes());
+    }
+
+    /**
+     * Bulk PDF download — the "Approve Transaction" multi-select downloads several filed reports' PDFs as one
+     * ZIP. Rejects the whole batch (400) if any selected id is unknown in this tenant or {@code INVALID}.
+     */
+    @PostMapping(value = "/bulk-download/pdf", produces = "application/zip")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<byte[]> bulkDownloadPdf(@Valid @RequestBody BulkReportDownloadRequest request,
+                                                  @AuthenticationPrincipal UserPrincipal principal) {
+        ReportBulkExportService.ZipExport zip =
+                reportBulkExportService.pdfZip(request.ids(), principal.getTenantId(), principal.getUsername());
+        return zipResponse(zip);
+    }
+
+    /**
+     * Bulk XML download — same multi-select, ZIPs each report's persisted goAML XML instead of its PDF.
+     */
+    @PostMapping(value = "/bulk-download/xml", produces = "application/zip")
+    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
+    public ResponseEntity<byte[]> bulkDownloadXml(@Valid @RequestBody BulkReportDownloadRequest request) {
+        ReportBulkExportService.ZipExport zip = reportBulkExportService.xmlZip(request.ids());
+        return zipResponse(zip);
+    }
+
+    private static ResponseEntity<byte[]> zipResponse(ReportBulkExportService.ZipExport zip) {
+        return download(MediaType.valueOf("application/zip"), zip.filename(), zip.bytes());
+    }
+
+    private static ResponseEntity<byte[]> download(MediaType type, String filename, byte[] bytes) {
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"" + doc.filename() + "\"")
-                .body(doc.bytes());
+                .contentType(type)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .body(bytes);
     }
 
     /**
