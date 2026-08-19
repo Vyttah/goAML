@@ -102,8 +102,7 @@ typed properties for the entire `report` content model.
   (same codes: MANDATORY, SHAPE_CONFLICT, DPMS_THRESHOLD, CURRENCY_MISMATCH, …).
 
 **4d — Delete hand-modeled `domain/*` + retire its tests.**
-- Delete `domain/
-Report.java`, `domain/activity/*`, `domain/common/*`, `domain/enums/*`, `domain/party/*`,
+- Delete `domain/Report.java`, `domain/activity/*`, `domain/common/*`, `domain/enums/*`, `domain/party/*`,
   `domain/transaction/*`. **Keep** `domain/adapter/GoamlDateTimeAdapter.java`.
 - Delete/replace the hand-model round-trip tests `domain/DpmsrReportRoundTripTest.java` +
   `domain/StrTransactionRoundTripTest.java` (the generated round-trip is already covered by

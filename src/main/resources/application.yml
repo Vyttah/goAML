@@ -4,7 +4,7 @@ spring:
   application:
     name: goaml
   datasource:
-    url:      ${GOAML_DATASOURCE_URL:jdbc:postgresql://localhost:5432/VyttahgoAML}
+    url:      ${GOAML_DATASOURCE_URL:jdbc:postgresql://localhost:5432/goaml}
     username: ${GOAML_DATASOURCE_USERNAME:postgres}
     password: ${GOAML_DATASOURCE_PASSWORD:password}
   jpa:
@@ -91,7 +91,7 @@ goaml:
     #   native    — only POST /api/v1/auth/login (the standalone default; pre-1.5 behaviour).
     #   federated — only POST /api/v1/auth/federated/token (suite token-exchange); native login is off.
     #   both      — suite deployments that allow direct logins AND token-exchange.
-    mode: ${GOAML_AUTH_MODE:both}
+    mode: ${GOAML_AUTH_MODE:native}
     # B14 — in-memory fixed-window throttle on POST /api/v1/auth/login + /auth/federated/token, keyed by
     # (client IP + email/source). Over the limit in a window → 429. Per-instance (no shared infra); with N
     # replicas the effective limit is limit×N, which is acceptable for this control.
@@ -156,7 +156,7 @@ goaml:
     # Phase 13: CORS allow-list for /api/** (comma-separated origins). Blank in prod (SPA is served
     # same-origin from the jar → no CORS). Set to the SPA dev-server origin only when it calls a remote
     # backend, e.g. http://localhost:5173.
-    allowed-origins: ${GOAML_ALLOWED_ORIGINS:http://localhost:3001, http://localhost:5173}
+    allowed-origins: ${GOAML_ALLOWED_ORIGINS:}
   dev:
     # LOCAL ONLY — on startup, seed a demo tenant + ready login users so the SPA is reviewable without
     # the provisioning chicken-and-egg. NEVER enable in a deployed environment. See config/dev/DevDataSeeder.

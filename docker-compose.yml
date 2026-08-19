@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: goaml
       POSTGRES_PASSWORD: goaml
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - goaml-pg:/var/lib/postgresql/data
     healthcheck:
