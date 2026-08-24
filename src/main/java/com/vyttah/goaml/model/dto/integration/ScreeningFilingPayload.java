@@ -17,7 +17,7 @@ import java.util.List;
  * <p>The customer party bundle reuses the resolved-codes {@link ScreeningPartyPayload} contract verbatim (mapped
  * by {@code ScreeningPartyMapper}); the goods reuse {@link DpmsrCreateRequest.Goods} (already the engine's goods
  * shape, exactly like {@code ScreeningSeedRequest}). The reporting person (MLRO) is the goAML tenant default
- * (Phase A) — the AML side sends none. {@code submissionDate} is server-stamped.
+ * (Phase A) — the AML side sends none. {@code reportDate} is server-stamped.
  *
  * @param companyId  the AML org id → resolves the goAML tenant via {@code tenant_external_ref} (SCREENING)
  * @param filingRef  the AML deal's stable id → the idempotency key {@code FIL-<companyId>-<filingRef>}

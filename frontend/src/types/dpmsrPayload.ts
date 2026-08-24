@@ -142,7 +142,7 @@ export interface GoodsJson {
 export interface DpmsrReportPayload {
   rentityBranch?: string;
   entityReference: string;
-  submissionDate: string;
+  reportDate: string;
   fiuRefNumber?: string;
   reason?: string;
   action?: string;

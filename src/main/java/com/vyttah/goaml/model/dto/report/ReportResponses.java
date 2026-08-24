@@ -1,6 +1,8 @@
 package com.vyttah.goaml.model.dto.report;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vyttah.goaml.b2b.ReportStatus;
 import com.vyttah.goaml.engine.validation.ValidationMessage;
 import com.vyttah.goaml.model.entity.report.Report;
@@ -20,6 +22,20 @@ public final class ReportResponses {
 
     private ReportResponses() {}
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    /** Parses a stored JSONB string column back to a tree, or {@code null} when none was stored. */
+    private static JsonNode parseJsonb(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return MAPPER.readTree(raw);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to parse stored JSONB", e);
+        }
+    }
+
     /** Result of creating/validating a report. */
     public record CreateReportResponse(UUID reportId, String status, List<ValidationMessage> validationMessages) {
         public static CreateReportResponse from(ReportResult r) {
@@ -27,12 +43,18 @@ public final class ReportResponses {
         }
     }
 
-    /** A report summary for list/get. */
+    /**
+     * A report summary for list/get. {@code clientMetadata} (A3) is the opaque captured-not-filed JSON the
+     * caller attached on create, returned verbatim ({@code null} when none was stored — e.g. reports created
+     * before A3 existed) — same value the detail view returns, just also surfaced per-row here so a list page
+     * (e.g. an AML cockpit's approval queue) can render a field like {@code clientMetadata.customerName}
+     * without an extra per-row call.
+     */
     public record ReportView(UUID id, String entityReference, String reportCode, String status,
-                             Integer rentityId, OffsetDateTime createdAt) {
+                             Integer rentityId, OffsetDateTime createdAt, JsonNode clientMetadata) {
         public static ReportView from(Report r) {
             return new ReportView(r.getId(), r.getEntityReference(), r.getReportCode(),
-                    r.getStatus(), r.getRentityId(), r.getCreatedAt());
+                    r.getStatus(), r.getRentityId(), r.getCreatedAt(), parseJsonb(r.getClientMetadata()));
         }
     }
 

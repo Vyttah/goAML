@@ -18,6 +18,7 @@ function pending(id: string, ref: string): ReportView {
     status: 'PENDING_REVIEW',
     rentityId: 3177,
     createdAt: '2026-06-01T10:00:00Z',
+    clientMetadata: null,
   };
 }
 

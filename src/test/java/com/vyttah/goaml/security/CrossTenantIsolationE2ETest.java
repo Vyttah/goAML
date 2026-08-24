@@ -60,7 +60,7 @@ class CrossTenantIsolationE2ETest {
     private static final String DPMSR_JSON = """
             {
               "entityReference": "%s",
-              "submissionDate": "2026-06-02T12:00:00Z",
+              "reportDate": "2026-06-02T12:00:00Z",
               "reason": "DPMS threshold met", "action": "Filed",
               "indicators": ["DPMSJ"],
               "reportingPerson": {"firstName": "Sara", "lastName": "Khan"},

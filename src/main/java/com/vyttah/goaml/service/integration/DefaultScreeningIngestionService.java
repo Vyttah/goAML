@@ -124,7 +124,7 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
             DpmsrCreateRequest request = new DpmsrCreateRequest(
                     null,                                   // rentityBranch
                     ref,                                    // entityReference (idempotency anchor)
-                    OffsetDateTime.now(UAE),                // submissionDate (server-stamped, UAE local)
+                    OffsetDateTime.now(UAE),                // reportDate (server-stamped, UAE local)
                     null,                                   // fiuRefNumber
                     payload.reason(),                       // reason
                     payload.action(),                       // action

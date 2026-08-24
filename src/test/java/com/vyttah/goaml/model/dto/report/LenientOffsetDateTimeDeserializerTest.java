@@ -42,7 +42,7 @@ class LenientOffsetDateTimeDeserializerTest {
     }
 
     @Test
-    void siblingPersonBirthdateAndSubmissionDateAlsoAcceptABareDate() throws Exception {
+    void siblingPersonBirthdateAndReportDateAlsoAcceptABareDate() throws Exception {
         // a sibling nested date field (person.birthdate)
         String personJson = """
                 {"firstName":"Sara","lastName":"Khan","birthdate":"1990-01-02"}
@@ -62,19 +62,19 @@ class LenientOffsetDateTimeDeserializerTest {
     }
 
     @Test
-    void topLevelSubmissionDateBindsFromABareDateAndFullIso() throws Exception {
+    void topLevelReportDateBindsFromABareDateAndFullIso() throws Exception {
         String bare = """
-                {"entityReference":"R-1","submissionDate":"2026-06-12","parties":[],"goods":[]}
+                {"entityReference":"R-1","reportDate":"2026-06-12","parties":[],"goods":[]}
                 """;
         DpmsrCreateRequest reqBare = mapper.readValue(bare, DpmsrCreateRequest.class);
-        assertThat(reqBare.submissionDate())
+        assertThat(reqBare.reportDate())
                 .isEqualTo(OffsetDateTime.of(2026, 6, 12, 0, 0, 0, 0, ZoneOffset.UTC));
 
         String full = """
-                {"entityReference":"R-2","submissionDate":"2026-06-12T08:00:00Z","parties":[],"goods":[]}
+                {"entityReference":"R-2","reportDate":"2026-06-12T08:00:00Z","parties":[],"goods":[]}
                 """;
         DpmsrCreateRequest reqFull = mapper.readValue(full, DpmsrCreateRequest.class);
-        assertThat(reqFull.submissionDate())
+        assertThat(reqFull.reportDate())
                 .isEqualTo(OffsetDateTime.of(2026, 6, 12, 8, 0, 0, 0, ZoneOffset.UTC));
     }
 }
