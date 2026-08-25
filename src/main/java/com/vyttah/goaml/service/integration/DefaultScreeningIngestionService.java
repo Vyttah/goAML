@@ -36,7 +36,10 @@ import java.util.UUID;
 @Service
 public class DefaultScreeningIngestionService implements ScreeningIngestionService {
 
-    /** Filing timestamps are FIU-facing calendar facts — stamp them at UAE local time, not UTC. */
+    /** Fallback only — used when a caller doesn't send {@code reportDate} (e.g. an older client). Filing
+     *  timestamps are FIU-facing calendar facts, so even the fallback stamps UAE local time, not UTC. The
+     *  normal path takes the report date from the payload, computed by the caller from the operator's own
+     *  timezone (the AML UI's {@code X-Timezone} header) rather than a hardcoded zone. */
     private static final ZoneId UAE = ZoneId.of("Asia/Dubai");
 
     private final TenantExternalRefRepository tenantExternalRefs;
@@ -124,7 +127,7 @@ public class DefaultScreeningIngestionService implements ScreeningIngestionServi
             DpmsrCreateRequest request = new DpmsrCreateRequest(
                     null,                                   // rentityBranch
                     ref,                                    // entityReference (idempotency anchor)
-                    OffsetDateTime.now(UAE),                // reportDate (server-stamped, UAE local)
+                    payload.reportDate() != null ? payload.reportDate() : OffsetDateTime.now(UAE),
                     null,                                   // fiuRefNumber
                     payload.reason(),                       // reason
                     payload.action(),                       // action

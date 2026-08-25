@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 /**
@@ -17,7 +18,7 @@ import java.util.List;
  * <p>The customer party bundle reuses the resolved-codes {@link ScreeningPartyPayload} contract verbatim (mapped
  * by {@code ScreeningPartyMapper}); the goods reuse {@link DpmsrCreateRequest.Goods} (already the engine's goods
  * shape, exactly like {@code ScreeningSeedRequest}). The reporting person (MLRO) is the goAML tenant default
- * (Phase A) — the AML side sends none. {@code reportDate} is server-stamped.
+ * (Phase A) — the AML side sends none.
  *
  * @param companyId  the AML org id → resolves the goAML tenant via {@code tenant_external_ref} (SCREENING)
  * @param filingRef  the AML deal's stable id → the idempotency key {@code FIL-<companyId>-<filingRef>}
@@ -27,6 +28,9 @@ import java.util.List;
  * @param action     optional action taken
  * @param indicators optional goAML report indicator codes
  * @param location   optional report location/address
+ * @param reportDate the report date, computed by the caller from the operator's own timezone (the AML UI's
+ *                   {@code X-Timezone} header, not a hardcoded zone) — optional; a caller that omits it (e.g.
+ *                   an older client) gets a UAE-local server stamp instead, so this never blocks a filing.
  */
 public record ScreeningFilingPayload(
         @NotBlank String companyId,
@@ -36,5 +40,6 @@ public record ScreeningFilingPayload(
         String reason,
         String action,
         List<String> indicators,
-        @Valid DpmsrCreateRequest.Address location) {
+        @Valid DpmsrCreateRequest.Address location,
+        OffsetDateTime reportDate) {
 }
