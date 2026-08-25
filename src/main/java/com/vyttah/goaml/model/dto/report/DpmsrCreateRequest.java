@@ -32,7 +32,7 @@ import java.util.List;
 public record DpmsrCreateRequest(
         String rentityBranch,
         @NotBlank String entityReference,
-        @NotNull @JsonDeserialize(using = LenientOffsetDateTimeDeserializer.class) OffsetDateTime submissionDate,
+        @NotNull @JsonDeserialize(using = LenientOffsetDateTimeDeserializer.class) OffsetDateTime reportDate,
         String fiuRefNumber,
         String reason,
         String action,
@@ -49,10 +49,10 @@ public record DpmsrCreateRequest(
      * concise. The full canonical constructor is used by the JSON-binding create endpoint.
      */
     public DpmsrCreateRequest(
-            String rentityBranch, String entityReference, OffsetDateTime submissionDate, String fiuRefNumber,
+            String rentityBranch, String entityReference, OffsetDateTime reportDate, String fiuRefNumber,
             String reason, String action, List<String> indicators, Person reportingPerson, Address location,
             List<Party> parties, List<Goods> goods) {
-        this(rentityBranch, entityReference, submissionDate, fiuRefNumber, reason, action, indicators,
+        this(rentityBranch, entityReference, reportDate, fiuRefNumber, reason, action, indicators,
                 reportingPerson, location, parties, goods, null);
     }
 

@@ -110,7 +110,7 @@ class B2bSubmissionE2ETest {
         return DpmsrReportInput.builder()
                 .rentityId(3177)
                 .entityReference("E2E-0001")
-                .submissionDate(OffsetDateTime.parse("2026-06-02T12:00:00Z").withOffsetSameInstant(ZoneOffset.UTC))
+                .reportDate(OffsetDateTime.parse("2026-06-02T12:00:00Z").withOffsetSameInstant(ZoneOffset.UTC))
                 .reportingPerson(mlro)
                 .reason("DPMS threshold met")
                 .action("Filed")

@@ -34,7 +34,7 @@ import java.util.List;
 public record DpmsrReportPayload(
         String rentityBranch,
         @NotBlank String entityReference,
-        @NotNull OffsetDateTime submissionDate,
+        @NotNull OffsetDateTime reportDate,
         String fiuRefNumber,
         // Optional on the wire: when omitted the service fills it from the tenant's active
         // tenant_goaml_person (the goAML-feeds-the-MLRO decision), mirroring the curated path. The build
@@ -53,10 +53,10 @@ public record DpmsrReportPayload(
      * test callers; the JSON-binding create endpoint uses the full canonical constructor.
      */
     public DpmsrReportPayload(
-            String rentityBranch, String entityReference, OffsetDateTime submissionDate, String fiuRefNumber,
+            String rentityBranch, String entityReference, OffsetDateTime reportDate, String fiuRefNumber,
             TPersonRegistrationInReport reportingPerson, TAddress location, String reason, String action,
             List<String> indicators, List<ReportPartyType> parties, List<TTransItem> goods) {
-        this(rentityBranch, entityReference, submissionDate, fiuRefNumber, reportingPerson, location, reason,
+        this(rentityBranch, entityReference, reportDate, fiuRefNumber, reportingPerson, location, reason,
                 action, indicators, parties, goods, null);
     }
 
@@ -67,7 +67,7 @@ public record DpmsrReportPayload(
                 .rentityId(rentityId)
                 .rentityBranch(rentityBranch)
                 .entityReference(entityReference)
-                .submissionDate(submissionDate)
+                .reportDate(reportDate)
                 .fiuRefNumber(fiuRefNumber)
                 .reportingPerson(reportingPerson)
                 .location(location)

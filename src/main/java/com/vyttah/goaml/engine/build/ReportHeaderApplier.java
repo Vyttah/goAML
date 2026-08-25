@@ -21,7 +21,7 @@ final class ReportHeaderApplier {
         report.setReportCode(header.reportCode());
         report.setEntityReference(header.entityReference());
         report.setFiuRefNumber(header.fiuRefNumber());
-        report.setSubmissionDate(header.submissionDate());
+        report.setReportDate(header.reportDate());
         report.setCurrencyCodeLocal(header.currencyCodeLocal());
         report.setReportingPerson(header.reportingPerson());
         report.setLocation(header.location());

@@ -54,7 +54,7 @@ public class DefaultScreeningSubjectService implements ScreeningSubjectService {
         DpmsrCreateRequest req = new DpmsrCreateRequest(
                 null,
                 request.entityReference(),
-                request.submissionDate(),
+                request.reportDate(),
                 null,
                 request.reason(),
                 request.action(),

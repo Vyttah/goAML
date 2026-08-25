@@ -97,8 +97,8 @@ public class ReportValidator {
                     "entity_reference exceeds " + MAX_ENTITY_REFERENCE + " characters");
         }
 
-        if (report.getSubmissionDate() == null) {
-            result.error("report.submission_date", "MANDATORY", "submission_date is mandatory");
+        if (report.getReportDate() == null) {
+            result.error("report.report_date", "MANDATORY", "report_date is mandatory");
         }
 
         if (report.getCurrencyCodeLocal() == null) {

@@ -119,6 +119,33 @@ class ScreeningFilingE2ETest {
         assertThat(again.get("reportId").asText()).isEqualTo(reportId);
     }
 
+    /**
+     * The report date must come from the caller's payload (the AML UI's own {@code X-Timezone}-derived
+     * timestamp), not be overwritten by a server-side "now" stamp — a caller-supplied {@code reportDate}
+     * survives verbatim into the filed goAML XML.
+     */
+    @Test
+    void callerSuppliedReportDateIsFiledVerbatimNotOverwritten() throws Exception {
+        file(legalFilingPayload(COMPANY_ID, "DEAL-RD", "2026-06-11T08:30:00+05:30"));
+
+        mvc.perform(get("/api/v1/integration/screening/filings/DEAL-RD/report.xml")
+                        .header("X-Service-Assertion", assertion())
+                        .param("companyId", COMPANY_ID))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "<report_date>2026-06-11T08:30:00</report_date>")));
+    }
+
+    /** No {@code reportDate} in the payload (an older/non-UI caller) must not fail the filing — it still
+     *  gets a valid server-stamped date, preserving today's behavior for callers that don't send one. */
+    @Test
+    void omittedReportDateStillFilesSuccessfully() throws Exception {
+        JsonNode res = file(legalFilingPayload(COMPANY_ID, "DEAL-RD-OMIT"));
+        assertThat(res.get("status").asText())
+                .as("validation messages: %s", res.get("validationMessages"))
+                .isEqualTo("VALID");
+    }
+
     @Test
     void filedReportXmlIsDownloadableByRef() throws Exception {
         file(legalFilingPayload(COMPANY_ID, "DEAL-9"));
@@ -185,6 +212,13 @@ class ScreeningFilingE2ETest {
 
     /** A legal-customer bundle + one gold deal — an entity party needs only a name, so this seeds a VALID report. */
     private static String legalFilingPayload(String companyId, String filingRef) {
+        return legalFilingPayload(companyId, filingRef, null);
+    }
+
+    /** As above, with an explicit {@code reportDate} spliced in when given (omitted when {@code null}, so the
+     *  server-stamped fallback path is exercised the same way a caller that sends nothing would hit it). */
+    private static String legalFilingPayload(String companyId, String filingRef, String reportDate) {
+        String reportDateField = reportDate == null ? "" : ",\n  \"reportDate\": \"%s\"".formatted(reportDate);
         return """
                 {
                   "companyId": "%s",
@@ -198,8 +232,8 @@ class ScreeningFilingE2ETest {
                   ],
                   "reason": "Cash purchase of precious metal above the AED 55,000 threshold",
                   "action": "Filed",
-                  "indicators": ["ACTRC"]
-                }""".formatted(companyId, filingRef, companyId);
+                  "indicators": ["ACTRC"]%s
+                }""".formatted(companyId, filingRef, companyId, reportDateField);
     }
 
     private static String assertion() {

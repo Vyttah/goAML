@@ -34,7 +34,7 @@ import type { CreateReportResponse } from '../../types';
 import type { DpmsrCreateRequest } from '../../types/dpmsr';
 
 const INITIAL_VALUES = {
-  submissionDate: dayjs(),
+  reportDate: dayjs(),
   reportingPerson: {},
   parties: [{ _type: 'person', person: {} }],
   goods: [{ currencyCode: 'AED' }],
@@ -145,7 +145,7 @@ export function DpmsrBuilderPage() {
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="Submission date" name="submissionDate" rules={[{ required: true }]}>
+              <Form.Item label="Report date" name="reportDate" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>

@@ -92,7 +92,7 @@ class DpmsrReportBuilderTest {
         DpmsrReportInput input = DpmsrReportInput.builder()
                 .rentityId(3177)
                 .entityReference("MIN-0001")
-                .submissionDate(odt("2026-06-02T12:00:00"))
+                .reportDate(odt("2026-06-02T12:00:00"))
                 .reportingPerson(mlro())
                 .reason("DPMS threshold met")
                 .action("Filed")
@@ -124,7 +124,7 @@ class DpmsrReportBuilderTest {
     private DpmsrReportInput maximalInputFluent() {
         return DpmsrReportInput.builder()
                 .rentityId(3177).rentityBranch("DXB-MAIN").entityReference("PAY 0001 INV 0001")
-                .submissionDate(odt("2026-06-02T12:00:00"))
+                .reportDate(odt("2026-06-02T12:00:00"))
                 .reportingPerson(mlro()).location(location())
                 .reason("Cash purchase of gold and diamonds above AED 55,000")
                 .action("Filed DPMSR per MOE mandate")
