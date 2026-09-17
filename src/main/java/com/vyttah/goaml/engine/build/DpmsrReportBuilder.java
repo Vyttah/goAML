@@ -42,7 +42,7 @@ public class DpmsrReportBuilder {
                 ReportType.DPMSR,
                 in.entityReference(),
                 in.fiuRefNumber(),
-                in.submissionDate(),
+                in.reportDate(),
                 CurrencyType.AED,
                 in.reportingPerson(),
                 in.location(),

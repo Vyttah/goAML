@@ -24,7 +24,7 @@ public record ReportHeader(
         ReportType reportCode,
         String entityReference,
         String fiuRefNumber,
-        OffsetDateTime submissionDate,
+        OffsetDateTime reportDate,
         CurrencyType currencyCodeLocal,
         TPersonRegistrationInReport reportingPerson,
         TAddress location,

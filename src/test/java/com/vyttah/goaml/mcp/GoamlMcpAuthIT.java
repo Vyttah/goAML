@@ -159,7 +159,7 @@ class GoamlMcpAuthIT {
             McpSchema.CallToolResult result = client.callTool(new McpSchema.CallToolRequest(
                     "goaml_validate_dpmsr", Map.of("request", sampleDpmsrRequest())));
 
-            // The complex request (incl. an OffsetDateTime submissionDate) deserialized and the engine ran:
+            // The complex request (incl. an OffsetDateTime reportDate) deserialized and the engine ran:
             // no tenant config in this test → INVALID with a rentity_id message. The point is a STRUCTURED
             // verdict came back, not a deserialization error.
             assertThat(result.isError()).isNotEqualTo(Boolean.TRUE);
@@ -228,7 +228,7 @@ class GoamlMcpAuthIT {
     private static Map<String, Object> sampleDpmsrRequest() {
         return Map.of(
                 "entityReference", "MCP-" + UUID.randomUUID(),
-                "submissionDate", "2026-06-02T12:00:00Z",
+                "reportDate", "2026-06-02T12:00:00Z",
                 "reason", "DPMS threshold met",
                 "action", "Filed",
                 "indicators", List.of("DPMSJ"),

@@ -25,7 +25,7 @@ describe('dpmsrDraft', () => {
   it('round-trips nested Dayjs values (party birthdate + identification dates) back to Dayjs', () => {
     saveDpmsrDraft({
       entityReference: 'REF-1',
-      submissionDate: dayjs('2026-06-06'),
+      reportDate: dayjs('2026-06-06'),
       parties: [
         {
           _type: 'person',
@@ -53,7 +53,7 @@ describe('dpmsrDraft', () => {
     const draft = loadDpmsrDraft();
     expect(draft).not.toBeNull();
 
-    expectDayjsAt(draft, ['submissionDate'], '2026-06-06');
+    expectDayjsAt(draft, ['reportDate'], '2026-06-06');
     expectDayjsAt(draft, ['parties', 0, 'person', 'birthdate'], '1990-05-01');
     expectDayjsAt(draft, ['parties', 0, 'person', 'identifications', 0, 'issueDate'], '2020-01-02');
     expectDayjsAt(draft, ['parties', 0, 'person', 'identifications', 0, 'expiryDate'], '2030-01-02');

@@ -58,7 +58,7 @@ class ImportApiE2ETest {
     @Autowired PasswordEncoder passwordEncoder;
     @Autowired JdbcTemplate jdbcTemplate;
 
-    private static final String CSV_HEADER = "entity_reference,submission_date,indicators,"
+    private static final String CSV_HEADER = "entity_reference,report_date,indicators,"
             + "reporting_person_first_name,reporting_person_last_name,party_type,party_reason,"
             + "entity_name,entity_incorporation_number,entity_incorporation_country,"
             + "good_item_type,good_estimated_value,good_currency_code,good_status_code";

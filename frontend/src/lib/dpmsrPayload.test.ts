@@ -4,7 +4,7 @@ import type { DpmsrCreateRequest } from '../types/dpmsr';
 
 const base = {
   entityReference: 'REF',
-  submissionDate: '2026-06-06T00:00:00.000Z',
+  reportDate: '2026-06-06T00:00:00.000Z',
   reportingPerson: { firstName: 'A', lastName: 'B' },
 };
 
@@ -76,7 +76,7 @@ describe('toDpmsrPayload', () => {
   it('omits reportingPerson entirely when not supplied (server fills the configured MLRO)', () => {
     const req: DpmsrCreateRequest = {
       entityReference: 'REF',
-      submissionDate: '2026-06-06T00:00:00Z',
+      reportDate: '2026-06-06T00:00:00Z',
       parties: [{ person: { firstName: 'J', lastName: 'D' } }],
       goods: [{ itemType: 'GOLD', estimatedValue: 90000 }],
     };

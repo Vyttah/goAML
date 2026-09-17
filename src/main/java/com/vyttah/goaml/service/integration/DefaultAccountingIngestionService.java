@@ -86,7 +86,7 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
             }
 
             String[] mlro = reportingPerson(tenant.tenantId());
-            // The server-stamped submission_date is filed in the XML — generate it at UAE local time so the
+            // The server-stamped report_date is filed in the XML — generate it at UAE local time so the
             // FIU sees the UAE calendar date (the marshaller preserves the wall-clock, never converts to UTC).
             DpmsrCreateRequest request = AccountingDpmsrMapper.toCreateRequest(
                     payload, ref, OffsetDateTime.now(UAE), mlro[0], mlro[1]);

@@ -109,7 +109,7 @@ export function ReportFilingDetails({ input }: { input: Record<string, unknown> 
       <Descriptions column={2} size="small" title="Filing">
         <Descriptions.Item label="Reason">{dash(str(input.reason))}</Descriptions.Item>
         <Descriptions.Item label="Action">{dash(str(input.action))}</Descriptions.Item>
-        <Descriptions.Item label="Submission date">{dash(str(input.submissionDate))}</Descriptions.Item>
+        <Descriptions.Item label="Report date">{dash(str(input.reportDate))}</Descriptions.Item>
         <Descriptions.Item label="FIU ref">{dash(str(input.fiuRefNumber))}</Descriptions.Item>
         <Descriptions.Item label="Indicators" span={2}>
           {indicators.length ? (

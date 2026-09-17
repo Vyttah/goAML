@@ -18,6 +18,7 @@ const REPORTS: ReportView[] = [
     status: 'VALID',
     rentityId: 3177,
     createdAt: '2026-06-01T10:00:00Z',
+    clientMetadata: null,
   },
   {
     id: 'r-2',
@@ -26,6 +27,7 @@ const REPORTS: ReportView[] = [
     status: 'REJECTED',
     rentityId: 3177,
     createdAt: '2026-06-02T10:00:00Z',
+    clientMetadata: null,
   },
 ];
 

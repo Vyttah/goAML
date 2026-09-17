@@ -52,6 +52,9 @@ export interface ReportView {
   status: string;
   rentityId: number | null;
   createdAt: string;
+  /** Opaque captured-not-filed metadata attached on create (A3) — `null` when none was stored
+   *  (e.g. reports created before this field existed). Never appears in the filed goAML XML. */
+  clientMetadata: Record<string, unknown> | null;
 }
 
 /** Create/validate result — mirrors `ReportResponses.CreateReportResponse`. */

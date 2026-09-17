@@ -128,7 +128,7 @@ class ScreeningSeedE2ETest {
         JsonNode seeded = postJson("/api/v1/screening/subjects/SCR-601-LEG-9/seed-report", """
                 {
                   "entityReference": "SEED-RPT-1",
-                  "submissionDate": "2026-06-09T12:00:00Z",
+                  "reportDate": "2026-06-09T12:00:00Z",
                   "reason": "Screened customer dealing", "action": "Filed",
                   "indicators": ["DPMSJ"],
                   "reportingPerson": {"firstName": "Sara", "lastName": "Khan"},

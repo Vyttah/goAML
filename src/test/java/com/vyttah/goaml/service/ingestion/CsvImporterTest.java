@@ -31,7 +31,7 @@ import static org.mockito.Mockito.when;
  */
 class CsvImporterTest {
 
-    private static final String HEADER = "entity_reference,submission_date,fiu_ref_number,reason,action,"
+    private static final String HEADER = "entity_reference,report_date,fiu_ref_number,reason,action,"
             + "indicators,reporting_person_first_name,reporting_person_last_name,party_type,party_reason,"
             + "person_first_name,person_last_name,person_birthdate,person_nationality,person_id_number,"
             + "entity_name,entity_incorporation_number,entity_incorporation_country,"
@@ -175,7 +175,7 @@ class CsvImporterTest {
     @Test
     void missingRequiredHeaderRejectsFile() {
         // header without good_item_type / good_estimated_value
-        byte[] bad = ("entity_reference,submission_date,party_type,reporting_person_first_name,"
+        byte[] bad = ("entity_reference,report_date,party_type,reporting_person_first_name,"
                 + "reporting_person_last_name\nREF-1,2026-05-26,PERSON,Sara,Khan\n").getBytes(StandardCharsets.UTF_8);
 
         assertThatThrownBy(() -> importer(500).importCsv(bad, tenantId, actor))
@@ -188,7 +188,7 @@ class CsvImporterTest {
     void missingIndicatorsOrPartyReasonHeaderRejectsFile() {
         // a header that has the old "required" set but omits indicators + party_reason — these are now
         // required because the schema mandates them and the flat template is their only source.
-        byte[] bad = ("entity_reference,submission_date,party_type,good_item_type,good_estimated_value,"
+        byte[] bad = ("entity_reference,report_date,party_type,good_item_type,good_estimated_value,"
                 + "reporting_person_first_name,reporting_person_last_name\n"
                 + "REF-1,2026-05-26,PERSON,GOLD,60000,Sara,Khan\n").getBytes(StandardCharsets.UTF_8);
 

@@ -15,7 +15,7 @@ import java.util.List;
  * report is identical in shape to a hand-built one.
  *
  * @param entityReference the report reference (unique per tenant)
- * @param submissionDate  the report submission timestamp
+ * @param reportDate      the date of the report
  * @param reason          free-text reason for the report
  * @param action          the action taken (e.g. {@code Filed})
  * @param indicators      goAML report indicator codes
@@ -25,7 +25,7 @@ import java.util.List;
  */
 public record ScreeningSeedRequest(
         @NotBlank String entityReference,
-        @NotNull OffsetDateTime submissionDate,
+        @NotNull OffsetDateTime reportDate,
         String reason,
         String action,
         List<String> indicators,

@@ -113,7 +113,7 @@ public class DefaultReportService implements ReportService {
     }
 
     private static DpmsrCreateRequest withReportingPerson(DpmsrCreateRequest r, DpmsrCreateRequest.Person rp) {
-        return new DpmsrCreateRequest(r.rentityBranch(), r.entityReference(), r.submissionDate(),
+        return new DpmsrCreateRequest(r.rentityBranch(), r.entityReference(), r.reportDate(),
                 r.fiuRefNumber(), r.reason(), r.action(), r.indicators(), rp, r.location(), r.parties(),
                 r.goods(), r.clientMetadata());
     }
@@ -138,7 +138,7 @@ public class DefaultReportService implements ReportService {
     }
 
     private static DpmsrReportPayload withReportingPerson(DpmsrReportPayload p, TPersonRegistrationInReport rp) {
-        return new DpmsrReportPayload(p.rentityBranch(), p.entityReference(), p.submissionDate(),
+        return new DpmsrReportPayload(p.rentityBranch(), p.entityReference(), p.reportDate(),
                 p.fiuRefNumber(), rp, p.location(), p.reason(), p.action(), p.indicators(), p.parties(),
                 p.goods(), p.clientMetadata());
     }
