@@ -14,7 +14,6 @@ import com.vyttah.goaml.engine.validation.ValidationMessage;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
 import com.vyttah.goaml.model.dto.report.DpmsrInputSource;
 import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
-import com.vyttah.goaml.engine.build.DpmsrReportInput;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.report.Report;
@@ -25,6 +24,7 @@ import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.service.audit.AuditService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -54,7 +54,9 @@ public class DefaultReportService implements ReportService {
     private final TenantGoamlPersonRepository personRepository;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
+    private final DpmsrSectionBackfillService sectionPersistenceService;
 
+    @Transactional
     @Override
     public ReportResult create(DpmsrCreateRequest request, UUID tenantId, UUID actorUserId) {
         DpmsrCreateRequest filled = withDefaultReportingPerson(request, tenantId);
@@ -63,6 +65,7 @@ public class DefaultReportService implements ReportService {
                 mapperMessages);
     }
 
+    @Transactional
     @Override
     public ReportResult create(DpmsrReportPayload payload, UUID tenantId, UUID actorUserId) {
         DpmsrReportPayload filled = withDefaultReportingPerson(payload, tenantId);
@@ -169,18 +172,30 @@ public class DefaultReportService implements ReportService {
 
         String clientMetadataJson = clientMetadataJson(clientMetadata);
 
-        int rentityId = resolveRentityId(tenantId);
-        ValidatedReport validated = buildAndValidate(src, tenantId);
+        Optional<TenantGoamlConfig> config = configRepository.findByTenantId(tenantId);
+        int rentityId = config.map(TenantGoamlConfig::getRentityId).orElse(0);
+        String jurisdiction = config.map(c -> c.getJurisdictionCode().toLowerCase()).orElse("ae");
+
+        DpmsrReportInput input = src.toInput(rentityId);
+        ValidatedReport validated = reportBuilder.buildAndValidate(input, jurisdiction);
 
         List<ValidationMessage> messages = mergeMessages(validated, mapperMessages);
         String status = statusOf(validated, mapperMessages);
 
-        Report report = new Report(UUID.randomUUID(), src.entityReference(), REPORT_CODE,
+        UUID reportId = UUID.randomUUID();
+        Report report = new Report(reportId, src.entityReference(), REPORT_CODE,
                 rentityId, status, toJson(persist), actorUserId);
         report.setReportXml(validated.xml());
         report.setValidationErrors(toJson(messages));
         report.setClientMetadata(clientMetadataJson);
         reportRepository.save(report);
+
+        // Relational mirror of report.input (migrate-json-storage-to-sql) — built from the same
+        // DpmsrReportInput the XML was marshalled from, so it can never drift from what was actually
+        // filed. report.input stays the source of truth; these tables exist for SQL queryability.
+        // (Same call the one-time historical backfill uses via DpmsrSectionBackfillService — one
+        // save implementation, not two to keep in sync.)
+        sectionPersistenceService.persistSections(input, reportId);
 
         auditService.record("REPORT.CREATE", actorUserId, null, TenantContext.get(),
                 REPORT_CODE + " " + src.entityReference() + " -> " + status);
@@ -231,10 +246,6 @@ public class DefaultReportService implements ReportService {
                 return requestMapper.toInput(request, rentityId, mapperMessages);
             }
         };
-    }
-
-    private int resolveRentityId(UUID tenantId) {
-        return configRepository.findByTenantId(tenantId).map(TenantGoamlConfig::getRentityId).orElse(0);
     }
 
     /** VALID only when the engine verdict is clean AND the mapper raised no ERROR (e.g. an emptied name). */
