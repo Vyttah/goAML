@@ -218,6 +218,22 @@ goAML stores it as a reusable **`screened_subject`**, idempotent on `SCR-<compan
 | `GET  /api/v1/integration/screening/subjects/{customerUid}?companyId=` | fetch one |
 | `GET  /api/v1/integration/screening/subjects?companyId=` | all from this company |
 
+### Platform admin endpoints (AML admin-service → goAML, server-to-server)
+
+`X-Service-Assertion` authed for `SourceSystem.SCREENING`; the assertion `org` claim is the AML `companyId`.
+
+| Method & path | Purpose |
+|---|---|
+| `POST /api/v1/integration/admin/tenants/status` | bulk "is this companyId provisioned?" (not tenant-scoped) |
+| `POST /api/v1/integration/admin/tenants` | provision the tenant for `org` + map `SCREENING/<org>` |
+| `PUT  /api/v1/integration/admin/users/{externalUserId}` | create/update the goAML user backing an AML user |
+| `POST /api/v1/integration/admin/tenants/external-refs` `{sourceSystem, externalOrgRef}` | add another system's org ref to the **caller's** tenant (goAML ↔ ERP wiring: `ACCOUNTING/<erpCompanyId>` when an ERP workspace is linked) → `201`; `409` if that ref is already mapped anywhere; `404` if `org` is not provisioned; `400` if `org` is missing |
+| `DELETE /api/v1/integration/admin/tenants/external-refs?sourceSystem=&externalOrgRef=` | remove it again (ERP workspace unlinked) → `204`; `404` if absent or owned by another tenant; `409` when asked to remove the caller's own `SCREENING` mapping |
+
+After the `ACCOUNTING` ref exists, accounting pushes with `companyId=<erpCompanyId>` resolve the same tenant as the
+screening pushes with `companyId=<amlCompanyId>` — one tenant, two external ids. Both changes are audited on the
+target tenant (`ADMIN.TENANT_EXTERNAL_REF_CREATE` / `…_DELETE`).
+
 ### Seed a report from a screened subject (user-facing)
 
 A goAML user (the SPA's **Screening** page) browses screened subjects and seeds a DPMSR draft from one —

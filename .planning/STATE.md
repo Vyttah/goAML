@@ -17,6 +17,12 @@
 > its proxy default is `:8080` (`vite.config.ts`), which on this machine is the **AML user-service**, so without the
 > override the SPA login proxies to the wrong app and fails with **403/400** (`mlro@demo.local` / `Passw0rd!`).
 
+> **goAML ↔ ERP wiring, Phase 1 / W1 (2026-09-30, branch `feature/goaml-erp-wiring-p1`):** the AML admin-service can now
+> add/remove a second external ref on an existing tenant server-to-server —
+> `POST/DELETE /api/v1/integration/admin/tenants/external-refs` (SCREENING-authed; tenant = caller's `org`). Used to
+> map `ACCOUNTING/<erpCompanyId>` onto the same tenant as `SCREENING/<amlCompanyId>` when an ERP workspace is linked.
+> Plan + status board: `C:/vyttah-aml/vyttah-aml-mono/plans/goaml-erp-wiring/README.md`. Docs: `docs/14` §Platform admin endpoints.
+
 ## Project Reference
 
 **What:** Multi-tenant RegTech platform that builds, validates, submits, and tracks goAML AML reports to
