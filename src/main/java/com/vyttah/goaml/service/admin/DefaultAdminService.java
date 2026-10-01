@@ -42,6 +42,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
@@ -457,6 +458,78 @@ public class DefaultAdminService implements AdminService {
         auditService.record("ADMIN.TENANT_EXTERNAL_REF_CREATE", null, null, TenantContext.get(),
                 "mapped " + source + " org '" + orgRef + "' → tenant " + request.tenantId());
         return ref;
+    }
+
+    @Override
+    public Optional<UUID> findTenantIdBySourceRef(String sourceSystem, String externalOrgRef) {
+        if (externalOrgRef == null || externalOrgRef.isBlank()) {
+            return Optional.empty();
+        }
+        SourceSystem source = parseSourceSystem(sourceSystem);
+        return tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(source, externalOrgRef.trim())
+                .map(TenantExternalRef::getTenantId);
+    }
+
+    @Override
+    public TenantExternalRef addTenantExternalRef(UUID tenantId, String sourceSystem, String externalOrgRef) {
+        SourceSystem source = parseSourceSystem(sourceSystem);
+        String orgRef = externalOrgRef == null ? "" : externalOrgRef.trim();
+        if (orgRef.isBlank()) {
+            throw new IllegalArgumentException("externalOrgRef must not be blank");
+        }
+        Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> new AdminExceptions.TenantNotFoundException("No tenant " + tenantId));
+        return inTenantTransaction(tenant, () -> {
+            if (tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(source, orgRef).isPresent()) {
+                throw new AdminExceptions.TenantExternalRefExistsException(
+                        source + " org '" + orgRef + "' is already mapped to a tenant");
+            }
+            TenantExternalRef ref = new TenantExternalRef(UUID.randomUUID(), tenantId, source, orgRef);
+            tenantExternalRefRepository.save(ref);
+            auditService.record("ADMIN.TENANT_EXTERNAL_REF_CREATE", null, null, TenantContext.get(),
+                    "mapped " + source + " org '" + orgRef + "' → tenant " + tenantId + " (integration)");
+            return ref;
+        });
+    }
+
+    @Override
+    public void deleteTenantExternalRef(UUID tenantId, String sourceSystem, String externalOrgRef) {
+        SourceSystem source = parseSourceSystem(sourceSystem);
+        String orgRef = externalOrgRef == null ? "" : externalOrgRef.trim();
+        // An unknown tenant simply has no links: surface as not-found via the tenant-match filter below.
+        Tenant tenant = tenantRepository.findById(tenantId).orElse(null);
+        inTenantTransaction(tenant, () -> {
+            TenantExternalRef ref = tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(source, orgRef)
+                    .filter(r -> r.getTenantId().equals(tenantId))
+                    .orElseThrow(() -> new AdminExceptions.TenantExternalRefNotFoundException(
+                            "No " + source + " link for org '" + orgRef + "' on this tenant"));
+            tenantExternalRefRepository.delete(ref);
+            auditService.record("ADMIN.TENANT_EXTERNAL_REF_DELETE", null, null, TenantContext.get(),
+                    "removed link " + source + " org '" + orgRef + "' (integration)");
+            return null;
+        });
+    }
+
+    /**
+     * Run {@code work} in a transaction whose connection is bound to {@code tenant}'s schema. Server-to-server
+     * callers (integration endpoints) carry no tenant context, so the audit row would otherwise be written on a
+     * {@code public}-bound connection where {@code audit_log} does not exist — same reasoning as {@link #deleteUser}:
+     * push the target schema BEFORE the transaction opens, restore afterwards. {@code tenant == null} runs unbound.
+     */
+    private <T> T inTenantTransaction(Tenant tenant, java.util.function.Supplier<T> work) {
+        String previous = TenantContext.get();
+        if (tenant != null && tenant.getSchemaName() != null) {
+            TenantContext.set(tenant.getSchemaName());
+        }
+        try {
+            return new TransactionTemplate(transactionManager).execute(status -> work.get());
+        } finally {
+            if (previous != null) {
+                TenantContext.set(previous);
+            } else {
+                TenantContext.clear();
+            }
+        }
     }
 
     @Override

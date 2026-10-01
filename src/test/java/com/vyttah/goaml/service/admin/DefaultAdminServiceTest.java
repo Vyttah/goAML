@@ -511,6 +511,84 @@ class DefaultAdminServiceTest {
     }
 
     @Test
+    void findTenantIdBySourceRefTrimsAndMapsToTenantId() {
+        TenantExternalRef ref = mock(TenantExternalRef.class);
+        when(ref.getTenantId()).thenReturn(tenantId);
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.SCREENING, "COMP_1"))
+                .thenReturn(Optional.of(ref));
+
+        assertThat(service.findTenantIdBySourceRef("screening", " COMP_1 ")).contains(tenantId);
+        assertThat(service.findTenantIdBySourceRef("SCREENING", "other")).isEmpty();
+        assertThat(service.findTenantIdBySourceRef("SCREENING", " ")).isEmpty();
+    }
+
+    @Test
+    void addTenantExternalRefSavesOnTargetTenantAndAuditsThere() {
+        Tenant tenant = mock(Tenant.class);
+        when(tenant.getSchemaName()).thenReturn("tenant_abc");
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.ACCOUNTING, "42"))
+                .thenReturn(Optional.empty());
+
+        TenantExternalRef ref = service.addTenantExternalRef(tenantId, "accounting", " 42 ");
+
+        assertThat(ref.getTenantId()).isEqualTo(tenantId);
+        assertThat(ref.getSourceSystem()).isEqualTo(SourceSystem.ACCOUNTING);
+        assertThat(ref.getExternalOrgRef()).isEqualTo("42");
+        verify(tenantExternalRefRepository).save(ref);
+        verify(auditService).record(org.mockito.ArgumentMatchers.eq("ADMIN.TENANT_EXTERNAL_REF_CREATE"), any(), any(),
+                org.mockito.ArgumentMatchers.eq("tenant_abc"), any());
+        assertThat(com.vyttah.goaml.config.tenant.TenantContext.get()).isNull(); // restored afterwards
+    }
+
+    @Test
+    void addTenantExternalRefRejectsDuplicateUnknownTenantAndBlankRef() {
+        Tenant tenant = mock(Tenant.class);
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.ACCOUNTING, "42"))
+                .thenReturn(Optional.of(mock(TenantExternalRef.class)));
+
+        assertThatThrownBy(() -> service.addTenantExternalRef(tenantId, "ACCOUNTING", "42"))
+                .isInstanceOf(AdminExceptions.TenantExternalRefExistsException.class);
+        assertThatThrownBy(() -> service.addTenantExternalRef(UUID.randomUUID(), "ACCOUNTING", "43"))
+                .isInstanceOf(AdminExceptions.TenantNotFoundException.class);
+        assertThatThrownBy(() -> service.addTenantExternalRef(tenantId, "ACCOUNTING", " "))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(tenantExternalRefRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteTenantExternalRefByTenantRemovesOnlyTheCallersLinkAndAuditsOnTargetTenant() {
+        TenantExternalRef ref = mock(TenantExternalRef.class);
+        when(ref.getTenantId()).thenReturn(tenantId);
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.ACCOUNTING, "42"))
+                .thenReturn(Optional.of(ref));
+        Tenant tenant = mock(Tenant.class);
+        when(tenant.getSchemaName()).thenReturn("tenant_abc");
+        when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(tenant));
+
+        service.deleteTenantExternalRef(tenantId, "accounting", " 42 ");
+
+        verify(tenantExternalRefRepository).delete(ref);
+        verify(auditService).record(org.mockito.ArgumentMatchers.eq("ADMIN.TENANT_EXTERNAL_REF_DELETE"), any(), any(),
+                org.mockito.ArgumentMatchers.eq("tenant_abc"), any());
+    }
+
+    @Test
+    void deleteTenantExternalRefByTenantRejectsAnotherTenantsLinkAsNotFound() {
+        TenantExternalRef ref = mock(TenantExternalRef.class);
+        when(ref.getTenantId()).thenReturn(UUID.randomUUID()); // owned by someone else
+        when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.ACCOUNTING, "42"))
+                .thenReturn(Optional.of(ref));
+
+        assertThatThrownBy(() -> service.deleteTenantExternalRef(tenantId, "ACCOUNTING", "42"))
+                .isInstanceOf(AdminExceptions.TenantExternalRefNotFoundException.class);
+        assertThatThrownBy(() -> service.deleteTenantExternalRef(tenantId, "ACCOUNTING", "missing"))
+                .isInstanceOf(AdminExceptions.TenantExternalRefNotFoundException.class);
+        verify(tenantExternalRefRepository, never()).delete(any(TenantExternalRef.class));
+    }
+
+    @Test
     void createTenantExternalRefRejectsDuplicate() {
         when(tenantRepository.findById(tenantId)).thenReturn(Optional.of(mock(Tenant.class)));
         when(tenantExternalRefRepository.findBySourceSystemAndExternalOrgRef(SourceSystem.SCREENING, "COMP_1"))
