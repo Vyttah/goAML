@@ -94,7 +94,7 @@ itself is still managed in goAML's admin (§3.1). Backed by `controller/connecti
 ### 4.1 One-time: register the sibling app's trust
 goAML SPA → log in as SUPER_ADMIN → **Administration → Suite Connections → Trusted services → Register**:
 - Source system `SCREENING` (the AML app) · paste its **public** PEM · JIT on · default role `ANALYST`.
-- (Accounting later = a second `ACCOUNTING` row, same screen.)
+- The accounting app (ERP) = a second `ACCOUNTING` row on the same screen, with the ERP's public PEM.
 
 ### 4.2 Per client: map the company to a tenant
 **Suite Connections → Company links → Add link**: source `SCREENING`, **company id** = the id the sibling app
@@ -110,7 +110,29 @@ authority). **Reset password** gives any user (incl. a federated one) a direct g
 `roles` claim — step 2 of §2 fix). 3. Open Create Transaction → the goAML lookups (Item type / Status)
 populate over the token; the `token` call is 200; submit files the DPMSR. No second login.
 
-### 4.5 Troubleshooting
+### 4.5 Per client: the ERP (accounting) workspace connection
+The ERP is a **second** external ref on the *same* tenant, so a client that uses both the AML cockpit and the
+accounting app resolves to one goAML tenant from either side (goAML ↔ ERP wiring, Phase 1).
+
+What happens, and who does it:
+1. **Once per environment** — register the `ACCOUNTING` trusted service with the ERP's public PEM (§4.1).
+2. **The client connects the two apps themselves**: AML cockpit → Profile → *ERP connection* → **Connect** sends
+   them to the ERP's `/aml-connect` page, where an ERP user in the `admin` group signs in, picks the workspace and
+   confirms. The AML side verifies the single-use token and records the link.
+3. **AML then adds the ref for you** — `POST /api/v1/integration/admin/tenants/external-refs`
+   `{sourceSystem: "ACCOUNTING", externalOrgRef: "<erp company id>"}` on the tenant the caller's own
+   `SCREENING/<amlCompanyId>` ref resolves to (docs/14 §Admin integration endpoints). Nothing to do in the goAML
+   SPA: **Suite Connections → Company links** will show both rows, pointing at the same tenant.
+
+Check it: `select source_system, external_org_ref, tenant_id from tenant_external_ref where tenant_id = '<id>'`
+→ exactly two rows, `SCREENING/<amlCompanyId>` and `ACCOUNTING/<erpCompanyId>`.
+
+**If only `SCREENING` is there** the workspace was connected *before* this client had a goAML tenant — the connect
+flow skips the ref when there is no tenant to attach it to. It is added the next time the tenant is provisioned
+from the AML admin panel (**Create goAML workspace**); until then the client is connected and screening works, but
+an accounting-side filing keyed on the ERP company id would not resolve a tenant.
+
+### 4.6 Troubleshooting
 | Symptom | Cause | Fix |
 |---|---|---|
 | `token` 403 *"compliance role required"* | cockpit token predates the user-service roles fix | log out/in for a fresh token; ensure the user's role ∈ `goaml.integration.filing-roles` |

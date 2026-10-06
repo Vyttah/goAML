@@ -21,7 +21,10 @@
 > add/remove a second external ref on an existing tenant server-to-server —
 > `POST/DELETE /api/v1/integration/admin/tenants/external-refs` (SCREENING-authed; tenant = caller's `org`). Used to
 > map `ACCOUNTING/<erpCompanyId>` onto the same tenant as `SCREENING/<amlCompanyId>` when an ERP workspace is linked.
-> Plan + status board: `C:/vyttah-aml/vyttah-aml-mono/plans/goaml-erp-wiring/README.md`. Docs: `docs/14` §Platform admin endpoints.
+> Plan + status board: `C:/vyttah-aml/vyttah-aml-mono/plans/goaml-erp-wiring/README.md`. Docs: `docs/14` §Platform
+> admin endpoints, and `docs/17` §4.5 for the operator view (who connects the two apps, and what to do when a tenant
+> has only its `SCREENING` ref). The rest of Phase 1 — the workspace connection, the ERP account ↔ AML customer link
+> and the one-way KYC push — is built outside goAML; nothing further is needed here.
 
 ## Project Reference
 
