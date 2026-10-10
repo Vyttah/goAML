@@ -1,5 +1,7 @@
 package com.vyttah.goaml.controller.integration;
 
+import com.vyttah.goaml.model.dto.integration.AccountingReportRequest;
+import com.vyttah.goaml.model.dto.integration.AccountingReportResponse;
 import com.vyttah.goaml.model.dto.integration.AccountingTxnPayload;
 import com.vyttah.goaml.model.dto.integration.AccountingTxnResponse;
 import com.vyttah.goaml.security.IntegrationAuthFilter;
@@ -35,6 +37,8 @@ import java.util.List;
  *   <li>{@code POST /transactions} — push an invoice → 202 with the reportability verdict (+ draft if reportable)</li>
  *   <li>{@code GET  /transactions/{documentNumber}?companyId=} — status of one document</li>
  *   <li>{@code GET  /transactions?companyId=&status=} — all goAML reports from this company</li>
+ *   <li>{@code POST /reports} — Phase 2 (F0): file a report the ERP's filing wizard already assembled</li>
+ *   <li>{@code GET  /reports/{entityReference}?companyId=} — status + validation messages of a filed report</li>
  * </ul>
  */
 @RequiredArgsConstructor
@@ -69,6 +73,32 @@ public class AccountingIntegrationController {
             @RequestParam(required = false) String status) {
         requireOrgMatches(verified, companyId);
         return ingestionService.list(companyId, status);
+    }
+
+    /**
+     * Phase 2 (F0) — file a full-fidelity DPMSR report the ERP's goAML filing wizard assembled. 201 on a
+     * created report, 200 when the call matched an existing one (idempotent on the payload's
+     * {@code entityReference}). Status {@code INVALID} is a successful filing with findings, not an HTTP
+     * error — the ERP stores it and shows the messages.
+     */
+    @PostMapping("/reports")
+    public ResponseEntity<AccountingReportResponse> fileReport(
+            @RequestAttribute(IntegrationAuthFilter.VERIFIED_ASSERTION_ATTR) VerifiedServiceAssertion verified,
+            @Valid @RequestBody AccountingReportRequest request) {
+        requireOrgMatches(verified, request.companyId());
+        AccountingReportResponse response = ingestionService.fileReport(
+                request.companyId(), request.payload(), verified.externalUserId());
+        return ResponseEntity.status(response.duplicate() ? HttpStatus.OK : HttpStatus.CREATED).body(response);
+    }
+
+    /** Phase 2 (F0) — status + persisted validation messages of a filed report (used by the refresh job). */
+    @GetMapping("/reports/{entityReference}")
+    public AccountingReportResponse reportStatus(
+            @RequestAttribute(IntegrationAuthFilter.VERIFIED_ASSERTION_ATTR) VerifiedServiceAssertion verified,
+            @RequestParam int companyId,
+            @PathVariable String entityReference) {
+        requireOrgMatches(verified, companyId);
+        return ingestionService.reportStatus(companyId, entityReference);
     }
 
     /**

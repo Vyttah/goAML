@@ -13,8 +13,10 @@ import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.service.audit.AuditService;
 import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
@@ -55,10 +57,12 @@ class DefaultAccountingIngestionServiceTest {
     private final ReportService reportService = mock(ReportService.class);
     private final SubmissionService submissionService = mock(SubmissionService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
+    private final AuditService auditService = mock(AuditService.class);
 
     private final DefaultAccountingIngestionService service = new DefaultAccountingIngestionService(
-            tenantExternalRefs, tenants, appUsers, reportRepository, configRepository, detector,
-            reportService, submissionService, notificationService);
+            tenantExternalRefs, tenants, appUsers, reportRepository, configRepository, personRepository,
+            detector, reportService, submissionService, notificationService, auditService);
 
     private static final int COMPANY_ID = 777;
     private static final String SCHEMA = "tenant_acct";

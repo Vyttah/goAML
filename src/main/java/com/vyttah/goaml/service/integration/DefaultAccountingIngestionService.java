@@ -1,11 +1,14 @@
 package com.vyttah.goaml.service.integration;
 
 import com.vyttah.goaml.config.tenant.TenantContext;
+import com.vyttah.goaml.domain.generated.TPersonRegistrationInReport;
 import com.vyttah.goaml.ingestion.reportability.ReportabilityDetector;
 import com.vyttah.goaml.ingestion.reportability.ReportabilityVerdict;
+import com.vyttah.goaml.model.dto.integration.AccountingReportResponse;
 import com.vyttah.goaml.model.dto.integration.AccountingTxnPayload;
 import com.vyttah.goaml.model.dto.integration.AccountingTxnResponse;
 import com.vyttah.goaml.model.dto.report.DpmsrCreateRequest;
+import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.entity.appuser.AppUser;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
 import com.vyttah.goaml.model.entity.report.Report;
@@ -14,9 +17,12 @@ import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
+import com.vyttah.goaml.service.audit.AuditService;
 import com.vyttah.goaml.service.notification.NotificationService;
+import com.vyttah.goaml.service.report.ReportDetail;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
 import com.vyttah.goaml.service.submission.SubmissionResult;
@@ -54,10 +60,12 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
     private final AppUserRepository appUsers;
     private final ReportRepository reportRepository;
     private final TenantGoamlConfigRepository configRepository;
+    private final TenantGoamlPersonRepository personRepository;
     private final ReportabilityDetector detector;
     private final ReportService reportService;
     private final SubmissionService submissionService;
     private final NotificationService notificationService;
+    private final AuditService auditService;
 
     @Override
     public AccountingTxnResponse ingest(AccountingTxnPayload payload) {
@@ -98,6 +106,100 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
     }
 
     /**
+     * F0 — file an ERP-assembled full-fidelity report. No reportability judgement: the ERP operator ran the
+     * filing wizard, so the decision to file is already made. Everything else matches {@link #ingest}: tenant
+     * from the {@code ACCOUNTING} external ref, idempotency on the caller's {@code entityReference}, the MLRO
+     * default, and the same auto-submit / MLRO-notify gate.
+     */
+    @Override
+    public AccountingReportResponse fileReport(int companyId, DpmsrReportPayload payload, String actorSubject) {
+        ResolvedTenant tenant = resolveTenant(companyId);
+        String ref = payload.entityReference();
+
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            // Idempotent: a retried filing for the same document returns the existing report untouched
+            // (reportService.create would answer 409 on the duplicate entity_reference).
+            Optional<Report> existing = reportRepository.findByEntityReference(ref);
+            if (existing.isPresent()) {
+                Report r = existing.get();
+                return new AccountingReportResponse(ref, r.getId(), r.getStatus(), true,
+                        persistedMessages(r.getId()));
+            }
+
+            DpmsrReportPayload filled = withFallbackReportingPerson(payload, tenant.tenantId());
+            ReportResult result = reportService.create(filled, tenant.tenantId(), null);
+            String status = finalizeStatus(tenant.tenantId(), ref, result);
+            audit(tenant.schema(), actorSubject, ref, result.reportId(), status);
+            return new AccountingReportResponse(ref, result.reportId(), status, false,
+                    result.validationMessages());
+        } finally {
+            restore(previous);
+        }
+    }
+
+    @Override
+    public AccountingReportResponse reportStatus(int companyId, String entityReference) {
+        ResolvedTenant tenant = resolveTenant(companyId);
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            Report r = reportRepository.findByEntityReference(entityReference)
+                    .orElseThrow(() -> new com.vyttah.goaml.service.report.ReportExceptions
+                            .ReportNotFoundException("No goAML report for reference " + entityReference));
+            return new AccountingReportResponse(entityReference, r.getId(), r.getStatus(), false,
+                    persistedMessages(r.getId()));
+        } finally {
+            restore(previous);
+        }
+    }
+
+    /** The validation messages persisted with a report, for the idempotent / status answers. */
+    private List<com.vyttah.goaml.engine.validation.ValidationMessage> persistedMessages(UUID reportId) {
+        try {
+            ReportDetail detail = reportService.detail(reportId);
+            return detail.validationMessages() == null ? List.of() : detail.validationMessages();
+        } catch (RuntimeException e) {
+            log.warn("Could not read persisted validation messages of report {}: {}", reportId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * {@link ReportService#create(DpmsrReportPayload, UUID, UUID)} already defaults the reporting person from
+     * the tenant's active {@code tenant_goaml_person} (the richer record: gender, nationality, id number,
+     * occupation), so we leave that path alone. This only covers the case it cannot: a tenant with <em>no</em>
+     * configured goAML person but an active MLRO app user — fill the name so the report is not INVALID on
+     * "reporting_person is mandatory" alone. Mirrors {@link #reportingPerson(UUID)}, which the
+     * {@code /transactions} push uses for the same reason.
+     */
+    private DpmsrReportPayload withFallbackReportingPerson(DpmsrReportPayload payload, UUID tenantId) {
+        if (payload.reportingPerson() != null
+                || personRepository.findByTenantIdAndActiveTrue(tenantId).isPresent()) {
+            return payload;
+        }
+        String[] mlro = reportingPerson(tenantId);
+        TPersonRegistrationInReport rp = new TPersonRegistrationInReport();
+        rp.setFirstName(mlro[0]);
+        rp.setLastName(mlro[1]);
+        return new DpmsrReportPayload(payload.rentityBranch(), payload.entityReference(),
+                payload.submissionDate(), payload.fiuRefNumber(), rp, payload.location(), payload.reason(),
+                payload.action(), payload.indicators(), payload.parties(), payload.goods(),
+                payload.clientMetadata());
+    }
+
+    /** Best-effort audit of an ERP filing — the acting ERP user id lands in {@code actor_email}. */
+    private void audit(String schema, String actorSubject, String ref, UUID reportId, String status) {
+        try {
+            auditService.record("REPORT.FILED_BY_ERP", null, actorSubject, schema,
+                    "entityReference=" + ref + " reportId=" + reportId + " status=" + status);
+        } catch (RuntimeException e) {
+            log.warn("Could not audit ERP filing of {}: {}", ref, e.getMessage());
+        }
+    }
+
+    /**
      * Decide what happens to a freshly-created reportable draft (submit gating, Phase 1.5b.5):
      * <ul>
      *   <li>not {@code VALID} (validation failed) — leave it for a human to fix; no auto-submit, no ping.</li>
@@ -111,9 +213,19 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
      */
     private AccountingTxnResponse finalizeDraft(UUID tenantId, String ref, ReportResult result,
                                                List<String> reasons) {
+        return new AccountingTxnResponse(ref, true, result.reportId(),
+                finalizeStatus(tenantId, ref, result), reasons);
+    }
+
+    /**
+     * The submit gate itself, shared by the {@code /transactions} push ({@link #finalizeDraft}) and the F0
+     * filing path ({@link #fileReport}) so both behave identically. Returns the status the caller should
+     * report: the submission status when auto-submit ran, otherwise the create status.
+     */
+    private String finalizeStatus(UUID tenantId, String ref, ReportResult result) {
         UUID reportId = result.reportId();
         if (!"VALID".equals(result.status())) {
-            return new AccountingTxnResponse(ref, true, reportId, result.status(), reasons);
+            return result.status();
         }
 
         boolean autoSubmit = configRepository.findByTenantId(tenantId)
@@ -122,7 +234,7 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
         if (autoSubmit) {
             try {
                 SubmissionResult sub = submissionService.submit(reportId, tenantId, null);
-                return new AccountingTxnResponse(ref, true, reportId, sub.status(), reasons);
+                return sub.status();
             } catch (RuntimeException e) {
                 log.warn("Auto-submit of {} (tenant {}) failed: {} — leaving a VALID draft for the MLRO",
                         ref, tenantId, e.getMessage());
@@ -130,7 +242,7 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
         }
 
         notifyMlros(reportId, tenantId);
-        return new AccountingTxnResponse(ref, true, reportId, result.status(), reasons);
+        return result.status();
     }
 
     /** Best-effort MLRO ping that a validated draft awaits one-click submit — never fails the push. */
