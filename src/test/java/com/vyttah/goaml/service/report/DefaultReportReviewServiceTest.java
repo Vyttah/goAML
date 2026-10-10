@@ -4,6 +4,7 @@ import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.service.audit.AuditService;
+import com.vyttah.goaml.service.integration.ReportStatusOutboxService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -26,9 +27,11 @@ class DefaultReportReviewServiceTest {
     private final ReportRepository reportRepository = mock(ReportRepository.class);
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
     private final AuditService auditService = mock(AuditService.class);
+    /** S2: the report-status outbox hook. Mocked here; its own behaviour is ReportStatusOutboxServiceTest's. */
+    private final ReportStatusOutboxService statusOutboxService = mock(ReportStatusOutboxService.class);
 
-    private final DefaultReportReviewService service =
-            new DefaultReportReviewService(reportRepository, configRepository, auditService);
+    private final DefaultReportReviewService service = new DefaultReportReviewService(
+            reportRepository, configRepository, auditService, statusOutboxService);
 
     private final UUID tenantId = UUID.randomUUID();
 

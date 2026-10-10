@@ -6,6 +6,7 @@ import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.service.audit.AuditService;
+import com.vyttah.goaml.service.integration.ReportStatusOutboxService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,10 +28,17 @@ public class DefaultReportReviewService implements ReportReviewService {
     static final String VALID = "VALID";
     static final String PENDING_REVIEW = "PENDING_REVIEW";
     static final String APPROVED = "APPROVED";
+    /**
+     * S2: the transition an ERP that filed this report needs to hear about. Note it is NOT a report status —
+     * {@link #reject} puts the report back to {@link #VALID} so it can be reworked; what happened to the
+     * filing is still a rejection.
+     */
+    static final String REJECTED_EVENT = "REJECTED";
 
     private final ReportRepository reportRepository;
     private final TenantGoamlConfigRepository configRepository;
     private final AuditService auditService;
+    private final ReportStatusOutboxService statusOutboxService;
 
     @Override
     @Transactional
@@ -51,6 +59,7 @@ public class DefaultReportReviewService implements ReportReviewService {
         reportRepository.save(report);
 
         audit("REPORT.REVIEW_SUBMIT", actorUserId, report, "submitted for review");
+        statusOutboxService.record(report, tenantId, PENDING_REVIEW, remark, actorUserId);
         return result(report);
     }
 
@@ -65,6 +74,7 @@ public class DefaultReportReviewService implements ReportReviewService {
         reportRepository.save(report);
 
         audit("REPORT.REVIEW_APPROVE", actorUserId, report, "approved");
+        statusOutboxService.record(report, tenantId, APPROVED, remark, actorUserId);
         return result(report);
     }
 
@@ -82,6 +92,8 @@ public class DefaultReportReviewService implements ReportReviewService {
         reportRepository.save(report);
 
         audit("REPORT.REVIEW_REJECT", actorUserId, report, "rejected: " + remark);
+        // REJECTED_EVENT, not report.getStatus(): the report is back to VALID for rework.
+        statusOutboxService.record(report, tenantId, REJECTED_EVENT, remark, actorUserId);
         return result(report);
     }
 

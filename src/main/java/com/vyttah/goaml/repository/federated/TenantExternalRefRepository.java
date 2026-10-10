@@ -15,4 +15,11 @@ public interface TenantExternalRefRepository extends JpaRepository<TenantExterna
 
     Optional<TenantExternalRef> findBySourceSystemAndExternalOrgRef(SourceSystem sourceSystem,
                                                                     String externalOrgRef);
+
+    /**
+     * The reverse direction, added for S2: given a tenant, which org ref does a source system know it by?
+     * Used to decide whether a tenant's reports are filed by the ERP at all (an {@code ACCOUNTING} ref exists)
+     * and to put both company ids on a published report-status event.
+     */
+    Optional<TenantExternalRef> findByTenantIdAndSourceSystem(UUID tenantId, SourceSystem sourceSystem);
 }

@@ -4,7 +4,7 @@ spring:
   application:
     name: goaml
   datasource:
-    url:      ${GOAML_DATASOURCE_URL:jdbc:postgresql://localhost:5432/goaml}
+    url:      ${GOAML_DATASOURCE_URL:jdbc:postgresql://localhost:5432/VyttahgoAML}
     username: ${GOAML_DATASOURCE_USERNAME:postgres}
     password: ${GOAML_DATASOURCE_PASSWORD:password}
   jpa:
@@ -62,7 +62,7 @@ spring:
           completion: false
 
 server:
-  port: 8080
+  port: ${SERVER_PORT:8091}
   forward-headers-strategy: framework
 
 management:
@@ -91,7 +91,7 @@ goaml:
     #   native    — only POST /api/v1/auth/login (the standalone default; pre-1.5 behaviour).
     #   federated — only POST /api/v1/auth/federated/token (suite token-exchange); native login is off.
     #   both      — suite deployments that allow direct logins AND token-exchange.
-    mode: ${GOAML_AUTH_MODE:native}
+    mode: ${GOAML_AUTH_MODE:both}
     # B14 — in-memory fixed-window throttle on POST /api/v1/auth/login + /auth/federated/token, keyed by
     # (client IP + email/source). Over the limit in a window → 429. Per-instance (no shared infra); with N
     # replicas the effective limit is limit×N, which is acceptable for this control.
@@ -136,6 +136,27 @@ goaml:
     retry:
       max-attempts: ${GOAML_SCHEDULER_RETRY_MAX_ATTEMPTS:3}   # attempts per FIU call (transient only)
       backoff: ${GOAML_SCHEDULER_RETRY_BACKOFF:2s}            # fixed delay between attempts (bound only)
+  integration:
+    outbound:
+      # S2 (goAML <-> ERP wiring, D22) — goAML's FIRST outbound suite integration: it signs its own RS256
+      # service assertion (iss=GOAML) and pushes report-status events to the AML platform, which forwards
+      # them to the ERP's accounting service. OFF by default: a standalone goAML deployment has no AML
+      # platform to talk to, and while this is off nothing is recorded and nothing is published (no backlog
+      # accumulates to be flooded out the first time someone flips it on).
+      enabled: ${GOAML_OUTBOUND_ENABLED:true}
+      # PKCS#8 RSA private key. A CREDENTIAL — env/secrets only, never VCS. Its public half is registered on
+      # the AML side as a GOAML row in trusted_service (owner-generated, as T1).
+      private-key-pem: ${GOAML_INTEGRATION_PRIVATE_KEY_PEM:}
+      # The iss the AML side resolves the verification key by. Changing it means changing that row.
+      issuer: ${GOAML_INTEGRATION_ISSUER:GOAML}
+      # Root URL of the AML customer-service (dev: http://localhost:8081).
+      aml-base-url: ${GOAML_AML_BASE_URL:}
+      aml-audience: ${GOAML_AML_AUDIENCE:aml}
+      # @Scheduled(fixedDelayString) — millis here, unlike the ISO-8601 scheduler intervals above.
+      interval-ms: ${GOAML_OUTBOUND_INTERVAL_MS:15000}
+      # The receiver caps an assertion's lifetime at 300s; stay well under it.
+      assertion-lifetime-seconds: ${GOAML_OUTBOUND_ASSERTION_LIFETIME_SECONDS:120}
+      batch-size: ${GOAML_OUTBOUND_BATCH_SIZE:50}
   notifications:
     # Phase 10: report-transition notifications (in-app + SES email). In-app is always written;
     # email is gated OFF by default and stays off until a verified SES sender identity exists.
@@ -156,12 +177,12 @@ goaml:
     # Phase 13: CORS allow-list for /api/** (comma-separated origins). Blank in prod (SPA is served
     # same-origin from the jar → no CORS). Set to the SPA dev-server origin only when it calls a remote
     # backend, e.g. http://localhost:5173.
-    allowed-origins: ${GOAML_ALLOWED_ORIGINS:}
+    allowed-origins: ${GOAML_ALLOWED_ORIGINS:http://localhost:3002,http://localhost:5173,http://localhost:3001,http://localhost:8081,http://localhost:8082,http://localhost:8090}
   dev:
     # LOCAL ONLY — on startup, seed a demo tenant + ready login users so the SPA is reviewable without
     # the provisioning chicken-and-egg. NEVER enable in a deployed environment. See config/dev/DevDataSeeder.
     seed:
-      enabled: ${GOAML_DEV_SEED:false}
+      enabled: ${GOAML_DEV_SEED:true}
 
 logging:
   pattern:
