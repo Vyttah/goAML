@@ -12,7 +12,7 @@
 > `POST /api/v1/reports/dpmsr` entry and a per-`trusted_service` `default_role`. Full design + run guide:
 > [.planning/plans/goaml-as-aml-microservice.md](../.planning/plans/goaml-as-aml-microservice.md).
 
-## Two integration models
+## The integration models
 
 ```
  Accounting UI ─┐                         ┌─ POST /api/v1/auth/federated/token  → goAML JWT
@@ -21,7 +21,11 @@
                 │                         ├─ GET  /api/v1/reports … /xml /status /attachments
                 │                         └─ POST /api/v1/reportability/check   (authoritative verdict)
  Accounting ────┴─ service assertion ────► POST /api/v1/integration/accounting/transactions          [Model 2]
+                                           POST /api/v1/integration/accounting/reports               [Model 2b]
  (server)                                  (raw invoice → detect → build draft → status pull)
+
+ goAML ───────── service assertion ────► POST {aml}/api/v1/integration/goaml/report-status     [Model 2c]
+ (server, outbound)                        (review / submission transition → AML → ERP accounting)
 ```
 
 - **Model 1 — embedded consumer.** The sibling app authenticates its *user* via the federated
@@ -29,6 +33,9 @@
   native user would. The app builds the DPMSR itself; goAML validates, stores, submits, tracks.
 - **Model 2 — raw push (accounting only).** The accounting *server* posts a self-contained invoice;
   goAML judges reportability, and if reportable builds a validated DPMSR draft itself.
+- **Model 2c — status events out (S2).** The only path where goAML is the **caller**: it signs its own
+  assertion (`iss=GOAML`) and pushes every review / submission transition to the AML platform, which forwards
+  it to the ERP. So an ERP operator sees the FIU's answer to a filing without the ERP polling goAML.
 
 Both can be used together: the same report is visible to all users of the tenant regardless of how
 it was created. **MLRO submit-gating is preserved in every path** — embedding a UI cannot bypass the
@@ -183,6 +190,150 @@ After a VALID draft is created:
 goAML offers **at-least-once-safe** ingestion via idempotency on the external reference. No-loss is the
 **accounting side's** responsibility: an outbox + retry until a `202` is observed. Retries are safe
 because a duplicate push returns the existing report.
+
+---
+
+## Model 2b — accounting *filing* push (the ERP goAML filing wizard)
+
+The ERP (`vyttah-accounting`) also has a **operator-driven** path: a user walks the goAML filing wizard on a
+Cash Receipt / Payment, the browser assembles the whole report, and accounting posts it. goAML makes **no
+reportability judgement** here — the operator already decided to file. Same `/api/v1/integration/accounting`
+root, same ACCOUNTING assertion, same B11 org cross-check.
+
+| Method & path                                  | Purpose                                           |
+|------------------------------------------------|---------------------------------------------------|
+| `POST /reports`                                | file an assembled DPMSR → `201` (or `200` on a retry) |
+| `GET  /reports/{entityReference}?companyId=`   | status + persisted validation messages            |
+| `GET  /lookups/{jurisdiction}/{set}`           | FIU reference sets for the wizard's dropdowns      |
+
+Request body (`AccountingReportRequest`) wraps the **full-fidelity** `DpmsrReportPayload` — byte-for-byte the
+contract `POST /api/v1/reports` takes from the AML cockpit — with the accounting `companyId` the org claim is
+checked against:
+
+```json
+{ "companyId": 881,
+  "payload": { "entityReference": "ACC-881-REC-0001", "reportDate": "2026-10-07T00:00:00Z",
+               "reason": "…", "action": "…", "indicators": ["DPMSJ"], "location": { … },
+               "parties": [ { "entityMyClient": { … } } ], "goods": [ { … } ] } }
+```
+
+Response (`AccountingReportResponse`):
+
+```json
+{ "entityReference": "ACC-881-REC-0001", "reportId": "…", "status": "VALID",
+  "duplicate": false, "validationMessages": [] }
+```
+
+- **The ERP owns `entityReference`** — `ACC-<companyId>-<cashDocNo>`, injected by accounting, and it is the
+  idempotency key: a retry answers `200` with `duplicate:true` and the existing report, never a `409`.
+- **`INVALID` is a success**, not an HTTP error: the report exists with its findings in `validationMessages`
+  so the ERP can store the status and show the reasons.
+- **Reporting person** is omitted by the wizard and filled server-side from the tenant's active
+  `tenant_goaml_person`; when a tenant has none, an ACTIVE MLRO app user's name is used so the filing is not
+  INVALID on `reporting_person` alone.
+- **Same submit gate** as `POST /transactions` (`tenant_goaml_config.auto_submit` → submit now, else keep the
+  draft and notify the MLROs).
+- **Audited** as `REPORT.FILED_BY_ERP` with the assertion's `sub` (the ERP user id) in `actor_email`.
+- `submission_date` is also accepted spelled **`reportDate`** (a `@JsonAlias`): the goAML schema allows either
+  element, and the shared browser assembler (`dpmsrPayload.ts`) emits that spelling.
+
+| Failure                            | Status |
+|------------------------------------|--------|
+| missing/invalid service assertion  | `401`  |
+| org claim missing or ≠ `companyId` | `401`  |
+| `companyId` not mapped to a tenant | `404`  |
+| unknown `entityReference` on GET   | `404`  |
+
+### The lookup sets (F3)
+
+`GET /api/v1/integration/accounting/lookups/{jurisdiction}/{set}` is the **same handler** as the SCREENING-side
+`GET /api/v1/integration/lookups/{jurisdiction}/{set}` — `IntegrationLookupController` maps both paths. The
+prefix is what selects the key: `IntegrationAuthFilter` verifies anything under `…/integration/accounting*`
+against the **ACCOUNTING** trusted service and everything else under the integration root against
+**SCREENING**. So the ERP's goAML filing wizard (through vyttah-accounting, ACCOUNTING-signed) and the AML
+cockpit (through customer-service, SCREENING-signed) each read the same reference data while presenting its own
+issuer — no shared key, no second verifier, no duplicated handler. Each prefix **rejects the other issuer's
+assertion** (`IntegrationLookupDualPathE2ETest`).
+
+No org cross-check on these routes, unlike the report routes above: the sets are FIU reference data, identical
+for every tenant, so there is no tenant to protect and the caller names no company.
+
+The sets vyttah-accounting offers the wizard: `countries`, `currencies`, `item_types`, `item_status`,
+`report_indicators`, `legal_forms`, `party_roles`, `funds`. Accounting keeps its own allowlist (the browser
+reaches its proxy with an ordinary user JWT) and caches each set for 10 minutes, which also keeps the wizard's
+dropdowns from minting a single-use assertion each.
+
+---
+
+## Model 2c — report-status events back out (goAML → AML → ERP)
+
+Everything above is inbound: a sibling system presents an assertion and goAML answers. This is the one path
+where **goAML is the caller** (S2, decisions D22/D23). It exists because the ERP operator who filed a cash
+receipt needs to see what the FIU said about it, and the alternative — the ERP polling goAML — would mean
+giving the ERP a goAML identity per user and a reason to keep asking.
+
+```
+review / submission transition
+  └─ public.report_status_outbox row            (same work as the status change)
+       └─ ReportStatusPublisher  @Scheduled
+            └─ POST {aml-base-url}/api/v1/integration/goaml/report-status
+                 X-Service-Assertion: iss=GOAML  aud=aml  org=<tenant's SCREENING ref>  sub=<actor|system>
+                 └─ AML verifies + de-duplicates on eventId
+                      └─ PUT  {erp}/accounting-service/integration/goaml-filings/{entityReference}/status
+```
+
+**What is published.** One event per transition, for tenants that have an `ACCOUNTING` external ref and only
+while `goaml.integration.outbound.enabled` is true:
+
+| Transition | Where it comes from | `status` on the event |
+|---|---|---|
+| submitted for review | `ReportReviewService.submitForReview` | `PENDING_REVIEW` |
+| approved | `ReportReviewService.approve` | `APPROVED` |
+| rejected by the reviewer | `ReportReviewService.reject` | `REJECTED` |
+| sent to the FIU | `SubmissionService.submit` | `SUBMITTED` |
+| the FIU refused it at submit time | `SubmissionService.submit` (`B2bValidationException`) | `REJECTED` |
+| transport / auth failure | `SubmissionService.submit` | `FAILED` |
+| the FIU's verdict on a later poll | `SubmissionService.refreshStatus` | `ACCEPTED` / `REJECTED` |
+
+**`status` is the transition, not the report's status afterwards.** A reviewer's rejection puts the report back
+to `VALID` so it can be reworked, and a submission the FIU refuses is restored to `VALID`/`APPROVED` by
+`submit`'s own error handling. In both cases the event says `REJECTED`, because the ERP is being told what
+happened to *its filing* — not what goAML's work queue looks like now. A poll that finds no change publishes
+nothing.
+
+**The body.**
+
+```json
+{ "eventId": "<outbox row id>", "tenantId": "…", "amlCompanyId": "<SCREENING ref>",
+  "erpCompanyId": "<ACCOUNTING ref>", "reportId": "…", "entityReference": "ACC-3-REC-2026-000002",
+  "status": "APPROVED", "remark": "<reviewer remark | FIU errors>", "actorUserId": "…|null",
+  "occurredAt": "2026-10-08T09:30:00Z" }
+```
+
+`occurredAt` is ISO-8601 and is what both receivers order by — never arrival time, so a retry that overtakes a
+later event cannot move a status backwards. `actorUserId` is null when the FIU answered a background poll.
+
+**Delivery.** At-least-once. A row is marked sent only on a 2xx, so a lost acknowledgement causes a
+redelivery rather than a lost event; AML de-duplicates on `eventId` and accounting ignores an `occurredAt` that
+is not newer than what it holds. Failures walk a bounded backoff — 1 m, 5 m, 30 m, 2 h, then 12 h forever — with
+the reason in `last_error`. There is no dead-letter state: an answer the FIU has already given is worth
+delivering late, and a permanent misconfiguration should stay visible rather than become a dropped row.
+
+**Keys.** goAML signs with `goaml.integration.outbound.private-key-pem` (PKCS#8 RSA, env/secrets only). Its
+public half is registered on the AML side as a `GOAML` row in that platform's `trusted_service` table — the
+mirror of how goAML holds the AML platform's `SCREENING` key.
+
+> **`aud` is a single JSON string here, not an array.** goAML signs with jjwt 0.12, whose
+> `audience().add(…)` serialises `aud` as an array even for one value; the AML platform verifies with jjwt
+> 0.11.5, whose `requireAudience(…)` reads it as a `String`. The array form would therefore fail verification
+> on every event, and a verifier must not echo token contents — so the only symptom anywhere would be a bare
+> 401. `OutboundAssertionSigner` uses the legacy single-string form deliberately and
+> `OutboundAssertionSignerTest` asserts the serialised bytes rather than the parsed claim.
+
+**Topology.** The publisher honours `goaml.scheduler.enabled`, the same master switch the FIU poller uses, so
+the Helm chart's single dedicated pod does the publishing and N web replicas do not send N copies of every
+event. It takes no database lock, so two instances with the switch on would both claim the same rows — bounded
+by the receivers' de-duplication, not by this side.
 
 ---
 
