@@ -1,6 +1,7 @@
 package com.vyttah.goaml.model.dto.report;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,7 +33,15 @@ import java.util.List;
 public record DpmsrCreateRequest(
         String rentityBranch,
         @NotBlank String entityReference,
-        @NotNull @JsonDeserialize(using = LenientOffsetDateTimeDeserializer.class) OffsetDateTime submissionDate,
+        // Accepts the browser's reportDate spelling as well (Q11): Frontend_Customer a2ea69f (2026-08-24)
+        // renamed this key in assembleReport.ts / dpmsrPayload.ts and nothing on this side followed, so BOTH
+        // cockpit paths -- the full-fidelity POST /api/v1/reports and this curated one -- have been answering
+        // 400 on @NotNull ever since. Additive and read-only, exactly as on DpmsrReportPayload: the record
+        // component, the persisted input key and the marshalled submission_date element are unchanged, and the
+        // original spelling keeps working. docs/15 notes the goAML schema itself allows report_date OR
+        // submission_date, so accepting both is not a contract invention.
+        @NotNull @JsonAlias("reportDate")
+        @JsonDeserialize(using = LenientOffsetDateTimeDeserializer.class) OffsetDateTime submissionDate,
         String fiuRefNumber,
         String reason,
         String action,

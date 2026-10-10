@@ -45,6 +45,10 @@ class HybridCockpitWireFidelityTest {
 
     @Test
     void hybridCockpitPayloadBuildsPortalShapedXmlAndPassesTheXsdGate() throws IOException {
+        // The fixture carries reportDate (Q11): Frontend_Customer a2ea69f renamed the key on 2026-08-24 and
+        // this fixture kept the pre-rename submissionDate until now -- so this test was passing against a
+        // shape the cockpit had stopped producing, which is precisely how the 400 went unnoticed. It now
+        // guards the shape that actually ships, and binds through the @JsonAlias.
         DpmsrReportPayload payload = mapper.readValue(
                 readResource("samples/hybrid-cockpit-wire-payload.json"), DpmsrReportPayload.class);
 
