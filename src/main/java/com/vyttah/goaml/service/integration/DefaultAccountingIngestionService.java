@@ -25,6 +25,7 @@ import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportDetail;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
+import com.vyttah.goaml.service.report.pdf.ReportPdfService;
 import com.vyttah.goaml.service.submission.SubmissionResult;
 import com.vyttah.goaml.service.submission.SubmissionService;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,7 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
     private final TenantGoamlPersonRepository personRepository;
     private final ReportabilityDetector detector;
     private final ReportService reportService;
+    private final ReportPdfService reportPdfService;
     private final SubmissionService submissionService;
     private final NotificationService notificationService;
     private final AuditService auditService;
@@ -150,6 +152,53 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
                             .ReportNotFoundException("No goAML report for reference " + entityReference));
             return new AccountingReportResponse(entityReference, r.getId(), r.getStatus(), false,
                     persistedMessages(r.getId()));
+        } finally {
+            restore(previous);
+        }
+    }
+
+    /**
+     * X1 — the persisted XML of a filed report. Same shape as {@link #reportStatus}: tenant from the
+     * {@code ACCOUNTING} ref, schema bound for the lookup, 404 on an unknown reference; and, as
+     * {@code ReportController.xml}, 404 when the report has no generated XML (never the case for a report
+     * created through {@link #fileReport}, which marshals at create — kept for parity).
+     */
+    @Override
+    public ReportArtefact reportXml(int companyId, String entityReference) {
+        ResolvedTenant tenant = resolveTenant(companyId);
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            Report r = reportRepository.findByEntityReference(entityReference)
+                    .orElseThrow(() -> new com.vyttah.goaml.service.report.ReportExceptions
+                            .ReportNotFoundException("No goAML report for reference " + entityReference));
+            String xml = r.getReportXml();
+            if (xml == null || xml.isBlank()) {
+                throw new com.vyttah.goaml.service.report.ReportExceptions
+                        .ReportNotFoundException("Report has no generated XML: " + r.getId());
+            }
+            return new ReportArtefact(r.getEntityReference() + ".xml", xml);
+        } finally {
+            restore(previous);
+        }
+    }
+
+    /**
+     * X1 — the PDF of a filed report, rendered now from its persisted XML by {@link ReportPdfService#filed}
+     * (the same renderer the goAML SPA's {@code GET /api/v1/reports/{id}/report.pdf} uses), so its status
+     * line always reflects the current goAML status. The tenant id goes to the renderer for the header; the
+     * schema is bound here because {@code reportService.get/detail} read the tenant's {@code report} table.
+     */
+    @Override
+    public ReportPdfService.PdfDocument reportPdf(int companyId, String entityReference, String userLabel) {
+        ResolvedTenant tenant = resolveTenant(companyId);
+        String previous = TenantContext.get();
+        TenantContext.set(tenant.schema());
+        try {
+            Report r = reportRepository.findByEntityReference(entityReference)
+                    .orElseThrow(() -> new com.vyttah.goaml.service.report.ReportExceptions
+                            .ReportNotFoundException("No goAML report for reference " + entityReference));
+            return reportPdfService.filed(r.getId(), tenant.tenantId(), userLabel);
         } finally {
             restore(previous);
         }

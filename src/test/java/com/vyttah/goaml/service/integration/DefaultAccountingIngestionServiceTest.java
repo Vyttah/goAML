@@ -20,6 +20,7 @@ import com.vyttah.goaml.service.audit.AuditService;
 import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
+import com.vyttah.goaml.service.report.pdf.ReportPdfService;
 import com.vyttah.goaml.service.submission.SubmissionExceptions;
 import com.vyttah.goaml.service.submission.SubmissionResult;
 import com.vyttah.goaml.service.submission.SubmissionService;
@@ -55,6 +56,7 @@ class DefaultAccountingIngestionServiceTest {
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
     private final ReportabilityDetector detector = mock(ReportabilityDetector.class);
     private final ReportService reportService = mock(ReportService.class);
+    private final ReportPdfService reportPdfService = mock(ReportPdfService.class);
     private final SubmissionService submissionService = mock(SubmissionService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
     private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
@@ -62,7 +64,7 @@ class DefaultAccountingIngestionServiceTest {
 
     private final DefaultAccountingIngestionService service = new DefaultAccountingIngestionService(
             tenantExternalRefs, tenants, appUsers, reportRepository, configRepository, personRepository,
-            detector, reportService, submissionService, notificationService, auditService);
+            detector, reportService, reportPdfService, submissionService, notificationService, auditService);
 
     private static final int COMPANY_ID = 777;
     private static final String SCHEMA = "tenant_acct";

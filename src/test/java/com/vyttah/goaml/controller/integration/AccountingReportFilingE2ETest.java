@@ -48,7 +48,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * {@code POST /api/v1/integration/accounting/reports} under the ACCOUNTING assertion → a VALID report in the
  * mapped tenant. Covers the DoD ("the exact JSON the wizard will send creates a VALID report"), idempotency
  * on {@code entityReference}, an INVALID filing with messages, the status pull, and the B11 org guard — over
- * the full filter chain + Testcontainers Postgres.
+ * the full filter chain + Testcontainers Postgres. X1 adds the artefact pulls: {@code GET …/{ref}/xml} (the
+ * persisted XML, byte-for-byte) and {@code GET …/{ref}/pdf} (rendered per request), with the same guards.
  *
  * <p>The fixture {@code samples/erp-wizard-wire-payload.json} is the wire shape produced by
  * {@code dpmsrPayload.ts} — the module {@code 07-goaml-filing-wizard.md} has the wizard copy verbatim — so it
@@ -258,6 +259,85 @@ class AccountingReportFilingE2ETest {
         assertThat(summary).contains(ref).contains("status=VALID");
     }
 
+    // --- X1: XML / PDF artefact pulls ---
+
+    @Test
+    void xmlPullReturnsThePersistedXmlAsADownload() throws Exception {
+        String ref = "ACC-" + COMPANY_ID + "-REC-0010";
+        JsonNode filed = fileOk(ref);
+        String persisted = jdbcTemplate.queryForObject(
+                "SELECT report_xml FROM " + tenant.getSchemaName() + ".report WHERE id = ?",
+                String.class, UUID.fromString(filed.get("reportId").asText()));
+        assertThat(persisted).startsWith("<?xml");
+
+        MvcResult r = mvc.perform(get(PATH + "/{ref}/xml", ref)
+                        .header("X-Service-Assertion", assertion())
+                        .param("companyId", String.valueOf(COMPANY_ID)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(r.getResponse().getContentType()).startsWith("application/xml");
+        assertThat(r.getResponse().getHeader("Content-Disposition"))
+                .isEqualTo("attachment; filename=\"" + ref + ".xml\"");
+        assertThat(r.getResponse().getContentAsString(StandardCharsets.UTF_8)).isEqualTo(persisted);
+    }
+
+    @Test
+    void pdfPullRendersTheFiledReport() throws Exception {
+        String ref = "ACC-" + COMPANY_ID + "-REC-0011";
+        fileOk(ref);
+
+        MvcResult r = mvc.perform(get(PATH + "/{ref}/pdf", ref)
+                        .header("X-Service-Assertion", assertion())
+                        .param("companyId", String.valueOf(COMPANY_ID)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        assertThat(r.getResponse().getContentType()).startsWith("application/pdf");
+        assertThat(r.getResponse().getHeader("Content-Disposition"))
+                .startsWith("attachment; filename=\"DPMSR_").endsWith(".pdf\"");
+        byte[] bytes = r.getResponse().getContentAsByteArray();
+        assertThat(bytes.length).isGreaterThan(1000);
+        assertThat(new String(bytes, 0, 4, StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
+    }
+
+    @Test
+    void artefactsOfAnUnknownReferenceAreNotFound() throws Exception {
+        for (String kind : new String[]{"xml", "pdf"}) {
+            mvc.perform(get(PATH + "/{ref}/" + kind, "ACC-" + COMPANY_ID + "-NOPE")
+                            .header("X-Service-Assertion", assertion())
+                            .param("companyId", String.valueOf(COMPANY_ID)))
+                    .andExpect(status().isNotFound());
+        }
+    }
+
+    @Test
+    void artefactsAreGuardedByTheOrgClaim() throws Exception {
+        // B11 — an ACCOUNTING assertion for org 555 cannot read company 881's artefacts, even for a real ref.
+        String ref = "ACC-" + COMPANY_ID + "-REC-0012";
+        fileOk(ref);
+        for (String kind : new String[]{"xml", "pdf"}) {
+            mvc.perform(get(PATH + "/{ref}/" + kind, ref)
+                            .header("X-Service-Assertion", assertionFor("555"))
+                            .param("companyId", String.valueOf(COMPANY_ID)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    void artefactsRejectAScreeningSignedAssertion() throws Exception {
+        // The path prefix selects the ACCOUNTING key; an assertion with iss=SCREENING (even signed with the
+        // key registered as ACCOUNTING) must not pass — the issuer and the registered source have to agree.
+        String ref = "ACC-" + COMPANY_ID + "-REC-0013";
+        fileOk(ref);
+        for (String kind : new String[]{"xml", "pdf"}) {
+            mvc.perform(get(PATH + "/{ref}/" + kind, ref)
+                            .header("X-Service-Assertion", assertionIssuedBy("SCREENING", String.valueOf(COMPANY_ID)))
+                            .param("companyId", String.valueOf(COMPANY_ID)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
     @Test
     void missingServiceAssertionIsUnauthorized() throws Exception {
         mvc.perform(post(PATH)
@@ -322,8 +402,13 @@ class AccountingReportFilingE2ETest {
 
     /** Mint an ACCOUNTING assertion whose signed {@code org} claim is {@code org}; unique jti per call. */
     private static String assertionFor(String org) {
+        return assertionIssuedBy("ACCOUNTING", org);
+    }
+
+    /** As {@link #assertionFor}, with the issuer chosen by the caller (X1's wrong-source case). */
+    private static String assertionIssuedBy(String issuer, String org) {
         return Jwts.builder()
-                .issuer("ACCOUNTING")
+                .issuer(issuer)
                 .subject("erp-user-42")
                 .audience().add("goaml").and()
                 .issuedAt(Date.from(Instant.now()))
