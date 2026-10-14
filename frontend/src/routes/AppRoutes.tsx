@@ -8,7 +8,6 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { DpmsrBuilderPage } from '../features/reports/DpmsrBuilderPage';
 import { ReportDetailPage } from '../features/reports/ReportDetailPage';
-import { ReviewQueuePage } from '../features/reports/ReviewQueuePage';
 import { ImportPage } from '../features/imports/ImportPage';
 import { NotificationsPage } from '../features/notifications/NotificationsPage';
 import { LookupsBrowserPage } from '../features/lookups/LookupsBrowserPage';
@@ -34,9 +33,6 @@ export function AppRoutes() {
 
           <Route element={<RequireRole allowed={[ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN]} />}>
             <Route path="reports/new" element={<DpmsrBuilderPage />} />
-          </Route>
-          <Route element={<RequireRole allowed={[ROLES.MLRO, ROLES.TENANT_ADMIN]} />}>
-            <Route path="reports/review" element={<ReviewQueuePage />} />
           </Route>
           <Route path="reports/:id" element={<ReportDetailPage />} />
           <Route path="imports" element={<ImportPage />} />

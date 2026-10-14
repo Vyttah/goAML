@@ -13,7 +13,7 @@ export function useReport(id: string) {
   return useQuery({ queryKey: reportQueryKey(id), queryFn: () => getReport(id), enabled: !!id });
 }
 
-/** Full read view (Phase D.3): summary + stored input + validation + review trail. Drives the detail page. */
+/** Full read view (Phase D.3): summary + stored input + validation. Drives the detail page. */
 export function useReportFull(id: string) {
   return useQuery({ queryKey: reportDetailQueryKey(id), queryFn: () => getReportDetail(id), enabled: !!id });
 }

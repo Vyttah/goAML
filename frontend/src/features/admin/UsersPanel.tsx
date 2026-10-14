@@ -16,7 +16,7 @@ function formatTimestamp(iso: string): string {
 /**
  * TENANT_ADMIN: list + create users, and manage existing ones — edit (name/role), enable/disable, or delete.
  * Disabling keeps the user (and their audit trail) but blocks login; delete is a hard remove and the backend
- * refuses it for a user who authored/reviewed reports (disable instead). Email is the login identity (immutable).
+ * refuses it for a user who authored reports (disable instead). Email is the login identity (immutable).
  */
 export function UsersPanel() {
   const users = useUsers();
@@ -114,7 +114,7 @@ export function UsersPanel() {
           </Button>
           <Popconfirm
             title="Delete this user?"
-            description="Hard delete. If they authored/reviewed reports, disable them instead."
+            description="Hard delete. If they authored reports, disable them instead."
             okText="Delete"
             okButtonProps={{ danger: true }}
             onConfirm={() => onDelete(u)}

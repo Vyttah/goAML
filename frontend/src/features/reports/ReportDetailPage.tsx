@@ -17,7 +17,6 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { UploadProps } from 'antd';
 import {
-  AuditOutlined,
   DeleteOutlined,
   DownloadOutlined,
   FileTextOutlined,
@@ -41,7 +40,6 @@ import {
   useReportFull,
   useSubmitReport,
 } from './useReportDetail';
-import { useSubmitForReview } from './useReviewQueue';
 import { ReportFilingDetails } from './ReportFilingDetails';
 import type { AttachmentView, StatusView, ValidationMessage } from '../../types';
 
@@ -66,8 +64,8 @@ function formatMetadataValue(value: unknown): string {
 
 /**
  * Report detail + lifecycle: summary, the generated goAML XML (view + download), MLRO submit
- * (VALID-only, confirmed), on-demand FIU status, the stored validation result, and attachment
- * management (upload / download / remove). Any client-supplied metadata returned on `/detail`
+ * (VALID-only, confirmed — no review stage, D41), on-demand FIU status, the stored validation result, and
+ * attachment management (upload / download / remove). Any client-supplied metadata returned on `/detail`
  * (never part of the filed XML) is shown read-only.
  */
 export function ReportDetailPage() {
@@ -77,7 +75,6 @@ export function ReportDetailPage() {
 
   const reportQuery = useReportFull(id);
   const submit = useSubmitReport(id);
-  const submitForReview = useSubmitForReview(id);
   const checkStatus = useCheckStatus(id);
   const attachmentsQuery = useAttachments(id);
   const addAttachment = useAddAttachment(id);
@@ -107,9 +104,8 @@ export function ReportDetailPage() {
   }
 
   const report = reportQuery.data;
-  // A report submits when VALID (review off) or APPROVED (review on); the backend enforces which.
-  const canSubmit = ['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO, ROLES.TENANT_ADMIN);
-  const canSubmitForReview = report.status === 'VALID' && can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN);
+  // A report submits when VALID — there is no review stage in between (D41); the backend enforces it too.
+  const canSubmit = report.status === 'VALID' && can(ROLES.MLRO, ROLES.TENANT_ADMIN);
   const canEditAttachments = can(ROLES.ANALYST, ROLES.MLRO, ROLES.TENANT_ADMIN);
   const hasSubmission = SUBMITTED_STATUSES.includes(report.status);
 
@@ -119,15 +115,6 @@ export function ReportDetailPage() {
       await submit.mutateAsync();
     } catch (err) {
       setActionError(errorMessage(err, 'Submission failed'));
-    }
-  };
-
-  const onSubmitForReview = async () => {
-    setActionError(null);
-    try {
-      await submitForReview.mutateAsync(undefined);
-    } catch (err) {
-      setActionError(errorMessage(err, 'Could not submit for review'));
     }
   };
 
@@ -265,15 +252,6 @@ export function ReportDetailPage() {
           />
         )}
         <Space wrap>
-          {canSubmitForReview && (
-            <Button
-              icon={<AuditOutlined />}
-              onClick={onSubmitForReview}
-              loading={submitForReview.isPending}
-            >
-              Submit for review
-            </Button>
-          )}
           {can(ROLES.MLRO, ROLES.TENANT_ADMIN) && (
             <Popconfirm
               title="Submit this report to the FIU?"
@@ -303,17 +281,16 @@ export function ReportDetailPage() {
           )}
         </Space>
 
-        {!can(ROLES.MLRO, ROLES.TENANT_ADMIN) && !hasSubmission && !canSubmitForReview && (
+        {!can(ROLES.MLRO, ROLES.TENANT_ADMIN) && !hasSubmission && (
           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
             No actions available here — submitting to the FIU is restricted to an MLRO, and this report
             hasn&apos;t been submitted yet.
           </Typography.Paragraph>
         )}
 
-        {!canSubmit && !['VALID', 'APPROVED'].includes(report.status) && can(ROLES.MLRO, ROLES.TENANT_ADMIN) && (
+        {!canSubmit && report.status !== 'VALID' && can(ROLES.MLRO, ROLES.TENANT_ADMIN) && (
           <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-            Only a <strong>VALID</strong> or <strong>APPROVED</strong> report can be submitted (this one is{' '}
-            {report.status}).
+            Only a <strong>VALID</strong> report can be submitted (this one is {report.status}).
           </Typography.Paragraph>
         )}
 
@@ -367,25 +344,6 @@ export function ReportDetailPage() {
           </Descriptions>
         </Card>
       )}
-
-      <Card title="Review" style={{ marginBottom: 16 }}>
-        {report.reviewedAt || report.reviewRemark ? (
-          <Descriptions column={1} size="small">
-            <Descriptions.Item label="Status">
-              <StatusTag status={report.status} />
-            </Descriptions.Item>
-            <Descriptions.Item label="Reviewer">{report.reviewedBy ?? '—'}</Descriptions.Item>
-            <Descriptions.Item label="Reviewed at">
-              {report.reviewedAt ? formatTimestamp(report.reviewedAt) : '—'}
-            </Descriptions.Item>
-            <Descriptions.Item label="Remark">{report.reviewRemark || '—'}</Descriptions.Item>
-          </Descriptions>
-        ) : (
-          <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-            Not yet reviewed{report.status === 'PENDING_REVIEW' ? ' — awaiting an MLRO decision.' : '.'}
-          </Typography.Paragraph>
-        )}
-      </Card>
 
       <Card
         title="Attachments"
