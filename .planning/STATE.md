@@ -79,6 +79,23 @@
 > `iss=SCREENING` 401). Contract: `docs/14` §Model 2b. Plan: `14-goaml-xml-pdf-download.md` §X1 ·
 > `plans/goaml-erp-wiring/progress/X1.md`.
 
+> **goAML ↔ ERP wiring, step 16 / Z1 (2026-10-13, same branch) — the Phase D.2 review gate is REMOVED (owner decision,
+> D41–D44).** A report now goes `VALID → SUBMITTING → SUBMITTED` by one person; `PENDING_REVIEW` and `APPROVED` no longer
+> exist anywhere. Gone: `ReportReviewService` / `DefaultReportReviewService`, `ReviewResult`, `ReviewDecisionRequest`,
+> `ReportResponses.ReviewView`, the four `/api/v1/reports/{id}/submit-for-review|approve|reject` + `/review-queue`
+> endpoints, `Report.reviewedBy/reviewedAt/reviewRemark` (+ the detail views' fields), `ReportRepository.existsByReviewedBy`,
+> `TenantGoamlConfig.reviewRequired`, `NotificationService.notifyDraftAwaitingReview` + the `REPORT_PENDING_REVIEW` template
+> (the accounting push no longer pings MLROs — a VALID draft just waits on the report page), `InvalidReviewStateException`.
+> `DefaultSubmissionService.submit` requires `VALID` unconditionally (the SUBMITTING CAS claim is unchanged). Migrations:
+> tenant **`V12__drop_report_review.sql`** (PENDING_REVIEW/APPROVED → VALID, three columns dropped, `report_status_chk` and
+> `notification_type_chk` rewritten, `REPORT_PENDING_REVIEW` rows deleted) and shared **`V11__drop_review_gate.sql`**
+> (outbox rows with the two values deleted, `review_required` dropped). SPA: `ReviewQueuePage`, `useReviewQueue`, the
+> "Review queue" nav item + `reports/review` route, the Submit-for-review button and the Review card are gone;
+> `StatusTag` / `REPORT_STATUSES` trimmed. Tests: `ReportReviewE2ETest` + `DefaultReportReviewServiceTest` deleted;
+> `ReportStatusOutboxE2ETest` rewritten on submission transitions (B2B client mocked) and now also proves V11/V12 applied.
+> Docs: `docs/07` (status list), `docs/14` (§Model 2c table), `docs/18`. The S2 outbox hooks on SUBMITTED / FAILED /
+> ACCEPTED / REJECTED are untouched. Plan: `16-remove-review-gate.md` §Z1 · `plans/goaml-erp-wiring/progress/Z1.md`.
+
 ## Project Reference
 
 **What:** Multi-tenant RegTech platform that builds, validates, submits, and tracks goAML AML reports to

@@ -20,9 +20,9 @@ import java.util.UUID;
  * hook running with a tenant schema bound in {@code TenantContext} still writes to the shared table.
  *
  * <p>{@link #getStatus()} is <strong>the transition that happened</strong>, which is not always the report's
- * resulting status: a rejected review leaves the report {@code VALID} so it can be reworked, and a submission
- * the FIU refuses is restored to {@code VALID}/{@code APPROVED}. The ERP needs to know what happened to its
- * filing, not what goAML's work queue looks like afterwards.
+ * resulting status: a submission the FIU refuses is restored to {@code VALID} so it can be reworked, yet the
+ * event says {@code REJECTED}. The ERP needs to know what happened to its filing, not what goAML's work queue
+ * looks like afterwards.
  */
 @Getter
 @Setter

@@ -66,7 +66,7 @@ public interface AdminService {
     AppUser updateUser(UUID tenantId, UUID userId, UpdateUserRequest request, UUID actingUserId);
 
     /**
-     * Hard-delete a user from {@code tenantId}. Blocked if the user authored/reviewed any report (disable
+     * Hard-delete a user from {@code tenantId}. Blocked if the user authored any report (disable
      * instead) or if it is the caller themselves.
      *
      * @throws AdminExceptions.UserNotFoundException if no such user in this tenant

@@ -25,7 +25,7 @@
  (server)                                  (raw invoice → detect → build draft → status pull)
 
  goAML ───────── service assertion ────► POST {aml}/api/v1/integration/goaml/report-status     [Model 2c]
- (server, outbound)                        (review / submission transition → AML → ERP accounting)
+ (server, outbound)                        (submission transition → AML → ERP accounting)
 ```
 
 - **Model 1 — embedded consumer.** The sibling app authenticates its *user* via the federated
@@ -34,7 +34,7 @@
 - **Model 2 — raw push (accounting only).** The accounting *server* posts a self-contained invoice;
   goAML judges reportability, and if reportable builds a validated DPMSR draft itself.
 - **Model 2c — status events out (S2).** The only path where goAML is the **caller**: it signs its own
-  assertion (`iss=GOAML`) and pushes every review / submission transition to the AML platform, which forwards
+  assertion (`iss=GOAML`) and pushes every submission transition to the AML platform, which forwards
   it to the ERP. So an ERP operator sees the FIU's answer to a filing without the ERP polling goAML.
 
 Both can be used together: the same report is visible to all users of the tenant regardless of how
@@ -281,7 +281,7 @@ receipt needs to see what the FIU said about it, and the alternative — the ERP
 giving the ERP a goAML identity per user and a reason to keep asking.
 
 ```
-review / submission transition
+submission transition
   └─ public.report_status_outbox row            (same work as the status change)
        └─ ReportStatusPublisher  @Scheduled
             └─ POST {aml-base-url}/api/v1/integration/goaml/report-status
@@ -295,26 +295,23 @@ while `goaml.integration.outbound.enabled` is true:
 
 | Transition | Where it comes from | `status` on the event |
 |---|---|---|
-| submitted for review | `ReportReviewService.submitForReview` | `PENDING_REVIEW` |
-| approved | `ReportReviewService.approve` | `APPROVED` |
-| rejected by the reviewer | `ReportReviewService.reject` | `REJECTED` |
 | sent to the FIU | `SubmissionService.submit` | `SUBMITTED` |
 | the FIU refused it at submit time | `SubmissionService.submit` (`B2bValidationException`) | `REJECTED` |
 | transport / auth failure | `SubmissionService.submit` | `FAILED` |
 | the FIU's verdict on a later poll | `SubmissionService.refreshStatus` | `ACCEPTED` / `REJECTED` |
 
-**`status` is the transition, not the report's status afterwards.** A reviewer's rejection puts the report back
-to `VALID` so it can be reworked, and a submission the FIU refuses is restored to `VALID`/`APPROVED` by
-`submit`'s own error handling. In both cases the event says `REJECTED`, because the ERP is being told what
+**`status` is the transition, not the report's status afterwards.** A submission the FIU refuses is restored to
+`VALID` by `submit`'s own error handling, yet the event says `REJECTED`, because the ERP is being told what
 happened to *its filing* — not what goAML's work queue looks like now. A poll that finds no change publishes
-nothing.
+nothing. (Until step 16 the review gate also published `PENDING_REVIEW` / `APPROVED` / a reviewer's `REJECTED`;
+those transitions no longer exist — D41 — and shared `V11` removed any rows that carried them.)
 
 **The body.**
 
 ```json
 { "eventId": "<outbox row id>", "tenantId": "…", "amlCompanyId": "<SCREENING ref>",
   "erpCompanyId": "<ACCOUNTING ref>", "reportId": "…", "entityReference": "ACC-3-REC-2026-000002",
-  "status": "APPROVED", "remark": "<reviewer remark | FIU errors>", "actorUserId": "…|null",
+  "status": "SUBMITTED", "remark": "<FIU errors | null>", "actorUserId": "…|null",
   "occurredAt": "2026-10-08T09:30:00Z" }
 ```
 

@@ -155,7 +155,7 @@ class ReportApiE2ETest {
     }
 
     @Test
-    void detailReturnsStoredInputValidationAndAnEmptyReviewTrail() {
+    void detailReturnsStoredInputAndValidation() {
         String mlro = user("detail", "MLRO");
         ResponseEntity<JsonNode> created = post("/api/v1/reports", String.format(DPMSR_JSON, "PAY-DETAIL-1"), mlro);
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
@@ -174,9 +174,9 @@ class ReportApiE2ETest {
                 .contains("Minimal Trading FZE")
                 .contains("GOLD");
         assertThat(body.get("validationMessages").isArray()).isTrue();
-        // not yet reviewed
-        assertThat(body.get("reviewedBy").isNull()).isTrue();
-        assertThat(body.get("reviewedAt").isNull()).isTrue();
+        // Z1 / D41: no review trail on the read view any more
+        assertThat(body.has("reviewedBy")).isFalse();
+        assertThat(body.has("reviewRemark")).isFalse();
     }
 
     @Test

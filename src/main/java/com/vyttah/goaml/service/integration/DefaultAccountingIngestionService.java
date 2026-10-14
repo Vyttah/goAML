@@ -21,7 +21,6 @@ import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
 import com.vyttah.goaml.service.audit.AuditService;
-import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportDetail;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
@@ -66,7 +65,6 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
     private final ReportService reportService;
     private final ReportPdfService reportPdfService;
     private final SubmissionService submissionService;
-    private final NotificationService notificationService;
     private final AuditService auditService;
 
     @Override
@@ -253,10 +251,10 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
      * <ul>
      *   <li>not {@code VALID} (validation failed) — leave it for a human to fix; no auto-submit, no ping.</li>
      *   <li>{@code VALID} + tenant {@code auto_submit} on — submit to the FIU now (audited inside
-     *       {@link SubmissionService#submit}); if that fails it falls back to the MLRO gate (best-effort —
-     *       a transport/credential failure must never fail the accounting push).</li>
-     *   <li>{@code VALID} + auto-submit off (default) — keep the draft and notify the tenant's MLROs that a
-     *       one-click submit is waiting.</li>
+     *       {@link SubmissionService#submit}); if that fails the draft is left {@code VALID} for a person to
+     *       submit (best-effort — a transport/credential failure must never fail the accounting push).</li>
+     *   <li>{@code VALID} + auto-submit off (default) — keep the draft; anyone with submit rights files it
+     *       from the report page. (The "draft awaiting review" notification went with the review gate, D41.)</li>
      * </ul>
      * Runs with the tenant {@link TenantContext} already bound by {@link #ingest}.
      */
@@ -285,23 +283,12 @@ public class DefaultAccountingIngestionService implements AccountingIngestionSer
                 SubmissionResult sub = submissionService.submit(reportId, tenantId, null);
                 return sub.status();
             } catch (RuntimeException e) {
-                log.warn("Auto-submit of {} (tenant {}) failed: {} — leaving a VALID draft for the MLRO",
+                log.warn("Auto-submit of {} (tenant {}) failed: {} — leaving a VALID draft to be submitted",
                         ref, tenantId, e.getMessage());
             }
         }
 
-        notifyMlros(reportId, tenantId);
         return result.status();
-    }
-
-    /** Best-effort MLRO ping that a validated draft awaits one-click submit — never fails the push. */
-    private void notifyMlros(UUID reportId, UUID tenantId) {
-        try {
-            reportRepository.findById(reportId)
-                    .ifPresent(r -> notificationService.notifyDraftAwaitingReview(r, tenantId));
-        } catch (RuntimeException e) {
-            log.warn("Failed to notify MLROs of draft {} (tenant {}): {}", reportId, tenantId, e.getMessage());
-        }
     }
 
     @Override

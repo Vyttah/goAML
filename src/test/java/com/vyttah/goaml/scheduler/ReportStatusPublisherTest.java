@@ -119,7 +119,7 @@ class ReportStatusPublisherTest {
 
     private ReportStatusOutbox row(UUID actor) {
         return new ReportStatusOutbox(UUID.randomUUID(), TENANT, UUID.randomUUID(), "ACC-3-REC-2026-000002",
-                "PENDING_REVIEW", "please check the buyer", actor, OffsetDateTime.now());
+                "REJECTED", "the buyer identification is missing", actor, OffsetDateTime.now());
     }
 
     private void due(ReportStatusOutbox... rows) {
@@ -144,8 +144,8 @@ class ReportStatusPublisherTest {
         assertThat(body).contains("\"amlCompanyId\":\"acme-aml\"");
         assertThat(body).contains("\"erpCompanyId\":\"3\"");
         assertThat(body).contains("\"entityReference\":\"ACC-3-REC-2026-000002\"");
-        assertThat(body).contains("\"status\":\"PENDING_REVIEW\"");
-        assertThat(body).contains("\"remark\":\"please check the buyer\"");
+        assertThat(body).contains("\"status\":\"REJECTED\"");
+        assertThat(body).contains("\"remark\":\"the buyer identification is missing\"");
         assertThat(body).contains("\"actorUserId\":\"" + actor + "\"");
         // ISO-8601, not an epoch number: the AML receiver and then accounting both parse this as an instant.
         assertThat(body).contains("\"occurredAt\":\"20").contains("T");
@@ -243,7 +243,7 @@ class ReportStatusPublisherTest {
     void oneBadRowDoesNotBlockTheCycle() {
         UUID otherTenant = UUID.randomUUID();
         ReportStatusOutbox bad = new ReportStatusOutbox(UUID.randomUUID(), otherTenant, UUID.randomUUID(),
-                "ACC-9-REC-0001", "APPROVED", null, null, OffsetDateTime.now());
+                "ACC-9-REC-0001", "SUBMITTED", null, null, OffsetDateTime.now());
         ReportStatusOutbox good = row(null);
         when(tenantExternalRefRepository.findByTenantIdAndSourceSystem(otherTenant, SourceSystem.SCREENING))
                 .thenReturn(Optional.empty());

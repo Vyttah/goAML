@@ -267,7 +267,6 @@ public class DefaultReportService implements ReportService {
                 report.getId(), report.getEntityReference(), report.getReportCode(), report.getStatus(),
                 report.getRentityId(), report.getCreatedAt(),
                 parseInput(report.getInput()), parseMessages(report.getValidationErrors()),
-                report.getReviewedBy(), report.getReviewedAt(), report.getReviewRemark(),
                 report.getReportXml() != null && !report.getReportXml().isBlank(),
                 parseClientMetadata(report.getClientMetadata()));
     }

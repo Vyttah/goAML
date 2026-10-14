@@ -35,7 +35,7 @@ public final class AdminExceptions {
         }
     }
 
-    /** Hard-delete blocked because the user is referenced by reports (author/reviewer) — disable instead.
+    /** Hard-delete blocked because the user is referenced by reports (author) — disable instead.
      *  → {@code 409}. */
     public static class UserReferencedException extends RuntimeException {
         public UserReferencedException(String message) {

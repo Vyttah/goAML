@@ -58,7 +58,7 @@ class ReportStatusOutboxServiceTest {
     }
 
     private static Report report() {
-        return new Report(UUID.randomUUID(), "ACC-3-REC-2026-000002", "DPMSR", 3177, "PENDING_REVIEW", "{}",
+        return new Report(UUID.randomUUID(), "ACC-3-REC-2026-000002", "DPMSR", 3177, "VALID", "{}",
                 UUID.randomUUID());
     }
 
@@ -103,7 +103,7 @@ class ReportStatusOutboxServiceTest {
     @Test
     @DisplayName("switched off means inert: nothing is written and the tenant is not even looked up")
     void disabledRecordsNothing() {
-        assertThat(service(false).record(report(), TENANT, "APPROVED", null, UUID.randomUUID())).isFalse();
+        assertThat(service(false).record(report(), TENANT, "SUBMITTED", null, UUID.randomUUID())).isFalse();
 
         verifyNoInteractions(outboxRepository);
         // Not merely "writes nothing": an off switch should cost nothing either.
@@ -116,19 +116,19 @@ class ReportStatusOutboxServiceTest {
         when(tenantExternalRefRepository.findByTenantIdAndSourceSystem(TENANT, SourceSystem.ACCOUNTING))
                 .thenReturn(Optional.empty());
 
-        assertThat(service(true).record(report(), TENANT, "APPROVED", null, UUID.randomUUID())).isFalse();
+        assertThat(service(true).record(report(), TENANT, "SUBMITTED", null, UUID.randomUUID())).isFalse();
 
         verify(outboxRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("an outbox failure is never the reason a review or submission fails")
+    @DisplayName("an outbox failure is never the reason a submission fails")
     void aFailureIsSwallowed() {
         withAccountingRef();
         when(outboxRepository.save(any())).thenThrow(new RuntimeException("outbox table is gone"));
 
         assertThatCode(() -> assertThat(service(true)
-                .record(report(), TENANT, "APPROVED", null, UUID.randomUUID())).isFalse())
+                .record(report(), TENANT, "SUBMITTED", null, UUID.randomUUID())).isFalse())
                 .doesNotThrowAnyException();
     }
 
@@ -137,8 +137,8 @@ class ReportStatusOutboxServiceTest {
     void nullsAreNoOps() {
         ReportStatusOutboxService service = service(true);
 
-        assertThat(service.record(null, TENANT, "APPROVED", null, null)).isFalse();
-        assertThat(service.record(report(), null, "APPROVED", null, null)).isFalse();
+        assertThat(service.record(null, TENANT, "SUBMITTED", null, null)).isFalse();
+        assertThat(service.record(report(), null, "SUBMITTED", null, null)).isFalse();
         verifyNoInteractions(outboxRepository);
     }
 }

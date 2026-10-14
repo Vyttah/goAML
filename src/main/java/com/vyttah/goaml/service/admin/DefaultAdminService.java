@@ -232,7 +232,6 @@ public class DefaultAdminService implements AdminService {
     /** True if the user is referenced by any tenant record that would be orphaned by a hard delete (B6). */
     private boolean isReferencedAnywhere(UUID userId) {
         return reportRepository.existsByCreatedBy(userId)
-                || reportRepository.existsByReviewedBy(userId)
                 || attachmentRepository.existsByUploadedBy(userId)
                 || importJobRepository.existsByCreatedBy(userId)
                 || notificationRepository.existsByRecipientUserId(userId);

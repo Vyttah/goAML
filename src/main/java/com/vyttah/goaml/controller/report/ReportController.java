@@ -6,15 +6,12 @@ import com.vyttah.goaml.model.dto.report.DpmsrReportPayload;
 import com.vyttah.goaml.model.dto.report.ReportResponses.CreateReportResponse;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportDetailView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.ReportView;
-import com.vyttah.goaml.model.dto.report.ReportResponses.ReviewView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.StatusView;
 import com.vyttah.goaml.model.dto.report.ReportResponses.SubmissionView;
-import com.vyttah.goaml.model.dto.report.ReviewDecisionRequest;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.security.UserPrincipal;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import com.vyttah.goaml.service.report.ReportResult;
-import com.vyttah.goaml.service.report.ReportReviewService;
 import com.vyttah.goaml.service.report.ReportService;
 import com.vyttah.goaml.service.report.export.ReportBulkExportService;
 import com.vyttah.goaml.service.report.pdf.ReportPdfService;
@@ -40,9 +37,8 @@ import java.util.UUID;
 /**
  * REST API for the DPMSR report lifecycle. Thin — delegates to {@link ReportService} /
  * {@link SubmissionService}; tenant + actor come from the authenticated {@link UserPrincipal}. RBAC:
- * create/read for ANALYST or MLRO; <strong>submit is MLRO-only</strong>. Phase D.2 adds the opt-in review
- * gate — submit-for-review (ANALYST or MLRO) → approve/reject (MLRO) — which, when enabled, the submit call
- * requires to have reached {@code APPROVED}.
+ * create/read for ANALYST or MLRO; <strong>submit is MLRO-only</strong> and requires a {@code VALID} report —
+ * there is no review stage in between (the Phase D.2 review gate was removed, D41).
  */
 @RestController
 @RequestMapping("/api/v1/reports")
@@ -50,7 +46,6 @@ import java.util.UUID;
 public class ReportController {
 
     private final ReportService reportService;
-    private final ReportReviewService reviewService;
     private final SubmissionService submissionService;
     private final ReportPdfService reportPdfService;
     private final ReportBulkExportService reportBulkExportService;
@@ -92,7 +87,7 @@ public class ReportController {
 
     /**
      * Phase D.3 — the full "Transaction &amp; Report" read view: summary + the stored filing input + the
-     * persisted validation messages + the review trail. Lets a goAML login see the whole filing.
+     * persisted validation messages. Lets a goAML login see the whole filing.
      */
     @GetMapping("/{id}/detail")
     @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
@@ -154,7 +149,7 @@ public class ReportController {
     }
 
     /**
-     * Bulk PDF download — the "Approve Transaction" multi-select downloads several filed reports' PDFs as one
+     * Bulk PDF download — the cockpit's "goAML Reports" multi-select downloads several filed reports' PDFs as one
      * ZIP. Rejects the whole batch (400) if any selected id is unknown in this tenant or {@code INVALID}.
      */
     @PostMapping(value = "/bulk-download/pdf", produces = "application/zip")
@@ -187,55 +182,13 @@ public class ReportController {
                 .body(bytes);
     }
 
-    /**
-     * Phase D.2 review gate (opt-in per tenant). {@code submit-for-review} moves a VALID report into the
-     * queue; {@code approve}/{@code reject} are MLRO-only and decide it. When review is enabled the
-     * {@code /submit} call below requires {@code APPROVED}.
-     */
-    @PostMapping("/{id}/submit-for-review")
-    @PreAuthorize("hasAnyRole('ANALYST','MLRO','TENANT_ADMIN')")
-    public ResponseEntity<ReviewView> submitForReview(@PathVariable UUID id,
-                                                      @RequestBody(required = false) ReviewDecisionRequest body,
-                                                      @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(ReviewView.from(reviewService.submitForReview(
-                id, principal.getTenantId(), principal.getUserId(), remarkOf(body))));
-    }
-
-    @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
-    public ResponseEntity<ReviewView> approve(@PathVariable UUID id,
-                                              @RequestBody(required = false) ReviewDecisionRequest body,
-                                              @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(ReviewView.from(reviewService.approve(
-                id, principal.getTenantId(), principal.getUserId(), remarkOf(body))));
-    }
-
-    @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
-    public ResponseEntity<ReviewView> reject(@PathVariable UUID id,
-                                             @RequestBody(required = false) ReviewDecisionRequest body,
-                                             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(ReviewView.from(reviewService.reject(
-                id, principal.getTenantId(), principal.getUserId(), remarkOf(body))));
-    }
-
-    /** The review queue — reports awaiting MLRO review for this tenant. */
-    @GetMapping("/review-queue")
-    @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
-    public ResponseEntity<List<ReportView>> reviewQueue() {
-        return ResponseEntity.ok(reviewService.reviewQueue().stream().map(ReportView::from).toList());
-    }
-
+    /** Submit a {@code VALID} report to the FIU — MLRO / TENANT_ADMIN, one person, no review stage (D41). */
     @PostMapping("/{id}/submit")
     @PreAuthorize("hasAnyRole('MLRO','TENANT_ADMIN')")
     public ResponseEntity<SubmissionView> submit(@PathVariable UUID id,
                                                 @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(SubmissionView.from(
                 submissionService.submit(id, principal.getTenantId(), principal.getUserId())));
-    }
-
-    private static String remarkOf(ReviewDecisionRequest body) {
-        return body == null ? null : body.remark();
     }
 
     @GetMapping("/{id}/status")

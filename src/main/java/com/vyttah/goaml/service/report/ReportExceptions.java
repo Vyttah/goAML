@@ -2,8 +2,7 @@ package com.vyttah.goaml.service.report;
 
 /**
  * Report-service exceptions, mapped to HTTP by the global handler (Phase 7.3):
- * not-found → 404, duplicate reference → 409, invalid review transition → 409,
- * client-metadata too large → 422.
+ * not-found → 404, duplicate reference → 409, client-metadata too large → 422.
  */
 public final class ReportExceptions {
 
@@ -16,17 +15,6 @@ public final class ReportExceptions {
      */
     public static class ClientMetadataTooLargeException extends RuntimeException {
         public ClientMetadataTooLargeException(String message) {
-            super(message);
-        }
-    }
-
-    /**
-     * A review-stage transition was requested that the report's current state (or the tenant's review config)
-     * does not allow — e.g. approving a report that is not {@code PENDING_REVIEW}, or submitting a report for
-     * review when the tenant has review disabled. → {@code 409}.
-     */
-    public static class InvalidReviewStateException extends RuntimeException {
-        public InvalidReviewStateException(String message) {
             super(message);
         }
     }

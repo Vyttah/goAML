@@ -83,7 +83,6 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({
             ReportExceptions.DuplicateEntityReferenceException.class,
-            ReportExceptions.InvalidReviewStateException.class,
             SubmissionExceptions.ReportNotSubmittableException.class,
             SubmissionExceptions.StoredXmlInvalidException.class,
             SubmissionExceptions.TenantConfigMissingException.class,

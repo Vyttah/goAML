@@ -178,7 +178,27 @@ class DefaultSubmissionServiceTest {
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
 
         assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
-                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class);
+                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class)
+                .hasMessageContaining("must be VALID");
+        verify(b2bClient, never()).postReport(any(), any(), any());
+    }
+
+    /**
+     * Z1 / D41: VALID is the only submittable status — there is no tenant flag that could raise the bar to a
+     * reviewed state, so a config row saying nothing about review changes nothing (and a report stored with a
+     * now-dead status would be refused the same way).
+     */
+    @Test
+    void validIsRequiredUnconditionally() {
+        stubConfig();
+        Report report = validReport();
+        report.setStatus("APPROVED");
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
+                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class)
+                .hasMessageContaining("must be VALID");
+        verify(reportRepository, never()).claimForSubmission(any(), any());
         verify(b2bClient, never()).postReport(any(), any(), any());
     }
 

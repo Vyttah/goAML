@@ -20,7 +20,7 @@ import java.util.UUID;
  * @param reportId        the goAML report; the ERP checks it against the report id it stored when it filed
  * @param entityReference the filing reference — {@code ACC-<erpCompanyId>-<documentNumber>} for an ERP filing
  * @param status          the transition, not necessarily the report's resulting status
- * @param remark          the reviewer's remark or the FIU's error text; the ERP shows it verbatim
+ * @param remark          the FIU's error text; the ERP shows it verbatim
  * @param actorUserId     who caused it, or null when the FIU answered a background poll
  * @param occurredAt      when it happened in goAML; the receivers order by this, never by arrival time
  */

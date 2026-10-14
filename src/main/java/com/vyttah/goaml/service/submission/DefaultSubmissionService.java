@@ -64,9 +64,9 @@ public class DefaultSubmissionService implements SubmissionService {
     public SubmissionResult submit(UUID reportId, UUID tenantId, UUID actorUserId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ReportExceptions.ReportNotFoundException("Report not found: " + reportId));
-        // Phase D.2: when the tenant's review gate is on, the report must be APPROVED (VALID → PENDING_REVIEW →
-        // APPROVED); otherwise the direct path applies and VALID is submittable.
-        String required = reviewRequired(tenantId) ? "APPROVED" : "VALID";
+        // A report submits from VALID, full stop — there is no review stage in between (D41). The constant is
+        // kept as a local because the CAS claim and the restore below both key on the pre-claim status.
+        String required = "VALID";
         if (!required.equals(report.getStatus())) {
             throw new SubmissionExceptions.ReportNotSubmittableException(
                     "Report " + reportId + " is " + report.getStatus() + " — must be " + required + " to submit");
@@ -128,8 +128,8 @@ public class DefaultSubmissionService implements SubmissionService {
         } catch (B2bValidationException e) {
             saveFailed(submission, e.responseBody());
             safeNotify(report, "REJECTED", tenantId);
-            // The FIU refused the report outright. The report itself is restored to VALID/APPROVED by
-            // submit()'s catch so it can be reworked, but what happened to the ERP's filing is a rejection.
+            // The FIU refused the report outright. The report itself is restored to VALID by submit()'s catch
+            // so it can be reworked, but what happened to the ERP's filing is a rejection.
             statusOutboxService.record(report, tenantId, "REJECTED", e.responseBody(), actorUserId);
             throw new SubmissionExceptions.SubmissionRejectedException(
                     "FIU rejected report " + reportId, e.responseBody());
@@ -262,13 +262,6 @@ public class DefaultSubmissionService implements SubmissionService {
                         "No tenant_goaml_config for tenant " + tenantId));
         return new B2bTenantConfig(tenantId.toString(), config.getBaseUrl(), config.getSecretsPath(),
                 B2bAuthMode.valueOf(config.getAuthMode()));
-    }
-
-    /** Phase D.2: whether this tenant requires the MLRO review gate before a report can be submitted. */
-    private boolean reviewRequired(UUID tenantId) {
-        return configRepository.findByTenantId(tenantId)
-                .map(TenantGoamlConfig::isReviewRequired)
-                .orElse(false);
     }
 
     private void saveFailed(Submission submission, String errors) {

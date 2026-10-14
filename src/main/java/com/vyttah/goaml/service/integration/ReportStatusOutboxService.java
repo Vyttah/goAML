@@ -17,7 +17,7 @@ import java.util.UUID;
  * Records report-status transitions for delivery to the AML platform (goAML ↔ ERP wiring, Phase 2 / S2,
  * decision D22). The write half of the outbox; {@code ReportStatusPublisher} is the read half.
  *
- * <p>Called from every review and submission transition. Two things decide whether a transition is recorded:
+ * <p>Called from every submission transition. Two things decide whether a transition is recorded:
  *
  * <ol>
  *   <li><strong>Is outbound integration usable at all?</strong> If not, nothing is recorded. The alternative —
@@ -52,10 +52,9 @@ public class ReportStatusOutboxService {
      *
      * @param report      the report that transitioned; only its id and entity reference are read
      * @param tenantId    the goAML tenant owning it
-     * @param status      the transition — {@code PENDING_REVIEW}, {@code APPROVED}, {@code REJECTED},
-     *                    {@code SUBMITTED}, {@code FAILED} or {@code ACCEPTED} — <em>not</em> necessarily the
-     *                    report's resulting status
-     * @param remark      the reviewer's remark or the FIU's error text; forwarded verbatim, may be null
+     * @param status      the transition — {@code SUBMITTED}, {@code FAILED}, {@code ACCEPTED} or
+     *                    {@code REJECTED} — <em>not</em> necessarily the report's resulting status
+     * @param remark      the FIU's error text; forwarded verbatim, may be null
      * @param actorUserId who caused it, or null for a background poll
      * @return true when a row was written
      */
