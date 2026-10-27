@@ -52,7 +52,7 @@ public class CsvImporter {
     // these columns every row would fail XSD, so we reject the whole file up front rather than silently
     // produce all-INVALID rows. (Cells may still be blank → that row fails with a clear per-row message.)
     private static final Set<String> REQUIRED_HEADERS = Set.of(
-            "entity_reference", "submission_date", "party_type", "party_reason", "indicators",
+            "entity_reference", "report_date", "party_type", "party_reason", "indicators",
             "good_item_type", "good_estimated_value",
             "reporting_person_first_name", "reporting_person_last_name");
 
@@ -107,7 +107,7 @@ public class CsvImporter {
         return new DpmsrCreateRequest(
                 opt(rec, "rentity_branch"),
                 req(rec, "entity_reference"),
-                parseDateTime(req(rec, "submission_date"), "submission_date"),
+                parseDateTime(req(rec, "report_date"), "report_date"),
                 opt(rec, "fiu_ref_number"),
                 opt(rec, "reason"),
                 opt(rec, "action"),

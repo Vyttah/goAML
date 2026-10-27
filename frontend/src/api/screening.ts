@@ -15,7 +15,7 @@ export interface ScreeningSubjectView {
 /** The report-completing fields supplied when seeding a DPMSR from a subject — mirrors `ScreeningSeedRequest`. */
 export interface ScreeningSeedRequest {
   entityReference: string;
-  submissionDate: string;
+  reportDate: string;
   reason?: string;
   action?: string;
   indicators?: string[];

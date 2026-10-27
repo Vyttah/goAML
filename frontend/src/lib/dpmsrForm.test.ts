@@ -6,12 +6,12 @@ describe('buildDpmsrPayload', () => {
   it('serializes Dayjs values as the picked local calendar date pinned to UTC midnight', () => {
     const payload = buildDpmsrPayload({
       entityReference: 'REF',
-      submissionDate: dayjs('2026-06-06'), // local-midnight pick, as the DatePicker produces
+      reportDate: dayjs('2026-06-06'), // local-midnight pick, as the DatePicker produces
       reportingPerson: { firstName: 'A', lastName: 'B' },
       parties: [],
       goods: [],
-    }) as { submissionDate: string };
-    expect(payload.submissionDate).toBe('2026-06-06T00:00:00Z');
+    }) as { reportDate: string };
+    expect(payload.reportDate).toBe('2026-06-06T00:00:00Z');
   });
 
   it('never timezone-shifts a picked date (a 1990-05-01 birthdate stays 1990-05-01 in any local tz)', () => {

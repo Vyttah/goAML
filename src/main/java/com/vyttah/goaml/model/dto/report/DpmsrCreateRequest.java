@@ -28,7 +28,7 @@ import java.util.List;
  * <p>{@code clientMetadata} (A3) is an <b>optional</b> opaque JSON object a caller may attach (the AML
  * cockpit's captured-not-filed LiveExShield-parity fields). It is persisted verbatim to its own
  * {@code report.client_metadata} column and returned in the detail view, but is <b>never</b> mapped onto the
- * engine input (see {@link #toInput} consumers) and so never reaches the marshalled goAML XML.
+ * engine input (see {@link } consumers) and so never reaches the marshalled goAML XML.
  */
 public record DpmsrCreateRequest(
         String rentityBranch,
@@ -58,10 +58,10 @@ public record DpmsrCreateRequest(
      * concise. The full canonical constructor is used by the JSON-binding create endpoint.
      */
     public DpmsrCreateRequest(
-            String rentityBranch, String entityReference, OffsetDateTime submissionDate, String fiuRefNumber,
+            String rentityBranch, String entityReference, OffsetDateTime reportDate, String fiuRefNumber,
             String reason, String action, List<String> indicators, Person reportingPerson, Address location,
             List<Party> parties, List<Goods> goods) {
-        this(rentityBranch, entityReference, submissionDate, fiuRefNumber, reason, action, indicators,
+        this(rentityBranch, entityReference, reportDate, fiuRefNumber, reason, action, indicators,
                 reportingPerson, location, parties, goods, null);
     }
 

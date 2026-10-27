@@ -115,7 +115,7 @@ class HybridCockpitWireFidelityTest {
         String json = """
                 {
                   "entityReference": "TXN-SAMPLE-2",
-                  "submissionDate": "2026-07-15T00:00:00Z",
+                  "reportDate": "2026-07-15T00:00:00Z",
                   "indicators": ["DPMSI"],
                   "parties": [{
                     "reason": "Buyer of gold bars",

@@ -3,7 +3,7 @@ import { validateDpmsr } from './dpmsrSchema';
 
 const validPayload = {
   entityReference: 'REF-1',
-  submissionDate: '2026-06-06T00:00:00.000Z',
+  reportDate: '2026-06-06T00:00:00.000Z',
   indicators: ['ACTRC'],
   reportingPerson: { firstName: 'Jane', lastName: 'Roe' },
   parties: [{ person: { firstName: 'John', lastName: 'Doe' } }],

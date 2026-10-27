@@ -24,14 +24,14 @@ final class AccountingDpmsrMapper {
     }
 
     static DpmsrCreateRequest toCreateRequest(AccountingTxnPayload p, String entityReference,
-                                              OffsetDateTime submissionDate, String mlroFirst, String mlroLast) {
+                                              OffsetDateTime reportDate, String mlroFirst, String mlroLast) {
         DpmsrCreateRequest.Person reportingPerson = new DpmsrCreateRequest.Person(
                 null, mlroFirst, mlroLast, null, null, null, null, null, null, null, null, null, null);
 
         return new DpmsrCreateRequest(
                 null,
                 entityReference,
-                submissionDate,
+                reportDate,
                 null,
                 REASON,
                 ACTION,

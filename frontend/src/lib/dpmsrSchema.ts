@@ -127,7 +127,7 @@ const goodsSchema = z.object({
 export const dpmsrSchema = z.object({
   rentityBranch: optStr,
   entityReference: nonEmpty,
-  submissionDate: nonEmpty,
+  reportDate: nonEmpty,
   fiuRefNumber: optStr,
   reason: optStr,
   action: optStr,

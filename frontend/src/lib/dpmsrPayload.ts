@@ -139,7 +139,7 @@ export function toDpmsrPayload(req: DpmsrCreateRequest): DpmsrReportPayload {
   return prune({
     rentityBranch: req.rentityBranch,
     entityReference: req.entityReference,
-    submissionDate: req.submissionDate,
+    reportDate: req.reportDate,
     fiuRefNumber: req.fiuRefNumber,
     reason: req.reason,
     action: req.action,

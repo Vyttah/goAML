@@ -14,8 +14,14 @@ import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlConfig;
 import com.vyttah.goaml.model.entity.goamlconfig.TenantGoamlPerson;
 import com.vyttah.goaml.model.entity.report.Report;
 import com.vyttah.goaml.model.mapper.report.DpmsrRequestMapper;
+import com.vyttah.goaml.model.mapper.report.DpmsrSectionMapper;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
+import com.vyttah.goaml.repository.report.AdditionalDetailRepository;
+import com.vyttah.goaml.repository.report.GoodsAndServicesRepository;
+import com.vyttah.goaml.repository.report.InvolvedPartyLegalRepository;
+import com.vyttah.goaml.repository.report.InvolvedPartyNaturalRepository;
+import com.vyttah.goaml.repository.report.ReportDetailsRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.service.audit.AuditService;
 import org.junit.jupiter.api.Test;
@@ -55,9 +61,22 @@ class DefaultReportServiceTest {
             new XsdSchemaValidator(),
             new ReportMarshaller());
 
+    private final ReportDetailsRepository reportDetailsRepository = mock(ReportDetailsRepository.class);
+    private final GoodsAndServicesRepository goodsAndServicesRepository = mock(GoodsAndServicesRepository.class);
+    private final InvolvedPartyNaturalRepository involvedPartyNaturalRepository =
+            mock(InvolvedPartyNaturalRepository.class);
+    private final InvolvedPartyLegalRepository involvedPartyLegalRepository =
+            mock(InvolvedPartyLegalRepository.class);
+    private final AdditionalDetailRepository additionalDetailRepository = mock(AdditionalDetailRepository.class);
+
+    private final DpmsrSectionBackfillService sectionPersistenceService = new DpmsrSectionBackfillService(
+            objectMapper, new DpmsrRequestMapper(), new DpmsrSectionMapper(objectMapper),
+            reportDetailsRepository, goodsAndServicesRepository, involvedPartyNaturalRepository,
+            involvedPartyLegalRepository, additionalDetailRepository);
+
     private final DefaultReportService service = new DefaultReportService(
             new DpmsrRequestMapper(), builder, reportRepository, configRepository, personRepository,
-            auditService, objectMapper);
+            auditService, objectMapper, sectionPersistenceService);
 
     private final UUID tenantId = UUID.randomUUID();
     private final UUID actor = UUID.randomUUID();

@@ -135,7 +135,7 @@ describe('DpmsrBuilderPage', () => {
 
     const body = captured.body as Record<string, unknown>;
     expect(body.entityReference).toBe('REF-1');
-    expect(typeof body.submissionDate).toBe('string');
+    expect(typeof body.reportDate).toBe('string');
     expect((body.reportingPerson as Record<string, unknown>).firstName).toBe('Jane');
     expect(body.indicators).toEqual(['ACTRC']);
     const parties = body.parties as Array<Record<string, unknown>>;

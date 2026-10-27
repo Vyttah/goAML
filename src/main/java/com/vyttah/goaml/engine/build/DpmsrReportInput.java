@@ -24,7 +24,7 @@ public record DpmsrReportInput(
         int rentityId,
         String rentityBranch,
         String entityReference,
-        OffsetDateTime submissionDate,
+        OffsetDateTime reportDate,
         String fiuRefNumber,
         TPersonRegistrationInReport reportingPerson,
         TAddress location,
@@ -43,7 +43,7 @@ public record DpmsrReportInput(
         private int rentityId;
         private String rentityBranch;
         private String entityReference;
-        private OffsetDateTime submissionDate;
+        private OffsetDateTime reportDate;
         private String fiuRefNumber;
         private TPersonRegistrationInReport reportingPerson;
         private TAddress location;
@@ -56,7 +56,7 @@ public record DpmsrReportInput(
         public Builder rentityId(int v) { this.rentityId = v; return this; }
         public Builder rentityBranch(String v) { this.rentityBranch = v; return this; }
         public Builder entityReference(String v) { this.entityReference = v; return this; }
-        public Builder submissionDate(OffsetDateTime v) { this.submissionDate = v; return this; }
+        public Builder reportDate(OffsetDateTime v) { this.reportDate = v; return this; }
         public Builder fiuRefNumber(String v) { this.fiuRefNumber = v; return this; }
         public Builder reportingPerson(TPersonRegistrationInReport v) { this.reportingPerson = v; return this; }
         public Builder location(TAddress v) { this.location = v; return this; }
@@ -84,7 +84,7 @@ public record DpmsrReportInput(
         }
 
         public DpmsrReportInput build() {
-            return new DpmsrReportInput(rentityId, rentityBranch, entityReference, submissionDate, fiuRefNumber,
+            return new DpmsrReportInput(rentityId, rentityBranch, entityReference, reportDate, fiuRefNumber,
                     reportingPerson, location, reason, action,
                     List.copyOf(indicators), List.copyOf(parties), List.copyOf(goods));
         }

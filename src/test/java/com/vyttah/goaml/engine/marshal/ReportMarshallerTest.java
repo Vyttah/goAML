@@ -22,7 +22,7 @@ class ReportMarshallerTest {
         report.setSubmissionCode("E");
         report.setReportCode(ReportType.DPMSR);
         report.setEntityReference("UNIT-TEST-001");
-        report.setSubmissionDate(OffsetDateTime.of(2026, 5, 26, 9, 0, 0, 0, ZoneOffset.UTC));
+        report.setReportDate(OffsetDateTime.of(2026, 5, 26, 9, 0, 0, 0, ZoneOffset.UTC));
         report.setCurrencyCodeLocal(CurrencyType.AED);
 
         byte[] bytes = marshaller.marshal(report);

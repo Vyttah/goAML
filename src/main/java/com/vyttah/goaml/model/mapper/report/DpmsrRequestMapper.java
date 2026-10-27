@@ -56,7 +56,7 @@ public class DpmsrRequestMapper {
                 .rentityId(rentityId)
                 .rentityBranch(req.rentityBranch())
                 .entityReference(req.entityReference())
-                .submissionDate(req.submissionDate())
+                .reportDate(req.reportDate())
                 .fiuRefNumber(req.fiuRefNumber())
                 .reportingPerson(req.reportingPerson() != null
                         ? reportingPerson(req.reportingPerson(), messages) : null)
