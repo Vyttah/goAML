@@ -146,11 +146,11 @@ goaml:
       enabled: ${GOAML_OUTBOUND_ENABLED:true}
       # PKCS#8 RSA private key. A CREDENTIAL — env/secrets only, never VCS. Its public half is registered on
       # the AML side as a GOAML row in trusted_service (owner-generated, as T1).
-      private-key-pem: ${GOAML_INTEGRATION_PRIVATE_KEY_PEM:}
+      private-key-pem: ${GOAML_INTEGRATION_PRIVATE_KEY_PEM:-----BEGIN PRIVATE KEY-----MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC3OF9Nm3qVhLiikrPntfu0XKiYq2neU7iPdBjYZI8+/uYym9tMBm9QoYkWsYJUyrVF6TBA35HoDqrc4R+ymP3BUoZJ2LNZ3rSs/q+BITwVrCI7fpOq5Y0U7k9HbJQs5QtokZ88GHqHK3zO0u5wSmikskyasE84MCrC96xNVhjd8EmX2WLm0Ldmz8QSuLbGJ5QiYNQDT2T0/ILbXJPnyo852huFDHRmrPuCsEEa+AwaGBmz9LL0h8Tpl3rYlrdYcCd2j2BY/GzQId8ba1XlICMqZpCNE1hryaAFw6zFCiHK6M1h7LEsG3w/8P4g9bcaitOpxO1g5psTd2cJgYGPplvxAgMBAAECggEABgGqmiw5MhKmTOobTMLaDBkni82+zEOZXtaTA/EUAyAvIsSaRV1Go/GPwXczSx1UIQUaiF3r9hwY/OHCfMPoOcC/V0dr5cvXx34X+ddBlYJNov6sz6Lz45ZGchR8rRYbMCPqAPnadnj1///JQlQmJxQTT9Ts2+40UKz28Jgce5YZTmdUbt1yxOGsmUWx4SdfzWO5moasZkO0UVSq2WBVoYxfp58pikgVu91+3iqkuEna+KgxsVMNfjNMSvSOA7VoJbGdRQt6X/uzdsFyjw4Ci+kZWlABwjRmuivuQ7k2q/3uizSIsMuABvaDZQ/dWgpYWy3lwuQzc+bqmqnmYRw7ywKBgQDpKR3fF6neSHrpDfj1/8Rw9FOVoNQtHK7Hu9QEuuqd3We0w0PMCW9xjPvN7ujqL+o8PyC3S/SN305pYywZHpmFWTZhpvSGBYpeNf6jOxkC1L3Z2J8ZlPZ0+OXgFb//RBhZdcZ1137F76zoxnKC/DN0g3Y9Kt1Z/PJ7uVHce9u1IwKBgQDJKusTiz+s7tsVaOvwz8UlWlBT3KO9LzabAd27b3WZFTFhGQaJzuW4rHVFZegQWQq+WyGCiZDpzIeQkIq7vpWIi1qq2jcnu/yNLJHGzP2zf3bgW//xmlXyUyXVyBN0xvc7mzw6Vo4yWynjAKPr3RTljRspaiuHfrvoUyoZXovt2wKBgQDS9tMCYoTejTI44N2cp9l0Yn2mayjP0J4MNtT1mrJiOEx3cB5N5VOiqG/Fux+flc8Yx/2wG9eg7qYiEQt7hwZdc4UTAl9JTIYQDEbkJrrQpvFIxQnfubrtx68m/EcGjvSBLWFuipc4PU50J+rAvbVI/RHk8n3pyEcWz21UU/VNhQKBgFrAJs5pSi98jY8KBy5avKhOJuC+L4vACdVBsULGVHnbyqvv+zgeAxodisXk5BzD3onjWKmn35zpbNq1qjBqGNFBdISQ7sLZFmSlj5nsjiL0xK8QMdVPd6hbBD1+BfDvdUcJj9ENjRaAc9P5TPmxgaTQ1EkJoVt9u81h/yL0uRFzAoGAclLDgCPRRaV4iBzMLQ5Gyq4WWLvi8vw1N9hAFfWfkIkXSv9L2S0kiByNTgzs37QU9+C6fOeuwJwQdEUbbhCcV4+a57vzokeQVCVbBJ7GKNO+yzn03KvLuOcC9lCuh7xGt2t/Gcsso9yN2GZ9uMmkhu8asVjKGBFC5mLORF1cfpU=-----END PRIVATE KEY-----}
       # The iss the AML side resolves the verification key by. Changing it means changing that row.
       issuer: ${GOAML_INTEGRATION_ISSUER:GOAML}
       # Root URL of the AML customer-service (dev: http://localhost:8081).
-      aml-base-url: ${GOAML_AML_BASE_URL:}
+      aml-base-url: ${GOAML_AML_BASE_URL:http://localhost:8080/customer-service-0.0.1-SNAPSHOT}
       aml-audience: ${GOAML_AML_AUDIENCE:aml}
       # @Scheduled(fixedDelayString) — millis here, unlike the ISO-8601 scheduler intervals above.
       interval-ms: ${GOAML_OUTBOUND_INTERVAL_MS:15000}
@@ -182,7 +182,7 @@ goaml:
     # LOCAL ONLY — on startup, seed a demo tenant + ready login users so the SPA is reviewable without
     # the provisioning chicken-and-egg. NEVER enable in a deployed environment. See config/dev/DevDataSeeder.
     seed:
-      enabled: ${GOAML_DEV_SEED:true}
+      enabled: ${GOAML_DEV_SEED:false}
 
 logging:
   pattern:
