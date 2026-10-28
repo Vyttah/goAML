@@ -47,13 +47,6 @@ public class DefaultNotificationService implements NotificationService {
         fanOut(report, tenantId, tpl);
     }
 
-    @Override
-    public void notifyDraftAwaitingReview(Report report, UUID tenantId) {
-        fanOut(report, tenantId, new Template("REPORT_PENDING_REVIEW", "Report awaiting submission",
-                "Report " + report.getEntityReference() + " is a validated draft awaiting MLRO review and "
-                        + "submission to the FIU."));
-    }
-
     /** Resolve recipients, write the durable in-app rows, then (gated, best-effort) email each recipient. */
     private void fanOut(Report report, UUID tenantId, Template tpl) {
         Map<UUID, AppUser> recipients = resolveRecipients(report, tenantId);

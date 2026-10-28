@@ -9,9 +9,8 @@ import java.util.UUID;
 
 /**
  * The full read view of a stored report (Phase D.3): the summary, the stored filing {@code input} parsed back
- * to a JSON tree (parties / reporting person / goods / indicators / reason+action), the persisted validation
- * messages, and the D.2 review trail. {@code hasXml} signals whether the marshalled goAML XML is available to
- * view/download. This is read-only — a goAML login sees the whole filing without rebuilding it.
+ * to a JSON tree (parties / reporting person / goods / indicators / reason+action) and the persisted validation
+ * messages. {@code hasXml} signals whether the marshalled goAML XML is available to view/download. This is read-only — a goAML login sees the whole filing without rebuilding it.
  *
  * <p>{@code clientMetadata} (A3) is the opaque captured-not-filed JSON the caller attached on create, returned
  * verbatim ({@code null} when none) — it never appears in the goAML XML.
@@ -25,9 +24,6 @@ public record ReportDetail(
         OffsetDateTime createdAt,
         JsonNode input,
         List<ValidationMessage> validationMessages,
-        UUID reviewedBy,
-        OffsetDateTime reviewedAt,
-        String reviewRemark,
         boolean hasXml,
         JsonNode clientMetadata) {
 }

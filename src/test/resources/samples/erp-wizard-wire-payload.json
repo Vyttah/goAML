@@ -1,0 +1,84 @@
+{
+  "entityReference": "__REF__",
+  "reportDate": "2026-10-07T00:00:00Z",
+  "reason": "Cash receipt of AED 95,000 against the sale of gold jewellery — DPMSR per MOE mandate",
+  "action": "Filed the DPMSR as per MOE mandate; cash accepted and recorded",
+  "indicators": [
+    "DPMSJ"
+  ],
+  "location": {
+    "addressType": "BU",
+    "address": "Sample Gold Souk Shop 12, Deira",
+    "city": "Dubai",
+    "countryCode": "AE",
+    "state": "Dubai"
+  },
+  "parties": [
+    {
+      "reason": "Sale of gold jewellery settled in cash",
+      "comments": "Buyer paid AED 95,000 in cash at the counter",
+      "entityMyClient": {
+        "name": "SAMPLE TRADING FZE",
+        "incorporationLegalForm": "WJDPS",
+        "business": "Dubai Department of Economic Development",
+        "incorporationNumber": "CN-1234567",
+        "incorporationState": "Dubai",
+        "incorporationCountryCode": "AE",
+        "incorporationDate": "2021-03-02T00:00:00Z",
+        "taxRegNumber": "N",
+        "phones": {
+          "phone": [
+            {
+              "tphContactType": "BU",
+              "tphCommunicationType": "L",
+              "tphNumber": "043334444"
+            }
+          ]
+        },
+        "addresses": {
+          "address": [
+            {
+              "addressType": "BU",
+              "address": "Office 401, Sample Tower, Business Bay",
+              "city": "Dubai",
+              "countryCode": "AE",
+              "state": "Dubai"
+            }
+          ]
+        },
+        "relatedPersons": {
+          "entityRelatedPerson": [
+            {
+              "person": {
+                "firstName": "SAMPLE UBO FIRST",
+                "lastName": "UBOLAST",
+                "birthdate": "1985-07-11T00:00:00Z",
+                "nationality1": "AE",
+                "residence": "AE",
+                "idNumber": "784198500000001"
+              },
+              "role": "UBO",
+              "sharePercentage": 100
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "goods": [
+    {
+      "itemType": "GOLD",
+      "statusCode": "SOLD",
+      "estimatedValue": 95000,
+      "currencyCode": "AED",
+      "size": 152,
+      "sizeUom": "Grams",
+      "description": "22K gold jewellery set",
+      "registrationNumber": "__REF__",
+      "previouslyRegisteredTo": "Sample Jewellers LLC",
+      "presentlyRegisteredTo": "SAMPLE TRADING FZE",
+      "disposedValue": 95000,
+      "comments": "Cash receipt against invoice; 152.4 grams of 22K gold jewellery"
+    }
+  ]
+}

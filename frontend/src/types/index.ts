@@ -26,8 +26,6 @@ export const REPORT_STATUSES = [
   'DRAFT',
   'VALID',
   'INVALID',
-  'PENDING_REVIEW',
-  'APPROVED',
   'SUBMITTED',
   'ACCEPTED',
   'REJECTED',
@@ -78,19 +76,10 @@ export interface StatusView {
   errors: string | null;
 }
 
-/** Outcome of a review-stage transition (Phase D.2) — mirrors `ReportResponses.ReviewView`. */
-export interface ReviewView {
-  reportId: string;
-  status: string;
-  reviewedBy: string | null;
-  reviewedAt: string | null;
-  remark: string | null;
-}
-
 /**
  * Full read view of a report (Phase D.3) — mirrors `ReportResponses.ReportDetailView`. `input` is the stored
  * filing JSON (usually a `DpmsrReportPayload`, but screening/accounting feeds store the curated shape), so it
- * is rendered defensively. `null` fields in the review trail mean the report hasn't been reviewed.
+ * is rendered defensively.
  */
 export interface ReportDetailView {
   id: string;
@@ -101,9 +90,6 @@ export interface ReportDetailView {
   createdAt: string;
   input: Record<string, unknown> | null;
   validationMessages: ValidationMessage[];
-  reviewedBy: string | null;
-  reviewedAt: string | null;
-  reviewRemark: string | null;
   hasXml: boolean;
   /**
    * Optional client-supplied metadata captured at filing time (e.g. the AML cockpit's LiveExShield

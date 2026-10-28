@@ -66,7 +66,7 @@ public interface AdminService {
     AppUser updateUser(UUID tenantId, UUID userId, UpdateUserRequest request, UUID actingUserId);
 
     /**
-     * Hard-delete a user from {@code tenantId}. Blocked if the user authored/reviewed any report (disable
+     * Hard-delete a user from {@code tenantId}. Blocked if the user authored any report (disable
      * instead) or if it is the caller themselves.
      *
      * @throws AdminExceptions.UserNotFoundException if no such user in this tenant
@@ -147,4 +147,30 @@ public interface AdminService {
      * @throws AdminExceptions.TenantExternalRefNotFoundException if no such link
      */
     void deleteTenantExternalRef(UUID id);
+
+    // ----- Server-to-server (integration) variants — goAML ↔ ERP wiring, Phase 1 / W1 -----
+
+    /**
+     * The tenant a sibling system's org reference is mapped to, if any. Used by the integration endpoints to
+     * resolve the <em>caller's</em> tenant from its assertion {@code org} claim.
+     */
+    java.util.Optional<UUID> findTenantIdBySourceRef(String sourceSystem, String externalOrgRef);
+
+    /**
+     * Map {@code (sourceSystem, externalOrgRef)} to {@code tenantId} from an untenanted (server-to-server) caller.
+     * Same validations as {@link #createTenantExternalRef}, but the change is audited on the <em>target</em>
+     * tenant's audit log (the caller has no tenant context of its own).
+     *
+     * @throws AdminExceptions.TenantNotFoundException if the tenant does not exist
+     * @throws AdminExceptions.TenantExternalRefExistsException if that (source, org ref) is already mapped
+     */
+    TenantExternalRef addTenantExternalRef(UUID tenantId, String sourceSystem, String externalOrgRef);
+
+    /**
+     * Delete the {@code (sourceSystem, externalOrgRef)} link <strong>only if it belongs to {@code tenantId}</strong>.
+     * A link that is absent or owned by another tenant is reported as not found (never revealed).
+     *
+     * @throws AdminExceptions.TenantExternalRefNotFoundException if no such link on this tenant
+     */
+    void deleteTenantExternalRef(UUID tenantId, String sourceSystem, String externalOrgRef);
 }

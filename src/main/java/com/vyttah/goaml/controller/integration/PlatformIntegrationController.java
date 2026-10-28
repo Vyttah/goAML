@@ -1,7 +1,9 @@
 package com.vyttah.goaml.controller.integration;
 
 import com.vyttah.goaml.model.dto.admin.AdminViews.CreateTenantExternalRefRequest;
+import com.vyttah.goaml.model.dto.admin.AdminViews.TenantExternalRefView;
 import com.vyttah.goaml.model.dto.admin.AdminViews.TenantView;
+import com.vyttah.goaml.model.dto.integration.ExternalRefRequest;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantProvisionRequest;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantProvisionResponse;
 import com.vyttah.goaml.model.dto.integration.IntegrationTenantStatusRequest;
@@ -10,22 +12,27 @@ import com.vyttah.goaml.model.dto.integration.IntegrationUserUpsertRequest;
 import com.vyttah.goaml.model.dto.integration.IntegrationUserUpsertResponse;
 import com.vyttah.goaml.model.dto.tenant.TenantProvisioningRequest;
 import com.vyttah.goaml.model.entity.federated.SourceSystem;
+import com.vyttah.goaml.model.entity.federated.TenantExternalRef;
 import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.security.IntegrationAuthFilter;
 import com.vyttah.goaml.security.VerifiedServiceAssertion;
+import com.vyttah.goaml.service.admin.AdminExceptions;
 import com.vyttah.goaml.service.admin.AdminService;
+import com.vyttah.goaml.service.integration.IntegrationExceptions;
 import com.vyttah.goaml.service.integration.IntegrationUserProvisioningService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -135,6 +142,57 @@ public class PlatformIntegrationController {
         }
         return ResponseEntity.ok(userProvisioningService.upsert(
                 verified.sourceSystem(), companyId, externalUserId, request));
+    }
+
+    // ----- Tenant external refs (goAML ↔ ERP wiring, Phase 1 / W1) -----
+
+    /**
+     * Add a sibling system's org reference (e.g. {@code ACCOUNTING} → ERP company id) to the <em>caller's</em>
+     * tenant — the one its assertion {@code org} claim maps to under the caller's source ({@code SCREENING}).
+     * Called by the AML admin service when an ERP workspace is linked. 409 if that reference is already mapped
+     * to any tenant; 404 if the caller's org is not provisioned.
+     */
+    @PostMapping("/tenants/external-refs")
+    public ResponseEntity<TenantExternalRefView> addExternalRef(
+            @RequestAttribute(IntegrationAuthFilter.VERIFIED_ASSERTION_ATTR) VerifiedServiceAssertion verified,
+            @Valid @RequestBody ExternalRefRequest request) {
+
+        java.util.UUID tenantId = requireCallerTenant(verified);
+        TenantExternalRef ref = adminService.addTenantExternalRef(
+                tenantId, request.sourceSystem(), request.externalOrgRef());
+        return ResponseEntity.status(HttpStatus.CREATED).body(TenantExternalRefView.from(ref));
+    }
+
+    /**
+     * Remove a sibling system's org reference from the caller's tenant (ERP workspace unlinked). 404 if the
+     * reference is absent or belongs to another tenant. The caller's <em>own</em> mapping (its source system)
+     * cannot be removed this way — that would orphan the tenant for the caller; use the platform admin API.
+     */
+    @DeleteMapping("/tenants/external-refs")
+    public ResponseEntity<Void> removeExternalRef(
+            @RequestAttribute(IntegrationAuthFilter.VERIFIED_ASSERTION_ATTR) VerifiedServiceAssertion verified,
+            @RequestParam String sourceSystem,
+            @RequestParam String externalOrgRef) {
+
+        java.util.UUID tenantId = requireCallerTenant(verified);
+        if (verified.sourceSystem().name().equalsIgnoreCase(sourceSystem == null ? "" : sourceSystem.trim())) {
+            throw new AdminExceptions.TenantExternalRefExistsException(
+                    "The caller's own " + verified.sourceSystem() + " mapping cannot be removed through this endpoint");
+        }
+        adminService.deleteTenantExternalRef(tenantId, sourceSystem, externalOrgRef);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** The caller's tenant: assertion {@code org} (required, 400) mapped under the caller's source (else 404). */
+    private java.util.UUID requireCallerTenant(VerifiedServiceAssertion verified) {
+        String org = verified.externalOrgRef();
+        if (org == null || org.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Service assertion must carry an org claim to resolve the tenant");
+        }
+        return adminService.findTenantIdBySourceRef(verified.sourceSystem().name(), org)
+                .orElseThrow(() -> new IntegrationExceptions.UnmappedOrgException(
+                        "No goAML tenant is mapped to " + verified.sourceSystem() + " org '" + org + "'"));
     }
 
     private static TenantProvisioningRequest buildRequest(String companyId,

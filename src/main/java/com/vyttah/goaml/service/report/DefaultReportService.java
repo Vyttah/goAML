@@ -116,7 +116,7 @@ public class DefaultReportService implements ReportService {
     }
 
     private static DpmsrCreateRequest withReportingPerson(DpmsrCreateRequest r, DpmsrCreateRequest.Person rp) {
-        return new DpmsrCreateRequest(r.rentityBranch(), r.entityReference(), r.reportDate(),
+        return new DpmsrCreateRequest(r.rentityBranch(), r.entityReference(), r.submissionDate(),
                 r.fiuRefNumber(), r.reason(), r.action(), r.indicators(), rp, r.location(), r.parties(),
                 r.goods(), r.clientMetadata());
     }
@@ -141,7 +141,7 @@ public class DefaultReportService implements ReportService {
     }
 
     private static DpmsrReportPayload withReportingPerson(DpmsrReportPayload p, TPersonRegistrationInReport rp) {
-        return new DpmsrReportPayload(p.rentityBranch(), p.entityReference(), p.reportDate(),
+        return new DpmsrReportPayload(p.rentityBranch(), p.entityReference(), p.submissionDate(),
                 p.fiuRefNumber(), rp, p.location(), p.reason(), p.action(), p.indicators(), p.parties(),
                 p.goods(), p.clientMetadata());
     }
@@ -278,7 +278,6 @@ public class DefaultReportService implements ReportService {
                 report.getId(), report.getEntityReference(), report.getReportCode(), report.getStatus(),
                 report.getRentityId(), report.getCreatedAt(),
                 parseInput(report.getInput()), parseMessages(report.getValidationErrors()),
-                report.getReviewedBy(), report.getReviewedAt(), report.getReviewRemark(),
                 report.getReportXml() != null && !report.getReportXml().isBlank(),
                 parseClientMetadata(report.getClientMetadata()));
     }

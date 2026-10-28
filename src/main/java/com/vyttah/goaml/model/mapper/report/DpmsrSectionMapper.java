@@ -88,7 +88,7 @@ public class DpmsrSectionMapper {
                 .reason(in.reason())
                 .fiuRefNumber(in.fiuRefNumber())
                 .rentityBranch(in.rentityBranch())
-                .submissionDate(in.submissionDate());
+                .submissionDate(in.reportDate());
 
         if (in.indicators() != null && !in.indicators().isEmpty()) {
             b.indicators(in.indicators().toArray(String[]::new));

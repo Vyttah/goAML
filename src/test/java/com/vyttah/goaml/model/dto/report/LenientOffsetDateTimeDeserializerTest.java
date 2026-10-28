@@ -67,14 +67,14 @@ class LenientOffsetDateTimeDeserializerTest {
                 {"entityReference":"R-1","reportDate":"2026-06-12","parties":[],"goods":[]}
                 """;
         DpmsrCreateRequest reqBare = mapper.readValue(bare, DpmsrCreateRequest.class);
-        assertThat(reqBare.reportDate())
+        assertThat(reqBare.submissionDate())
                 .isEqualTo(OffsetDateTime.of(2026, 6, 12, 0, 0, 0, 0, ZoneOffset.UTC));
 
         String full = """
                 {"entityReference":"R-2","reportDate":"2026-06-12T08:00:00Z","parties":[],"goods":[]}
                 """;
         DpmsrCreateRequest reqFull = mapper.readValue(full, DpmsrCreateRequest.class);
-        assertThat(reqFull.reportDate())
+        assertThat(reqFull.submissionDate())
                 .isEqualTo(OffsetDateTime.of(2026, 6, 12, 8, 0, 0, 0, ZoneOffset.UTC));
     }
 }

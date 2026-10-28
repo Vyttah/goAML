@@ -166,6 +166,44 @@ class DpmsrCuratedWireFidelityTest {
                 List.of(goods));
     }
 
+    /**
+     * Q11 — the curated path accepts the browser's {@code reportDate} spelling as well as {@code submissionDate}.
+     *
+     * <p>Frontend_Customer {@code a2ea69f} (2026-08-24) renamed this key in {@code assembleReport.ts} and
+     * {@code dpmsrPayload.ts}; nothing on this side followed, so a payload built by the current cockpit arrives
+     * with {@code submissionDate} null and {@code @Valid} answers <strong>400</strong> before any tenant work
+     * happens. Both cockpit paths were affected — the full-fidelity {@code POST /api/v1/reports} (fixed in F0)
+     * and this curated one (fixed here). The field, the persisted input key and the marshalled
+     * {@code submission_date} element are all unchanged.
+     */
+    @Test
+    void theBrowsersReportDateSpellingBindsOntoSubmissionDate() throws Exception {
+        String json = """
+                {"entityReference":"Q11-ALIAS-1",
+                 "reportDate":"2026-07-15T00:00:00Z",
+                 "reason":"cash purchase over the threshold",
+                 "reportingPerson":{"firstName":"Mona","lastName":"Al Mansoori"}}
+                """;
+
+        DpmsrCreateRequest bound = mapper.readValue(json, DpmsrCreateRequest.class);
+
+        assertThat(bound.submissionDate()).isEqualTo(odt("2026-07-15T00:00:00"));
+        assertThat(bound.entityReference()).isEqualTo("Q11-ALIAS-1");
+    }
+
+    /** The original spelling must keep working — the alias adds a spelling, it does not replace one. */
+    @Test
+    void theOriginalSubmissionDateSpellingStillBinds() throws Exception {
+        String json = """
+                {"entityReference":"Q11-ALIAS-2",
+                 "submissionDate":"2026-07-15T00:00:00Z",
+                 "reportingPerson":{"firstName":"Mona","lastName":"Al Mansoori"}}
+                """;
+
+        assertThat(mapper.readValue(json, DpmsrCreateRequest.class).submissionDate())
+                .isEqualTo(odt("2026-07-15T00:00:00"));
+    }
+
     private static OffsetDateTime odt(String isoLocal) {
         return OffsetDateTime.parse(isoLocal + "Z").withOffsetSameInstant(ZoneOffset.UTC);
     }

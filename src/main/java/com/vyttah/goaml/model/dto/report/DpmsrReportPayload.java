@@ -1,5 +1,6 @@
 package com.vyttah.goaml.model.dto.report;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.vyttah.goaml.domain.generated.ReportPartyType;
 import com.vyttah.goaml.domain.generated.TAddress;
@@ -34,7 +35,13 @@ import java.util.List;
 public record DpmsrReportPayload(
         String rentityBranch,
         @NotBlank String entityReference,
-        @NotNull OffsetDateTime reportDate,
+        // `reportDate` is accepted as an alias: the goAML schema itself allows either report_date or
+        // submission_date (docs/15-dpmsr-field-requirements.md) and the AML cockpit's assembler renamed its
+        // key to `reportDate` on 2026-08-24, after this contract shipped — so a payload built by
+        // dpmsrPayload.ts (the cockpit's, and the ERP filing wizard's verbatim copy of it) carries that
+        // spelling. Additive and read-only: the field, the persisted input key and the XML stay
+        // submission_date.
+        @NotNull @JsonAlias("reportDate") OffsetDateTime submissionDate,
         String fiuRefNumber,
         // Optional on the wire: when omitted the service fills it from the tenant's active
         // tenant_goaml_person (the goAML-feeds-the-MLRO decision), mirroring the curated path. The build
@@ -67,7 +74,7 @@ public record DpmsrReportPayload(
                 .rentityId(rentityId)
                 .rentityBranch(rentityBranch)
                 .entityReference(entityReference)
-                .reportDate(reportDate)
+                .reportDate(submissionDate)
                 .fiuRefNumber(fiuRefNumber)
                 .reportingPerson(reportingPerson)
                 .location(location)

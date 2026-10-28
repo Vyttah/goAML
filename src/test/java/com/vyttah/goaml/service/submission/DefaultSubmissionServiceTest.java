@@ -17,6 +17,7 @@ import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.submission.SubmissionRepository;
 import com.vyttah.goaml.service.audit.AuditService;
+import com.vyttah.goaml.service.integration.ReportStatusOutboxService;
 import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import org.junit.jupiter.api.Test;
@@ -54,10 +55,13 @@ class DefaultSubmissionServiceTest {
     private final AuditService auditService = mock(AuditService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
     private final XsdSchemaValidator xsdSchemaValidator = mock(XsdSchemaValidator.class);
+    /** S2: the report-status outbox hook. Mocked here; its own behaviour is ReportStatusOutboxServiceTest's. */
+    private final ReportStatusOutboxService statusOutboxService = mock(ReportStatusOutboxService.class);
 
     private final DefaultSubmissionService service = new DefaultSubmissionService(
             reportRepository, submissionRepository, configRepository, attachmentRepository, b2bClient,
-            new ReportZipPackager(), s3StorageClient, auditService, notificationService, xsdSchemaValidator);
+            new ReportZipPackager(), s3StorageClient, auditService, notificationService, xsdSchemaValidator,
+            statusOutboxService);
 
     private final UUID tenantId = UUID.randomUUID();
     private final UUID actor = UUID.randomUUID();
@@ -104,6 +108,8 @@ class DefaultSubmissionServiceTest {
         // D6: the submission attempt row records the acting MLRO, self-contained for compliance.
         assertThat(sub.getValue().getSubmittedBy()).isEqualTo(actor);
         verify(auditService).record(any(), any(), any(), any(), any());
+        // S2: the ERP that filed this report is told it reached the FIU.
+        verify(statusOutboxService).record(report, tenantId, "SUBMITTED", null, actor);
     }
 
     @Test
@@ -172,7 +178,27 @@ class DefaultSubmissionServiceTest {
         when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
 
         assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
-                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class);
+                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class)
+                .hasMessageContaining("must be VALID");
+        verify(b2bClient, never()).postReport(any(), any(), any());
+    }
+
+    /**
+     * Z1 / D41: VALID is the only submittable status — there is no tenant flag that could raise the bar to a
+     * reviewed state, so a config row saying nothing about review changes nothing (and a report stored with a
+     * now-dead status would be refused the same way).
+     */
+    @Test
+    void validIsRequiredUnconditionally() {
+        stubConfig();
+        Report report = validReport();
+        report.setStatus("APPROVED");
+        when(reportRepository.findById(report.getId())).thenReturn(Optional.of(report));
+
+        assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
+                .isInstanceOf(SubmissionExceptions.ReportNotSubmittableException.class)
+                .hasMessageContaining("must be VALID");
+        verify(reportRepository, never()).claimForSubmission(any(), any());
         verify(b2bClient, never()).postReport(any(), any(), any());
     }
 
@@ -212,6 +238,9 @@ class DefaultSubmissionServiceTest {
         assertThat(sub.getValue().getStatus()).isEqualTo("FAILED");
         assertThat(report.getStatus()).isEqualTo("VALID"); // unchanged — fixable
         verify(notificationService).notifyReportTransition(report, "REJECTED", tenantId);
+        // S2: the report is reopened for rework (VALID above), but the ERP's filing was refused — so the
+        // event says REJECTED, carrying the FIU's own words.
+        verify(statusOutboxService).record(report, tenantId, "REJECTED", "<error>bad date</error>", actor);
     }
 
     @Test
@@ -224,6 +253,8 @@ class DefaultSubmissionServiceTest {
         assertThatThrownBy(() -> service.submit(report.getId(), tenantId, actor))
                 .isInstanceOf(SubmissionExceptions.SubmissionTransportException.class);
         verify(notificationService).notifyReportTransition(report, "FAILED", tenantId);
+        // S2: a transport failure is still news for the ERP — its filing did not get through.
+        verify(statusOutboxService).record(report, tenantId, "FAILED", "boom", actor);
     }
 
     @Test
@@ -244,6 +275,8 @@ class DefaultSubmissionServiceTest {
         assertThat(submission.getStatus()).isEqualTo("REJECTED");
         assertThat(report.getStatus()).isEqualTo("REJECTED");
         verify(notificationService).notifyReportTransition(report, "REJECTED", tenantId);
+        // S2: the FIU answered a background poll, so there is no acting user - null, not invented.
+        verify(statusOutboxService).record(report, tenantId, "REJECTED", "bad field", null);
     }
 
     @Test
@@ -261,6 +294,8 @@ class DefaultSubmissionServiceTest {
         service.refreshStatus(report.getId(), tenantId);
 
         assertThat(submission.getStatus()).isEqualTo("SUBMITTED");
+        // S2: no transition means no event either - a no-op poll must not re-tell the ERP what it knows.
+        verify(statusOutboxService, never()).record(any(), any(), any(), any(), any());
         // no transition (SUBMITTED → SUBMITTED) → no notification
         verify(notificationService, never()).notifyReportTransition(any(), any(), any());
     }
@@ -358,6 +393,7 @@ class DefaultSubmissionServiceTest {
         assertThat(status.status()).isEqualTo("Accepted");
         assertThat(submission.getStatus()).isEqualTo("ACCEPTED");
         assertThat(report.getStatus()).isEqualTo("ACCEPTED");
+        verify(statusOutboxService).record(report, tenantId, "ACCEPTED", null, null);
     }
 
     @Test

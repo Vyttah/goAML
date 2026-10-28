@@ -17,6 +17,85 @@
 > its proxy default is `:8080` (`vite.config.ts`), which on this machine is the **AML user-service**, so without the
 > override the SPA login proxies to the wrong app and fails with **403/400** (`mlro@demo.local` / `Passw0rd!`).
 
+> **goAML ↔ ERP wiring, Phase 1 / W1 (2026-09-30, branch `feature/goaml-erp-wiring-p1`):** the AML admin-service can now
+> add/remove a second external ref on an existing tenant server-to-server —
+> `POST/DELETE /api/v1/integration/admin/tenants/external-refs` (SCREENING-authed; tenant = caller's `org`). Used to
+> map `ACCOUNTING/<erpCompanyId>` onto the same tenant as `SCREENING/<amlCompanyId>` when an ERP workspace is linked.
+> Plan + status board: `C:/vyttah-aml/vyttah-aml-mono/plans/goaml-erp-wiring/README.md`. Docs: `docs/14` §Platform
+> admin endpoints, and `docs/17` §4.5 for the operator view (who connects the two apps, and what to do when a tenant
+> has only its `SCREENING` ref). The rest of Phase 1 — the workspace connection, the ERP account ↔ AML customer link
+> and the one-way KYC push — is built outside goAML; nothing further is needed here.
+
+> **goAML ↔ ERP wiring, Phase 2 / F0 (2026-10-07, same branch):** the ERP's goAML **filing wizard** path is open —
+> `POST /api/v1/integration/accounting/reports` takes the **full-fidelity `DpmsrReportPayload`** (the same contract the
+> AML cockpit posts to `POST /api/v1/reports`) wrapped as `{companyId, payload}` under the ACCOUNTING assertion, and
+> `GET /api/v1/integration/accounting/reports/{entityReference}?companyId=` returns its status + persisted validation
+> messages. No reportability judgement (the ERP operator already decided to file); tenant from the `ACCOUNTING` ref,
+> idempotent on the ERP-owned `entityReference` (`ACC-<companyId>-<cashDocNo>`, `200 duplicate:true` on a retry),
+> reporting person defaulted from `tenant_goaml_person` (falling back to an ACTIVE MLRO app user's name), the same
+> `auto_submit` / MLRO-notify gate as the raw push, audited as `REPORT.FILED_BY_ERP` with the ERP user id.
+> `DpmsrReportPayload.submissionDate` now also accepts the key **`reportDate`** (`@JsonAlias`) — the shared browser
+> assembler `dpmsrPayload.ts` renamed it on 2026-08-24 and nothing on this side had followed, so the cockpit's own
+> full-fidelity create was failing `@NotNull` validation. Contract: `docs/14` §Model 2b. Plan: `07-goaml-filing-wizard.md`
+> §F0 · `plans/goaml-erp-wiring/progress/F0.md`.
+
+> **goAML ↔ ERP wiring, Phase 2 / F3 (2026-10-07, same branch):** the lookup passthrough is now reachable under a
+> **second path**, `GET /api/v1/integration/accounting/lookups/{jur}/{set}` — `IntegrationLookupController` maps
+> both it and the original `/api/v1/integration/lookups/**` on one handler, and `IntegrationAuthFilter` picks the
+> signing key from the prefix (ACCOUNTING vs SCREENING). That is what lets the ERP's goAML filing wizard read the
+> FIU reference sets with its own issuer: before this, an ACCOUNTING-signed assertion on the lookups path was a
+> 401, because everything that is not `…/accounting*` is verified against the SCREENING key. Each prefix rejects
+> the other's assertion (`IntegrationLookupDualPathE2ETest`, 6 tests). No org check — these sets are FIU
+> reference data, identical for every tenant. Contract: `docs/14` §Model 2b. Plan: `07-goaml-filing-wizard.md`
+> §F3 · `plans/goaml-erp-wiring/progress/F3.md`.
+
+> **goAML ↔ ERP wiring, Phase 2 / S2 (2026-10-08, same branch):** goAML now **calls out**, for the first time. Every
+> review and submission transition of a report belonging to a tenant with an `ACCOUNTING` external ref writes a row to
+> the new shared `public.report_status_outbox` (`V10`), and a `@Scheduled` `ReportStatusPublisher` POSTs due rows to the
+> AML platform at `/api/v1/integration/goaml/report-status` under goAML's **own** RS256 service assertion
+> (`iss=GOAML`, `aud=aml`, `org` = the tenant's `SCREENING` ref) minted by `security/OutboundAssertionSigner` — the
+> mirror of `ServiceCredentialValidator`. AML forwards each event to the ERP's accounting service, so a cash receipt
+> filed from the ERP shows the FIU's answer without the ERP ever polling goAML (decisions D22/D23).
+> **Two things to know before touching this.** (1) An event's `status` is **the transition, not the report's resulting
+> status**: `reject` leaves the report `VALID` so it can be reworked, and a submission the FIU refuses is restored to
+> `VALID`/`APPROVED`, but in both cases the ERP is told `REJECTED` — what happened to its filing. (2) The assertion's
+> `aud` is written as a **single JSON string**, not jjwt 0.12's array form: the AML platform verifies with jjwt 0.11.5,
+> whose `requireAudience` reads `aud` as a `String`, so the array form would 401 every event with no diagnosable
+> symptom. `OutboundAssertionSignerTest` asserts the serialised bytes for exactly that reason.
+> Off by default (`goaml.integration.outbound.enabled`) — while off, nothing is recorded and nothing is published, so a
+> standalone deployment accumulates no backlog. Honours `goaml.scheduler.enabled` like the FIU poller, so N web replicas
+> do not send N copies. Delivery is at-least-once; the receivers de-duplicate. Contract: `docs/14` §Model 2c.
+> Plan: `09-two-way-sync.md` §S2 · `plans/goaml-erp-wiring/progress/S2.md`.
+
+> **goAML ↔ ERP wiring, Phase 2 / X1 (2026-10-12, same branch):** the ERP's **Download XML / Download PDF** row actions
+> are served from goAML directly — `GET /api/v1/integration/accounting/reports/{entityReference}/xml` (the XML persisted at
+> filing, `application/xml`, `attachment; filename="<ref>.xml"`) and `…/pdf` (rendered per request by `ReportPdfService.filed`,
+> `application/pdf`, `DPMSR_<ref>.pdf`; "Generated by" = the assertion's email, else `sub`), both `?companyId=` under the
+> ACCOUNTING assertion with the B11 org cross-check. Two methods on `AccountingIngestionService` in the exact shape of
+> `reportStatus` (tenant from the `ACCOUNTING` ref, schema bound, 404 on an unknown reference); no filter change —
+> `IntegrationAuthFilter` already keys everything under `…/accounting*` to ACCOUNTING. Raw bytes end to end (the ERP passes
+> them through and rewrites the filename to its document number; nothing cached). 5 MockMvc cases in
+> `AccountingReportFilingE2ETest` (XML equals the persisted column, PDF starts `%PDF`, unknown ref 404, org mismatch 401,
+> `iss=SCREENING` 401). Contract: `docs/14` §Model 2b. Plan: `14-goaml-xml-pdf-download.md` §X1 ·
+> `plans/goaml-erp-wiring/progress/X1.md`.
+
+> **goAML ↔ ERP wiring, step 16 / Z1 (2026-10-13, same branch) — the Phase D.2 review gate is REMOVED (owner decision,
+> D41–D44).** A report now goes `VALID → SUBMITTING → SUBMITTED` by one person; `PENDING_REVIEW` and `APPROVED` no longer
+> exist anywhere. Gone: `ReportReviewService` / `DefaultReportReviewService`, `ReviewResult`, `ReviewDecisionRequest`,
+> `ReportResponses.ReviewView`, the four `/api/v1/reports/{id}/submit-for-review|approve|reject` + `/review-queue`
+> endpoints, `Report.reviewedBy/reviewedAt/reviewRemark` (+ the detail views' fields), `ReportRepository.existsByReviewedBy`,
+> `TenantGoamlConfig.reviewRequired`, `NotificationService.notifyDraftAwaitingReview` + the `REPORT_PENDING_REVIEW` template
+> (the accounting push no longer pings MLROs — a VALID draft just waits on the report page), `InvalidReviewStateException`.
+> `DefaultSubmissionService.submit` requires `VALID` unconditionally (the SUBMITTING CAS claim is unchanged). Migrations:
+> tenant **`V12__drop_report_review.sql`** (PENDING_REVIEW/APPROVED → VALID, three columns dropped, `report_status_chk` and
+> `notification_type_chk` rewritten, `REPORT_PENDING_REVIEW` rows deleted) and shared **`V11__drop_review_gate.sql`**
+> (outbox rows with the two values deleted, `review_required` dropped). SPA: `ReviewQueuePage`, `useReviewQueue`, the
+> "Review queue" nav item + `reports/review` route, the Submit-for-review button and the Review card are gone;
+> `StatusTag` / `REPORT_STATUSES` trimmed. Tests: `ReportReviewE2ETest` + `DefaultReportReviewServiceTest` deleted;
+> `ReportStatusOutboxE2ETest` rewritten on submission transitions (B2B client mocked) and now also proves V11/V12 applied.
+> Docs: `docs/07` (status list), `docs/14` (§Model 2c table), `docs/18`. The S2 outbox hooks on SUBMITTED / FAILED /
+> ACCEPTED / REJECTED are untouched. Plan: `16-remove-review-gate.md` §Z1 · `plans/goaml-erp-wiring/progress/Z1.md`.
+
 ## Project Reference
 
 **What:** Multi-tenant RegTech platform that builds, validates, submits, and tracks goAML AML reports to

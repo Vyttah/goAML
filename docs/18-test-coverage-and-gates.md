@@ -22,7 +22,7 @@ The pass added **230 tests** and fixed **1 production bug**. Coverage by area:
 - **Multi-tenant isolation at the HTTP layer** (`security/CrossTenantIsolationE2ETest`): tenant B cannot read,
   submit, or list-attachments on tenant A's report — all 404 — while the owner can.
 - **401 sweep** (`security/UnauthenticatedAccessE2ETest`): every authenticated endpoint rejects a no-token request.
-- **403 role matrix** (`security/RoleEnforcementE2ETest`): the admin surface, report author/review gates, and
+- **403 role matrix** (`security/RoleEnforcementE2ETest`): the admin surface, the report author / submit gates, and
   SUPER-ADMIN-can't-touch-tenant-data.
 - **Endpoint coverage**: notifications (incl. ownership), `/me/connection` (no-secret-leak), reportability over
   HTTP, the SUPER_ADMIN admin surface (trusted-services, tenant-external-refs, cross-tenant users + reset-password),

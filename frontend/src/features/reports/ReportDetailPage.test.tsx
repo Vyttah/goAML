@@ -28,9 +28,6 @@ function report(overrides: Partial<ReportDetailView> = {}): ReportDetailView {
       goods: [{ itemType: 'GOLD', estimatedValue: 90000, currencyCode: 'AED' }],
     },
     validationMessages: [],
-    reviewedBy: null,
-    reviewedAt: null,
-    reviewRemark: null,
     hasXml: true,
     ...overrides,
   };
@@ -122,15 +119,11 @@ describe('ReportDetailPage', () => {
     expect(screen.getByText(/Only a/)).toBeInTheDocument();
   });
 
-  it('shows the validation messages and the review trail for a reviewed report', async () => {
+  it('shows the validation messages and no review panel', async () => {
     server.use(
       http.get(`*/api/v1/reports/${ID}/detail`, () =>
         HttpResponse.json(
           report({
-            status: 'APPROVED',
-            reviewedBy: 'u-mlro',
-            reviewedAt: '2026-06-02T09:00:00Z',
-            reviewRemark: 'looks good',
             validationMessages: [
               { severity: 'WARNING', path: 'report.action', code: 'SOFT', message: 'action is advisory' },
             ],
@@ -143,8 +136,9 @@ describe('ReportDetailPage', () => {
 
     expect(await screen.findByText('action is advisory')).toBeInTheDocument();
     expect(screen.getByText('WARNING')).toBeInTheDocument();
-    expect(screen.getByText('u-mlro')).toBeInTheDocument();
-    expect(screen.getByText('looks good')).toBeInTheDocument();
+    // Z1 / D41: the review gate is gone — no Review card, no "Submit for review" action.
+    expect(screen.queryByText('Review')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /submit for review/i })).not.toBeInTheDocument();
   });
 
   it('renders client metadata read-only when /detail includes it', async () => {

@@ -24,6 +24,7 @@ import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.submission.SubmissionRepository;
 import com.vyttah.goaml.service.audit.AuditService;
+import com.vyttah.goaml.service.integration.ReportStatusOutboxService;
 import com.vyttah.goaml.service.notification.NotificationService;
 import com.vyttah.goaml.service.report.ReportExceptions;
 import lombok.RequiredArgsConstructor;
@@ -56,14 +57,16 @@ public class DefaultSubmissionService implements SubmissionService {
     private final AuditService auditService;
     private final NotificationService notificationService;
     private final XsdSchemaValidator xsdSchemaValidator;
+    /** S2: the report-status outbox hook. Last, so every existing constructor call keeps its argument order. */
+    private final ReportStatusOutboxService statusOutboxService;
 
     @Override
     public SubmissionResult submit(UUID reportId, UUID tenantId, UUID actorUserId) {
         Report report = reportRepository.findById(reportId)
                 .orElseThrow(() -> new ReportExceptions.ReportNotFoundException("Report not found: " + reportId));
-        // Phase D.2: when the tenant's review gate is on, the report must be APPROVED (VALID → PENDING_REVIEW →
-        // APPROVED); otherwise the direct path applies and VALID is submittable.
-        String required = reviewRequired(tenantId) ? "APPROVED" : "VALID";
+        // A report submits from VALID, full stop — there is no review stage in between (D41). The constant is
+        // kept as a local because the CAS claim and the restore below both key on the pre-claim status.
+        String required = "VALID";
         if (!required.equals(report.getStatus())) {
             throw new SubmissionExceptions.ReportNotSubmittableException(
                     "Report " + reportId + " is " + report.getStatus() + " — must be " + required + " to submit");
@@ -120,15 +123,20 @@ public class DefaultSubmissionService implements SubmissionService {
 
             auditService.record("REPORT.SUBMIT", actorUserId, null, TenantContext.get(),
                     "report " + report.getEntityReference() + " submitted, reportkey=" + reportKey);
+            statusOutboxService.record(report, tenantId, "SUBMITTED", null, actorUserId);
             return new SubmissionResult(submission.getId(), reportKey, "SUBMITTED");
         } catch (B2bValidationException e) {
             saveFailed(submission, e.responseBody());
             safeNotify(report, "REJECTED", tenantId);
+            // The FIU refused the report outright. The report itself is restored to VALID by submit()'s catch
+            // so it can be reworked, but what happened to the ERP's filing is a rejection.
+            statusOutboxService.record(report, tenantId, "REJECTED", e.responseBody(), actorUserId);
             throw new SubmissionExceptions.SubmissionRejectedException(
                     "FIU rejected report " + reportId, e.responseBody());
         } catch (B2bAuthException | B2bTransportException e) {
             saveFailed(submission, e.getMessage());
             safeNotify(report, "FAILED", tenantId);
+            statusOutboxService.record(report, tenantId, "FAILED", e.getMessage(), actorUserId);
             throw new SubmissionExceptions.SubmissionTransportException(
                     "Submission transport/auth failure for report " + reportId, e);
         }
@@ -179,6 +187,8 @@ public class DefaultSubmissionService implements SubmissionService {
         // Notify only on a genuine transition to a terminal FIU outcome (no-op poll → no notification).
         if (!mapped.equals(oldStatus)) {
             safeNotify(report, mapped, tenantId);
+            // S2: the FIU answered, so there is no acting user — a background poll is the actor.
+            statusOutboxService.record(report, tenantId, mapped, status.errors(), null);
         }
         return status;
     }
@@ -252,13 +262,6 @@ public class DefaultSubmissionService implements SubmissionService {
                         "No tenant_goaml_config for tenant " + tenantId));
         return new B2bTenantConfig(tenantId.toString(), config.getBaseUrl(), config.getSecretsPath(),
                 B2bAuthMode.valueOf(config.getAuthMode()));
-    }
-
-    /** Phase D.2: whether this tenant requires the MLRO review gate before a report can be submitted. */
-    private boolean reviewRequired(UUID tenantId) {
-        return configRepository.findByTenantId(tenantId)
-                .map(TenantGoamlConfig::isReviewRequired)
-                .orElse(false);
     }
 
     private void saveFailed(Submission submission, String errors) {

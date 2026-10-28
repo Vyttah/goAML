@@ -88,8 +88,6 @@ class RoleEnforcementE2ETest {
     static Stream<Denied> deniedCombos() {
         String id = UUID.randomUUID().toString();
         return Stream.of(
-                // ANALYST is blocked from MLRO-only review actions and the review queue
-                new Denied("ANALYST", HttpMethod.GET, "/api/v1/reports/review-queue"),
                 // ANALYST/MLRO are blocked from the TENANT_ADMIN admin surface
                 new Denied("ANALYST", HttpMethod.GET, "/api/v1/admin/users"),
                 new Denied("ANALYST", HttpMethod.GET, "/api/v1/admin/goaml-config"),

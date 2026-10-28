@@ -143,7 +143,7 @@ export function TenantUsersPanel() {
           <Button size="small" onClick={() => { setError(null); setResetting(u); }}>Reset password</Button>
           <Popconfirm
             title="Delete this user?"
-            description="Hard delete. If they authored/reviewed reports, disable them instead."
+            description="Hard delete. If they authored reports, disable them instead."
             okText="Delete"
             okButtonProps={{ danger: true }}
             onConfirm={() => onDelete(u)}

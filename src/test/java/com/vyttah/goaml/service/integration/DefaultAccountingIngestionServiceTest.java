@@ -13,11 +13,13 @@ import com.vyttah.goaml.model.entity.tenant.Tenant;
 import com.vyttah.goaml.repository.appuser.AppUserRepository;
 import com.vyttah.goaml.repository.federated.TenantExternalRefRepository;
 import com.vyttah.goaml.repository.goamlconfig.TenantGoamlConfigRepository;
+import com.vyttah.goaml.repository.goamlconfig.TenantGoamlPersonRepository;
 import com.vyttah.goaml.repository.report.ReportRepository;
 import com.vyttah.goaml.repository.tenant.TenantRepository;
-import com.vyttah.goaml.service.notification.NotificationService;
+import com.vyttah.goaml.service.audit.AuditService;
 import com.vyttah.goaml.service.report.ReportResult;
 import com.vyttah.goaml.service.report.ReportService;
+import com.vyttah.goaml.service.report.pdf.ReportPdfService;
 import com.vyttah.goaml.service.submission.SubmissionExceptions;
 import com.vyttah.goaml.service.submission.SubmissionResult;
 import com.vyttah.goaml.service.submission.SubmissionService;
@@ -41,8 +43,9 @@ import static org.mockito.Mockito.when;
 
 /**
  * 1.5b.5 — submit gating in {@link DefaultAccountingIngestionService}: a reportable invoice creates a VALID
- * draft, then either auto-submits (tenant {@code auto_submit} on) or notifies the MLROs (off, the default).
- * Auto-submit failures fall back to the MLRO gate without failing the push.
+ * draft, then either auto-submits (tenant {@code auto_submit} on) or leaves it VALID for a person to submit
+ * (off, the default). Auto-submit failures leave the draft VALID without failing the push. (Z1 / D41: the
+ * "draft awaiting review" notification is gone, so nothing is announced either way.)
  */
 class DefaultAccountingIngestionServiceTest {
 
@@ -53,12 +56,14 @@ class DefaultAccountingIngestionServiceTest {
     private final TenantGoamlConfigRepository configRepository = mock(TenantGoamlConfigRepository.class);
     private final ReportabilityDetector detector = mock(ReportabilityDetector.class);
     private final ReportService reportService = mock(ReportService.class);
+    private final ReportPdfService reportPdfService = mock(ReportPdfService.class);
     private final SubmissionService submissionService = mock(SubmissionService.class);
-    private final NotificationService notificationService = mock(NotificationService.class);
+    private final TenantGoamlPersonRepository personRepository = mock(TenantGoamlPersonRepository.class);
+    private final AuditService auditService = mock(AuditService.class);
 
     private final DefaultAccountingIngestionService service = new DefaultAccountingIngestionService(
-            tenantExternalRefs, tenants, appUsers, reportRepository, configRepository, detector,
-            reportService, submissionService, notificationService);
+            tenantExternalRefs, tenants, appUsers, reportRepository, configRepository, personRepository,
+            detector, reportService, reportPdfService, submissionService, auditService);
 
     private static final int COMPANY_ID = 777;
     private static final String SCHEMA = "tenant_acct";
@@ -107,50 +112,44 @@ class DefaultAccountingIngestionServiceTest {
         assertThat(res.status()).isEqualTo("SUBMITTED");
         assertThat(res.reportId()).isEqualTo(reportId);
         verify(submissionService).submit(reportId, tenantId, null);
-        verifyNoInteractions(notificationService);
     }
 
     @Test
-    void autoSubmitFailureFallsBackToMlroGateWithoutFailingThePush() {
+    void autoSubmitFailureLeavesTheDraftValidWithoutFailingThePush() {
         draftCreatesAs("VALID");
         autoSubmit(true);
         when(submissionService.submit(reportId, tenantId, null))
                 .thenThrow(new SubmissionExceptions.SubmissionTransportException("FIU down", new RuntimeException()));
-        Report draft = mock(Report.class);
-        when(reportRepository.findById(reportId)).thenReturn(Optional.of(draft));
 
         AccountingTxnResponse res = service.ingest(payload());
 
         assertThat(res.status()).isEqualTo("VALID");           // left as a draft
-        verify(notificationService).notifyDraftAwaitingReview(draft, tenantId);
+        assertThat(res.reportId()).isEqualTo(reportId);
     }
 
     @Test
-    void autoSubmitOffNotifiesMlrosAndLeavesDraftValid() {
+    void autoSubmitOffLeavesDraftValid() {
         draftCreatesAs("VALID");
         autoSubmit(false);
-        Report draft = mock(Report.class);
-        when(reportRepository.findById(reportId)).thenReturn(Optional.of(draft));
 
         AccountingTxnResponse res = service.ingest(payload());
 
         assertThat(res.status()).isEqualTo("VALID");
-        verify(notificationService).notifyDraftAwaitingReview(draft, tenantId);
         verify(submissionService, never()).submit(any(), any(), any());
     }
 
     @Test
-    void invalidDraftIsNeitherSubmittedNorAnnounced() {
+    void invalidDraftIsNotSubmitted() {
         draftCreatesAs("INVALID");
 
         AccountingTxnResponse res = service.ingest(payload());
 
         assertThat(res.status()).isEqualTo("INVALID");
-        verifyNoInteractions(submissionService, notificationService);
+        verifyNoInteractions(submissionService);
     }
 
     @Test
-    void notReportableSkipsCreateSubmitAndNotify() {
+    void notReportableSkipsCreateAndSubmit() {
         when(detector.assess(any(), eq(true)))
                 .thenReturn(new ReportabilityVerdict(false, List.of("below AED 55,000")));
 
@@ -158,7 +157,7 @@ class DefaultAccountingIngestionServiceTest {
 
         assertThat(res.reportable()).isFalse();
         assertThat(res.status()).isEqualTo(AccountingTxnResponse.NOT_REPORTABLE);
-        verifyNoInteractions(reportService, submissionService, notificationService);
+        verifyNoInteractions(reportService, submissionService);
     }
 
     @Test
@@ -172,7 +171,7 @@ class DefaultAccountingIngestionServiceTest {
 
         assertThat(res.reportId()).isEqualTo(reportId);
         assertThat(res.status()).isEqualTo("SUBMITTED");
-        verifyNoInteractions(reportService, submissionService, notificationService);
+        verifyNoInteractions(reportService, submissionService);
     }
 
     private static AccountingTxnPayload payload() {
